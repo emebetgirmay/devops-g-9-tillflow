@@ -4,29 +4,14 @@ Multi-tenant POS + M-Pesa (Daraja **sandbox**) on AWS ECS.
 
 Private group mono-repo · Terraform · GitHub Actions + CodePipeline.
 
+**Flow:** attendant records a sale → customer pays via STK Push → commission worker pays attendants via B2C (through Payments).
+
 | | |
 |---|---|
 | **Due** | Mon 21 Sep 2026, 23:59 EAT |
 | **Prefix** | `devops-g9` |
 | **Region** | `eu-north-1` ([ADR](docs/adrs/0001-aws-region.md)) |
-
-## Current gate
-
-**G0 — Decide** (D2 · 9 Sep 2026)
-
-| Evidence | Status |
-|---|---|
-| Private mono-repo scaffold | done |
-| Teammates invited (Write) | done |
-| Mentor access invited | open |
-| Ownership matrix with real names | done — [`docs/ownership.md`](docs/ownership.md) |
-| Architecture | done — [`docs/architecture.md`](docs/architecture.md) |
-| ADRs (incl. region) | done — [`docs/adrs/`](docs/adrs/) |
-| Threat model | done — [`docs/threat-model.md`](docs/threat-model.md) |
-| Draft SLOs | done — [`docs/slo-error-budgets.md`](docs/slo-error-budgets.md) |
-| `CODEOWNERS` handles updated | done |
-
-Blocked if any member has no primary area, or a critical decision has no DRI.
+| **Focus** | G1 Platform — Terraform, ECS golden path, first pipeline |
 
 ## Repository layout
 
@@ -40,7 +25,7 @@ Blocked if any member has no primary area, or a critical decision has no DRI.
 │  └─ _shared/       # adapters, OTel, Docker base
 ├─ infra/            # Terraform
 ├─ .github/workflows/# PR checks + gated apply
-├─ docs/             # ownership, architecture, ADRs, SLOs, …
+├─ docs/             # architecture, ADRs, SLOs, runbook, …
 ├─ evidence/<area>/  # runtime proof per DRI
 └─ CODEOWNERS
 ```
@@ -51,14 +36,14 @@ Blocked if any member has no primary area, or a critical decision has no DRI.
 |---|---|
 | [Architecture](docs/architecture.md) | System design and service boundaries |
 | [Ownership](docs/ownership.md) | DRIs, cross-review map, path ownership |
-| [ADRs](docs/adrs/) | Region, RDS, S3, M-Pesa adapter decisions |
+| [ADRs](docs/adrs/) | Region, RDS, S3, M-Pesa adapter |
 | [Threat model](docs/threat-model.md) | Security assumptions and mitigations |
 | [SLOs & error budgets](docs/slo-error-budgets.md) | Reliability targets |
 | [Runbook](docs/runbook.md) | Operate / recover procedures |
-| [Production readiness](docs/production-readiness.md) | Release checklist |
+| [Production readiness](docs/production-readiness.md) | Release checklist (fills through G5) |
 | [Scar log](docs/scar-log.md) | Incidents and lessons |
 
-Service and infra notes live next to the code (`services/*/README.md`, `infra/README.md`).
+Per-service and infra notes live next to the code. Gate proof goes under `evidence/` (`product-pos`, `payments-integrity`, `platform-delivery`, `reliability-ops`).
 
 ## Ownership
 
@@ -68,6 +53,8 @@ Service and infra notes live next to the code (`services/*/README.md`, `infra/RE
 | Payments + integrity | Mitingi Joy Chesang (`@chesangJ`) |
 | Platform + delivery | Emebet Girmay (`@emebetgirmay`) |
 | Reliability + operations | Emebet Girmay *(combined — see [ownership.md](docs/ownership.md))* |
+
+PRs follow `CODEOWNERS` and the cross-review map in ownership.md.
 
 ## Delivery gates
 
@@ -82,15 +69,8 @@ Service and infra notes live next to the code (`services/*/README.md`, `infra/RE
 
 ## Conventions
 
-- Deploy **only** in the assigned region; name resources `devops-g9-…`
-- Tag: `group`, `owner`, `environment`, `service`, `managed-by=terraform`, `capstone=tillflow`
+- Deploy **only** in `eu-north-1`; name resources `devops-g9-…`
+- Required tags: `group`, `owner`, `environment`, `service`, `managed-by=terraform`, `capstone=tillflow`
 - Daraja **sandbox only** — never commit live credentials or customer data
 - CI / k6 use the deterministic fake M-Pesa adapter
-
-## Bootstrap
-
-```bash
-# TBD G1: terraform init/plan, service make targets, destroy
-```
-
-Platform DRI owns destroy / rebuild evidence. Cost tracking lands at G5.
+- Bootstrap (`terraform init/plan`, service targets, destroy) lands in G1 under `infra/` — Platform DRI owns destroy/rebuild evidence; cost tracked at G5

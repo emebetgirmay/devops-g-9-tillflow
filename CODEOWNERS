@@ -1,0 +1,31 @@
+# TillFlow CODEOWNERS — devops-g9
+
+# Product + POS — Alice Moraa
+/services/web/ @Moraaalice
+/services/pos/ @Moraaalice
+/evidence/product-pos/ @Moraaalice
+
+# Payments + integrity — Mitingi Joy Chesang
+/services/payments/ @chesangJ
+/services/commission/ @chesangJ
+/services/_shared/ @chesangJ @Moraaalice
+/docs/adrs/0004-mpesa-adapter.md @chesangJ
+/evidence/payments-integrity/ @chesangJ
+
+# Platform + delivery — Emebet Girmay
+/infra/ @emebetgirmay
+/.github/ @emebetgirmay
+/docs/adrs/0001-aws-region.md @emebetgirmay
+/docs/adrs/0002-rds-postgresql.md @emebetgirmay
+/docs/adrs/0003-s3-buckets.md @emebetgirmay
+/evidence/platform-delivery/ @emebetgirmay
+
+# Reliability + operations — Emebet Girmay
+/docs/slo-error-budgets.md @emebetgirmay
+/docs/runbook.md @emebetgirmay
+/evidence/reliability-ops/ @emebetgirmay
+
+# Shared docs — all members
+/docs/ownership.md @Moraaalice @chesangJ @emebetgirmay
+/docs/architecture.md @Moraaalice @chesangJ @emebetgirmay
+/docs/threat-model.md @Moraaalice @chesangJ

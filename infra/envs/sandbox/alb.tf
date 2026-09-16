@@ -4,18 +4,20 @@ resource "aws_security_group" "alb" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "HTTP"
+    description = "HTTP smoke (G1; HTTPS/API GW later)"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Only forward to tasks inside the VPC (not the public internet).
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    description = "To POS tasks in VPC"
+    from_port   = var.pos_container_port
+    to_port     = var.pos_container_port
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
   }
 
   tags = {
@@ -37,10 +39,13 @@ resource "aws_security_group" "pos" {
     security_groups = [aws_security_group.alb.id]
   }
 
+  # Fargate pulls ECR/logs/OTLP via NAT — requires HTTPS egress.
+  # Accepted in .trivyignore for G1 (owner emebetgirmay, expires 2026-10-21).
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    description = "HTTPS via NAT (ECR, CloudWatch, APIs)"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -51,11 +56,12 @@ resource "aws_security_group" "pos" {
 }
 
 resource "aws_lb" "main" {
-  name               = "${var.name_prefix}-alb"
-  load_balancer_type = "application"
-  internal           = false
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = aws_subnet.public[*].id
+  name                       = "${var.name_prefix}-alb"
+  load_balancer_type         = "application"
+  internal                   = false
+  security_groups            = [aws_security_group.alb.id]
+  subnets                    = aws_subnet.public[*].id
+  drop_invalid_header_fields = true
 
   tags = {
     Name    = "${var.name_prefix}-alb"

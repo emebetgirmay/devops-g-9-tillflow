@@ -16,16 +16,16 @@
 
 The brief requires **four** named areas and **exactly one DRI each**, while our group has **three** members. Combining Platform + Reliability keeps a single accountable owner for infra, telemetry, pipelines, and recovery — the natural overlap. Product and Payments stay independent so money/state correctness has a dedicated defender.
 
-> Swap Product ↔ Payments between `@Moraaalice` and `@chesangJ` if the group prefers; keep Platform/Reliability with the repo/infra owner unless reassigned in a PR.
+Assignment above is **final** for the capstone unless changed in an explicit ownership PR.
 
 ## Cross-review map
 
-| Author area | Mandatory reviewer |
+| Author area | Mandatory reviewer (default) |
 |---|---|
 | Product + POS (`@Moraaalice`) | Payments + integrity (`@chesangJ`) |
 | Payments + integrity (`@chesangJ`) | Product + POS (`@Moraaalice`) |
-| Platform + delivery (`@emebetgirmay`) | Product or Payments on infra PRs |
-| Reliability + operations (`@emebetgirmay`) | Payments DRI (`@chesangJ`) on SLO/alert/runbook PRs |
+| Platform + delivery (`@emebetgirmay`) | Payments (`@chesangJ`) — default; Product (`@Moraaalice`) as backup |
+| Reliability + operations (`@emebetgirmay`) | Payments (`@chesangJ`) on SLO/alert/runbook PRs |
 
 ## Path → DRI (must match `CODEOWNERS`)
 
@@ -53,6 +53,6 @@ capstone    = tillflow
 
 | Member | Primary area(s) | Cross-reviews | Signed (date) |
 |---|---|---|---|
-| Alice Moraa (`@Moraaalice`) | Product + POS | Payments | |
-| Mitingi Joy Chesang (`@chesangJ`) | Payments + integrity | Product | |
-| Emebet Girmay (`@emebetgirmay`) | Platform + delivery; Reliability + ops | Product or Payments on respective PRs | |
+| Alice Moraa (`@Moraaalice`) | Product + POS | Payments | *(confirm in PR comment — pending)* |
+| Mitingi Joy Chesang (`@chesangJ`) | Payments + integrity | Product | *(confirm in PR comment — pending)* |
+| Emebet Girmay (`@emebetgirmay`) | Platform + delivery; Reliability + ops | Payments (default) on infra/SLO PRs | 2026-09-14 |

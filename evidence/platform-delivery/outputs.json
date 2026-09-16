@@ -1,0 +1,91 @@
+{
+  "alb_dns_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "devops-g9-alb-2139590754.eu-north-1.elb.amazonaws.com"
+  },
+  "availability_zones": {
+    "sensitive": false,
+    "type": [
+      "list",
+      "string"
+    ],
+    "value": [
+      "eu-north-1a",
+      "eu-north-1b"
+    ]
+  },
+  "ci_role_arn": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:iam::240462142849:role/devops-g9-ci-deploy"
+  },
+  "ecr_pos_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "240462142849.dkr.ecr.eu-north-1.amazonaws.com/devops-g9/pos"
+  },
+  "ecs_cluster_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "devops-g9"
+  },
+  "ecs_service_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "devops-g9-pos"
+  },
+  "health_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "http://devops-g9-alb-2139590754.eu-north-1.elb.amazonaws.com/health"
+  },
+  "pos_image": {
+    "sensitive": false,
+    "type": "string",
+    "value": "240462142849.dkr.ecr.eu-north-1.amazonaws.com/devops-g9/pos:bootstrap"
+  },
+  "private_subnet_ids": {
+    "sensitive": false,
+    "type": [
+      "tuple",
+      [
+        "string",
+        "string"
+      ]
+    ],
+    "value": [
+      "subnet-042d3c3a210381310",
+      "subnet-0ddf0a8492b187ea7"
+    ]
+  },
+  "public_subnet_ids": {
+    "sensitive": false,
+    "type": [
+      "tuple",
+      [
+        "string",
+        "string"
+      ]
+    ],
+    "value": [
+      "subnet-03c6c22471a673805",
+      "subnet-04ee097a9be8cee13"
+    ]
+  },
+  "ready_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "http://devops-g9-alb-2139590754.eu-north-1.elb.amazonaws.com/ready"
+  },
+  "version_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "http://devops-g9-alb-2139590754.eu-north-1.elb.amazonaws.com/version"
+  },
+  "vpc_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "vpc-0d13a92f32c15aa08"
+  }
+}

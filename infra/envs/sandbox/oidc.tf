@@ -1,15 +1,15 @@
 # GitHub OIDC — same lab constraints as devops-g10 (approved G1).
-# - Cannot create the account OIDC provider (data source only).
-# - Trust cannot use sub "...:*" (AWS rejects "not scoped").
-# - GitHub immutable subjects use owner@id/repo@id — match both forms.
-# - Prefer job_workflow_ref (reliable); keep exact sub allow-list too.
+# - Cannot create the account OIDC provider.
+# - Do NOT data-source the provider by URL during plan: CI role lacks
+#   iam:ListOpenIDConnectProviders. Use the well-known ARN instead.
+# - Trust cannot use sub "...:*"; use job_workflow_ref + exact subs.
 #
 # After apply, set GitHub Actions variables:
 #   AWS_CI_ROLE_ARN = (terraform output ci_role_arn)
 #   TF_STATE_BUCKET = devops-g9-tfstate-240462142849
 
-data "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"
+locals {
+  github_oidc_provider_arn = "arn:aws:iam::${local.account_id}:oidc-provider/token.actions.githubusercontent.com"
 }
 
 data "aws_iam_policy_document" "gha_trust" {
@@ -20,7 +20,7 @@ data "aws_iam_policy_document" "gha_trust" {
 
     principals {
       type        = "Federated"
-      identifiers = [data.aws_iam_openid_connect_provider.github.arn]
+      identifiers = [local.github_oidc_provider_arn]
     }
 
     condition {
@@ -48,7 +48,7 @@ data "aws_iam_policy_document" "gha_trust" {
 
     principals {
       type        = "Federated"
-      identifiers = [data.aws_iam_openid_connect_provider.github.arn]
+      identifiers = [local.github_oidc_provider_arn]
     }
 
     condition {

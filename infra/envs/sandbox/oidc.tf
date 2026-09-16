@@ -1,7 +1,10 @@
-# GitHub OIDC — use the account's existing provider (shared lab).
-# Creating oidc-provider is often denied for cohort roles; G10 pattern = data source.
+# GitHub OIDC — same lab constraints as devops-g10 (approved G1).
+# - Cannot create the account OIDC provider (data source only).
+# - Trust cannot use sub "...:*" (AWS rejects "not scoped").
+# - GitHub immutable subjects use owner@id/repo@id — match both forms.
+# - Prefer job_workflow_ref (reliable); keep exact sub allow-list too.
 #
-# After apply, set GitHub repo Actions variables:
+# After apply, set GitHub Actions variables:
 #   AWS_CI_ROLE_ARN = (terraform output ci_role_arn)
 #   TF_STATE_BUCKET = devops-g9-tfstate-240462142849
 
@@ -9,30 +12,72 @@ data "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
 }
 
-resource "aws_iam_role" "ci_deploy" {
-  name = "${var.name_prefix}-ci-deploy"
+data "aws_iam_policy_document" "gha_trust" {
+  statement {
+    sid     = "GitHubOIDCByWorkflowRef"
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Federated = data.aws_iam_openid_connect_provider.github.arn
-        }
-        Action = "sts:AssumeRoleWithWebIdentity"
-        Condition = {
-          StringEquals = {
-            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          }
-          # Allow any workflow from this repo (PR, branch, environment).
-          StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_org}/${var.github_repo}:*"
-          }
-        }
-      }
-    ]
-  })
+    principals {
+      type        = "Federated"
+      identifiers = [data.aws_iam_openid_connect_provider.github.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:job_workflow_ref"
+      values = [
+        "${var.github_org}/${var.github_repo}/.github/workflows/pr.yml@*",
+        "${var.github_org}/${var.github_repo}/.github/workflows/release.yml@*",
+        "${var.github_org}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}/.github/workflows/pr.yml@*",
+        "${var.github_org}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}/.github/workflows/release.yml@*",
+      ]
+    }
+  }
+
+  statement {
+    sid     = "GitHubOIDCBySub"
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [data.aws_iam_openid_connect_provider.github.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:sub"
+      values = [
+        "repo:${var.github_org}/${var.github_repo}:pull_request",
+        "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main",
+        "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/platform/g1-foundation",
+        "repo:${var.github_org}/${var.github_repo}:environment:sandbox",
+        "repo:${var.github_org}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:pull_request",
+        "repo:${var.github_org}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:ref:refs/heads/main",
+        "repo:${var.github_org}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:ref:refs/heads/platform/g1-foundation",
+        "repo:${var.github_org}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:environment:sandbox",
+      ]
+    }
+  }
+}
+
+resource "aws_iam_role" "ci_deploy" {
+  name               = "${var.name_prefix}-ci-deploy"
+  description        = "GitHub Actions OIDC role for terraform plan and ECR/ECS deploy."
+  assume_role_policy = data.aws_iam_policy_document.gha_trust.json
 
   tags = {
     Name    = "${var.name_prefix}-ci-deploy"
@@ -40,7 +85,6 @@ resource "aws_iam_role" "ci_deploy" {
   }
 }
 
-# Lab-scoped: enough for terraform plan/apply + ECR push + ECS update.
 resource "aws_iam_role_policy" "ci_deploy" {
   name = "${var.name_prefix}-ci-deploy"
   role = aws_iam_role.ci_deploy.id
@@ -92,7 +136,8 @@ resource "aws_iam_role_policy" "ci_deploy" {
           "xray:*",
           "cloudwatch:*",
           "application-autoscaling:*",
-          "servicediscovery:*"
+          "servicediscovery:*",
+          "sts:GetCallerIdentity"
         ]
         Resource = "*"
       },

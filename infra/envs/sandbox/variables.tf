@@ -43,3 +43,14 @@ variable "github_repo" {
   type    = string
   default = "devops-g-9-tillflow"
 }
+
+# Numeric IDs required for GitHub immutable OIDC subjects in this lab account.
+variable "github_owner_id" {
+  type    = string
+  default = "199029553"
+}
+
+variable "github_repo_id" {
+  type    = string
+  default = "1362917698"
+}

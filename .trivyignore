@@ -1,5 +1,4 @@
-# Trivy config acceptances for G1 lab (owner + expiry).
-# Format: rule-id or file:line — document why.
+# Trivy config acceptances — owner + expiry required.
+# G1: public ALB :80 for smoke until API Gateway lands (G1.5/G2).
 
-# Example (uncomment only with justification):
-# AVDxxx-YYYY  # reason — owner@ — expires 2026-10-01
+# AVDxxx patterns — Trivy may report rule IDs; keep subnet fix in code instead of ignore.

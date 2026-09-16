@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1
 FROM python:3.12-slim
 
+ARG COMMIT_SHA=local
+ENV COMMIT_SHA=${COMMIT_SHA}
+
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
 
 WORKDIR /app

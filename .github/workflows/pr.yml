@@ -14,9 +14,42 @@ permissions:
   pull-requests: read
 
 jobs:
+  gitleaks:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  iac-scan:
+    name: IaC scan (Trivy config)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy config scan (infra/)
+        env:
+          TRIVY_VERSION: "0.56.2"
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/scan" \
+            -w /scan \
+            "aquasec/trivy:${TRIVY_VERSION}" \
+            config infra/ \
+              --severity HIGH,CRITICAL \
+              --exit-code 1 \
+              --ignorefile .trivyignore \
+              --tf-exclude-downloaded-modules
+
   terraform:
     name: Terraform fmt + validate + plan
     runs-on: ubuntu-latest
+    needs: [gitleaks, iac-scan]
     defaults:
       run:
         working-directory: infra/envs/sandbox
@@ -62,6 +95,7 @@ jobs:
   pos-docker:
     name: Build POS stub image
     runs-on: ubuntu-latest
+    needs: [gitleaks]
     steps:
       - uses: actions/checkout@v4
       - name: docker build

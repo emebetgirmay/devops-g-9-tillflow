@@ -1,1 +1,1 @@
-{"service": "pos", "commit": "local", "image_digest": "unknown"}
+{"service": "pos", "commit": "05575325a3b6b5073e831341d2447fc1bf7ce224", "image_digest": "sha256:4a9042b29e3b700463ae998fb141d44360ff2adecd9356a34a960e051a4ac6b4"}

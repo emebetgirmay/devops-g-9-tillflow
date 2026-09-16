@@ -1,0 +1,5 @@
+# Trivy config acceptances for G1 lab (owner + expiry).
+# Format: rule-id or file:line — document why.
+
+# Example (uncomment only with justification):
+# AVDxxx-YYYY  # reason — owner@ — expires 2026-10-01

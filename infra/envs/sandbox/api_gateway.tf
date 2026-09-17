@@ -18,7 +18,7 @@ resource "aws_apigatewayv2_vpc_link" "app" {
 resource "aws_apigatewayv2_api" "app" {
   name          = "${var.name_prefix}-api"
   protocol_type = "HTTP"
-  description   = "TillFlow public HTTP API — routes to internal ALB via VPC Link."
+  description   = "TillFlow public HTTP API - routes to internal ALB via VPC Link."
 
   cors_configuration {
     allow_headers = ["content-type", "authorization", "x-amzn-trace-id", "idempotency-key"]

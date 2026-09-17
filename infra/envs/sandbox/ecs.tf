@@ -172,7 +172,7 @@ resource "aws_ecs_task_definition" "pos" {
         mountPoints = [
           { sourceVolume = "tmp", containerPath = "/tmp", readOnly = false },
         ]
-        # Image is FROM scratch — exec-form /healthcheck only (no shell).
+        # Image is FROM scratch - exec-form /healthcheck only (no shell).
         healthCheck = {
           command     = ["CMD", "/healthcheck"]
           interval    = 10

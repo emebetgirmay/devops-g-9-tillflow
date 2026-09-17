@@ -21,7 +21,7 @@ resource "aws_security_group" "vpclink" {
 
 resource "aws_security_group" "alb" {
   name        = "${var.name_prefix}-alb"
-  description = "Internal ALB — only from VPC Link"
+  description = "Internal ALB - only from VPC Link"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -59,7 +59,7 @@ resource "aws_security_group" "pos" {
     security_groups = [aws_security_group.alb.id]
   }
 
-  # Fargate pulls ECR/logs via NAT — requires HTTPS egress.
+  # Fargate pulls ECR/logs via NAT - requires HTTPS egress.
   # Accepted in .trivyignore (owner emebetgirmay, expires 2026-10-21).
   egress {
     description = "HTTPS via NAT (ECR, CloudWatch, APIs)"

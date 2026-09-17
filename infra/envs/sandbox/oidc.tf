@@ -1,4 +1,4 @@
-# GitHub OIDC — same lab constraints as devops-g10 (approved G1).
+# GitHub OIDC - same lab constraints as devops-g10 (approved G1).
 # - Cannot create the account OIDC provider.
 # - Do NOT data-source the provider by URL during plan: CI role lacks
 #   iam:ListOpenIDConnectProviders. Use the well-known ARN instead.

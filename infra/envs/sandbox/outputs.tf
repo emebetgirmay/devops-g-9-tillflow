@@ -30,22 +30,30 @@ output "alb_dns_name" {
   value = aws_lb.main.dns_name
 }
 
-output "health_url" {
-  value = "http://${aws_lb.main.dns_name}/health"
+output "alb_internal" {
+  value = aws_lb.main.internal
 }
 
-output "pos_image" {
-  value = local.pos_image
+output "api_gateway_url" {
+  value = aws_apigatewayv2_api.app.api_endpoint
+}
+
+output "health_url" {
+  value = "${aws_apigatewayv2_api.app.api_endpoint}/health"
+}
+
+output "ready_url" {
+  value = "${aws_apigatewayv2_api.app.api_endpoint}/ready"
+}
+
+output "version_url" {
+  value = "${aws_apigatewayv2_api.app.api_endpoint}/version"
 }
 
 output "ci_role_arn" {
   value = aws_iam_role.ci_deploy.arn
 }
 
-output "ready_url" {
-  value = "http://${aws_lb.main.dns_name}/ready"
-}
-
-output "version_url" {
-  value = "http://${aws_lb.main.dns_name}/version"
+output "pos_image" {
+  value = local.pos_image
 }

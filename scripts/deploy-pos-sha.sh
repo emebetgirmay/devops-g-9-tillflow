@@ -75,7 +75,7 @@ echo "Waiting for service stability..."
   --cluster "${CLUSTER}" \
   --services "${SERVICE}"
 
-ALB_DNS="${ALB_DNS:-devops-g9-alb-2139590754.eu-north-1.elb.amazonaws.com}"
+ALB_DNS="${API_GATEWAY_URL:-https://REPLACE-2139590754.eu-north-1.elb.amazonaws.com}"
 echo "Smoke:"
 curl -sfS "http://${ALB_DNS}/health" | tee /tmp/smoke-health.json; echo
 curl -sfS "http://${ALB_DNS}/ready" | tee /tmp/smoke-ready.json; echo

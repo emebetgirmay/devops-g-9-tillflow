@@ -21,6 +21,7 @@ terraform output -json > "${OUT}/outputs.json"
 HEALTH_URL="$(terraform output -raw health_url)"
 READY_URL="$(terraform output -raw ready_url)"
 VERSION_URL="$(terraform output -raw version_url)"
+echo "API: $(terraform output -raw api_gateway_url)"
 
 curl -sfS "${HEALTH_URL}" | tee "${OUT}/smoke-health.json"
 echo

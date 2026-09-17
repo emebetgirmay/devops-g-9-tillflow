@@ -21,6 +21,7 @@ provider "aws" {
       group       = var.name_prefix
       owner       = var.owner
       environment = var.environment
+      service     = "platform"
       managed-by  = "terraform"
       capstone    = "tillflow"
     }

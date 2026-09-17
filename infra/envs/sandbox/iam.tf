@@ -1,13 +1,3 @@
-resource "aws_cloudwatch_log_group" "pos" {
-  name              = "/${var.name_prefix}/pos"
-  retention_in_days = 14
-
-  tags = {
-    Name    = "/${var.name_prefix}/pos"
-    service = "pos"
-  }
-}
-
 resource "aws_iam_role" "pos_exec" {
   name = "${var.name_prefix}-pos-exec"
 

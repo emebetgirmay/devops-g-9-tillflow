@@ -126,12 +126,12 @@ resource "aws_iam_role_policy" "ci_deploy" {
           "ecs:*",
           "ecr:*",
           "elasticloadbalancing:*",
+          "apigateway:*",
           "logs:*",
           "iam:GetRole",
           "iam:GetRolePolicy",
           "iam:ListRolePolicies",
           "iam:ListAttachedRolePolicies",
-          "iam:PassRole",
           "ssm:*",
           "xray:*",
           "cloudwatch:*",
@@ -140,6 +140,29 @@ resource "aws_iam_role_policy" "ci_deploy" {
           "sts:GetCallerIdentity"
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "PassNamespacedRoles"
+        Effect = "Allow"
+        Action = ["iam:PassRole"]
+        Resource = [
+          "arn:aws:iam::${local.account_id}:role/${var.name_prefix}-*"
+        ]
+      },
+      {
+        Sid      = "CreateServiceLinkedRoles"
+        Effect   = "Allow"
+        Action   = ["iam:CreateServiceLinkedRole"]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "iam:AWSServiceName" = [
+              "ecs.amazonaws.com",
+              "ecs.application-autoscaling.amazonaws.com",
+              "elasticloadbalancing.amazonaws.com"
+            ]
+          }
+        }
       },
       {
         Sid    = "ManageOwnCiRole"

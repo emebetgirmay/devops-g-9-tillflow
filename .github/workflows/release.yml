@@ -1,7 +1,11 @@
 name: Release
 
-# G1: on main — build/push POS by digest, force ECS deploy, smoke /health.
-# Terraform apply on main can be added behind Environment `sandbox` once OIDC vars exist.
+# On main:
+#  1) path-detect
+#  2) terraform plan (artifact) when infra changed
+#  3) gated terraform apply of THAT plan behind environment `sandbox` (P0-4)
+#  4) build/scan/push POS by digest → ECS → mandatory smoke via API Gateway
+#  5) rollback previous task def if smoke fails (P1)
 
 on:
   push:
@@ -23,8 +27,106 @@ env:
   ECR_REPOSITORY: devops-g9/pos
 
 jobs:
+  changes:
+    name: Detect paths
+    runs-on: ubuntu-latest
+    outputs:
+      infra: ${{ steps.out.outputs.infra }}
+      pos: ${{ steps.out.outputs.pos }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            infra:
+              - 'infra/**'
+              - '.github/workflows/release.yml'
+            pos:
+              - 'services/pos/**'
+              - 'services/_shared/**'
+              - '.github/workflows/release.yml'
+      - id: out
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "infra=true" >> "$GITHUB_OUTPUT"
+            echo "pos=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "infra=${{ steps.filter.outputs.infra }}" >> "$GITHUB_OUTPUT"
+            echo "pos=${{ steps.filter.outputs.pos }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  plan:
+    name: terraform plan
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/envs/sandbox
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+      - name: terraform init
+        run: terraform init -backend-config=backend.hcl
+      - name: terraform plan
+        run: |
+          terraform plan -input=false -no-color -lock-timeout=5m -out=plan.bin
+          terraform show -no-color plan.bin | tee plan.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ github.sha }}
+          path: |
+            infra/envs/sandbox/plan.bin
+            infra/envs/sandbox/plan.txt
+          retention-days: 14
+
+  apply:
+    name: terraform apply (gated)
+    needs: [changes, plan]
+    if: needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    environment: sandbox
+    defaults:
+      run:
+        working-directory: infra/envs/sandbox
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+      - uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-${{ github.sha }}
+          path: infra/envs/sandbox
+      - name: terraform init
+        run: terraform init -backend-config=backend.hcl
+      - name: terraform apply saved plan
+        run: terraform apply -input=false -lock-timeout=5m plan.bin
+
   deploy-pos:
-    name: Build push deploy POS
+    name: Build scan push deploy POS
+    needs: [changes, apply]
+    if: |
+      always() &&
+      needs.changes.outputs.pos == 'true' &&
+      (needs.apply.result == 'success' || needs.apply.result == 'skipped')
     runs-on: ubuntu-latest
     environment: sandbox
     steps:
@@ -41,7 +143,7 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, push (SHA + digest)
+      - name: Build image
         id: build
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
@@ -49,49 +151,89 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE_URI="${REGISTRY}/${ECR_REPOSITORY}:${SHA}"
-          docker build \
-            --build-arg COMMIT_SHA="${SHA}" \
-            -t "${IMAGE_URI}" \
-            services/pos
-          docker push "${IMAGE_URI}"
-          DIGEST="$(aws ecr describe-images \
-            --repository-name "${ECR_REPOSITORY}" \
-            --image-ids imageTag="${SHA}" \
-            --query 'imageDetails[0].imageDigest' \
-            --output text)"
+          docker build --build-arg "COMMIT_SHA=${SHA}" -t "${IMAGE_URI}" services/pos
           echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Trivy image scan
+        env:
+          TRIVY_VERSION: "0.56.2"
+          IMAGE_URI: ${{ steps.build.outputs.image_uri }}
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            "aquasec/trivy:${TRIVY_VERSION}" \
+            image --severity HIGH,CRITICAL --exit-code 1 \
+            --ignore-unfixed "${IMAGE_URI}"
+
+      - name: Push or reuse immutable digest
+        id: push
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          SHA: ${{ github.sha }}
+          IMAGE_URI: ${{ steps.build.outputs.image_uri }}
+        run: |
+          set -euo pipefail
+          EXISTING="$(aws ecr describe-images \
+            --repository-name "${ECR_REPOSITORY}" \
+            --image-ids "imageTag=${SHA}" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text 2>/dev/null || true)"
+          if [ -n "${EXISTING}" ] && [ "${EXISTING}" != "None" ]; then
+            echo "Reusing existing immutable tag ${SHA} → ${EXISTING}"
+            DIGEST="${EXISTING}"
+          else
+            docker push "${IMAGE_URI}"
+            DIGEST="$(aws ecr describe-images \
+              --repository-name "${ECR_REPOSITORY}" \
+              --image-ids "imageTag=${SHA}" \
+              --query 'imageDetails[0].imageDigest' \
+              --output text)"
+          fi
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
           echo "image_digest_uri=${REGISTRY}/${ECR_REPOSITORY}@${DIGEST}" >> "$GITHUB_OUTPUT"
 
-      - name: Render task def with digest image
-        id: task
-        env:
-          IMAGE: ${{ steps.build.outputs.image_digest_uri }}
-          SHA: ${{ github.sha }}
+      - name: Capture previous task definition
+        id: prev
         run: |
-          set -euo pipefail
-          TASK_ARN=$(aws ecs describe-services \
+          PREV=$(aws ecs describe-services \
             --cluster "${ECS_CLUSTER}" \
             --services "${ECS_SERVICE}" \
             --query 'services[0].taskDefinition' \
             --output text)
-          aws ecs describe-task-definition --task-definition "${TASK_ARN}" \
+          echo "task_arn=${PREV}" >> "$GITHUB_OUTPUT"
+
+      - name: Register digest task definition
+        id: task
+        env:
+          IMAGE: ${{ steps.push.outputs.image_digest_uri }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          aws ecs describe-task-definition \
+            --task-definition "${{ steps.prev.outputs.task_arn }}" \
             --query 'taskDefinition' > task.json
           python3 - <<'PY'
           import json, os
           td = json.load(open("task.json"))
-          for k in ["taskDefinitionArn","revision","status","requiresAttributes",
-                    "compatibilities","registeredAt","registeredBy","deregisteredAt"]:
+          for k in ["taskDefinitionArn", "revision", "status", "requiresAttributes",
+                    "compatibilities", "registeredAt", "registeredBy", "deregisteredAt"]:
               td.pop(k, None)
           image = os.environ["IMAGE"]
           sha = os.environ["SHA"]
           for c in td["containerDefinitions"]:
               if c["name"] == "pos":
                   c["image"] = image
+                  c.pop("command", None)
                   env = {e["name"]: e["value"] for e in c.get("environment", [])}
                   env["COMMIT_SHA"] = sha
                   env["IMAGE_DIGEST"] = image.split("@", 1)[-1]
+                  env.setdefault("PORT", "8080")
+                  env.setdefault("OTEL_SERVICE_NAME", "pos")
+                  env.setdefault("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:4318")
+                  env.setdefault("ADOT_HEALTH_URL", "http://127.0.0.1:13133/")
                   c["environment"] = [{"name": k, "value": v} for k, v in env.items()]
+                  c["user"] = "10001:10001"
           json.dump(td, open("task-new.json", "w"))
           PY
           NEW_ARN=$(aws ecs register-task-definition \
@@ -106,27 +248,44 @@ jobs:
             --cluster "${ECS_CLUSTER}" \
             --service "${ECS_SERVICE}" \
             --task-definition "${{ steps.task.outputs.task_arn }}" \
+            --desired-count 1 \
             --force-new-deployment
 
-      - name: Wait stable + smoke
+      - name: Wait stable + mandatory smoke via API Gateway
+        id: smoke
+        env:
+          API_URL: ${{ vars.API_GATEWAY_URL }}
         run: |
           set -euo pipefail
-          aws ecs wait services-stable \
-            --cluster "${ECS_CLUSTER}" \
-            --services "${ECS_SERVICE}"
-          # Discover ALB DNS from target group / service tags would be ideal;
-          # for G1 smoke use repo variable ALB_DNS if set.
-          if [ -n "${{ vars.ALB_DNS }}" ]; then
-            curl -sfS "http://${{ vars.ALB_DNS }}/health" | tee smoke-health.json
-            curl -sfS "http://${{ vars.ALB_DNS }}/ready" | tee smoke-ready.json
-            curl -sfS "http://${{ vars.ALB_DNS }}/version" | tee smoke-version.json
-          else
-            echo "Set Actions variable ALB_DNS for automated smoke; skipping curl."
+          if [ -z "${API_URL}" ]; then
+            echo "API_GATEWAY_URL Actions variable is required for smoke"
+            exit 1
           fi
+          aws ecs wait services-stable --cluster "${ECS_CLUSTER}" --services "${ECS_SERVICE}"
+          curl -sfS "${API_URL}/health" | tee smoke-health.json
+          curl -sfS "${API_URL}/ready" | tee smoke-ready.json
+          curl -sfS "${API_URL}/version" | tee smoke-version.json
+          python3 - <<'PY'
+          import json
+          v = json.load(open("smoke-version.json"))
+          assert v.get("commit"), v
+          print("smoke ok", v)
+          PY
 
-      - name: Upload smoke
-        if: ${{ vars.ALB_DNS != '' }}
-        uses: actions/upload-artifact@v4
+      - name: Rollback previous task definition on smoke failure
+        if: failure() && steps.smoke.outcome == 'failure'
+        run: |
+          set -euo pipefail
+          echo "Smoke failed — rolling back to ${{ steps.prev.outputs.task_arn }}"
+          aws ecs update-service \
+            --cluster "${ECS_CLUSTER}" \
+            --service "${ECS_SERVICE}" \
+            --task-definition "${{ steps.prev.outputs.task_arn }}" \
+            --force-new-deployment
+          aws ecs wait services-stable --cluster "${ECS_CLUSTER}" --services "${ECS_SERVICE}"
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.smoke.outcome == 'success'
         with:
           name: smoke-${{ github.sha }}
           path: smoke-*.json

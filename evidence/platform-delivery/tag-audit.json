@@ -71,6 +71,39 @@
             ]
         },
         {
+            "ResourceARN": "arn:aws:apigateway:eu-north-1::/vpclinks/lzd7rj",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "platform"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-api-vpclink"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
             "ResourceARN": "arn:aws:ec2:eu-north-1:240462142849:internet-gateway/igw-04355809c67037de3",
             "Tags": [
                 {
@@ -129,6 +162,35 @@
                 {
                     "Key": "Name",
                     "Value": "devops-g9-vpc"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
+            "ResourceARN": "arn:aws:elasticloadbalancing:eu-north-1:240462142849:listener/app/devops-g9-alb/07fdaac8aaa247e4/4f61d45068edf6ce",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "platform"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
                 },
                 {
                     "Key": "group",
@@ -203,7 +265,7 @@
             ]
         },
         {
-            "ResourceARN": "arn:aws:ec2:eu-north-1:240462142849:security-group/sg-024558a7d7e779499",
+            "ResourceARN": "arn:aws:ec2:eu-north-1:240462142849:security-group/sg-081efdbc7349e74fb",
             "Tags": [
                 {
                     "Key": "owner",
@@ -227,7 +289,7 @@
                 },
                 {
                     "Key": "Name",
-                    "Value": "devops-g9-alb"
+                    "Value": "devops-g9-vpclink"
                 },
                 {
                     "Key": "group",
@@ -306,31 +368,6 @@
             ]
         },
         {
-            "ResourceARN": "arn:aws:elasticloadbalancing:eu-north-1:240462142849:listener/app/devops-g9-alb/64503a48ba82a188/24796585d8b945e8",
-            "Tags": [
-                {
-                    "Key": "owner",
-                    "Value": "emebetgirmay"
-                },
-                {
-                    "Key": "environment",
-                    "Value": "sandbox"
-                },
-                {
-                    "Key": "managed-by",
-                    "Value": "terraform"
-                },
-                {
-                    "Key": "capstone",
-                    "Value": "tillflow"
-                },
-                {
-                    "Key": "group",
-                    "Value": "devops-g9"
-                }
-            ]
-        },
-        {
             "ResourceARN": "arn:aws:elasticloadbalancing:eu-north-1:240462142849:targetgroup/devops-g9-pos/840db1e25f683b77",
             "Tags": [
                 {
@@ -397,6 +434,39 @@
             ]
         },
         {
+            "ResourceARN": "arn:aws:ssm:eu-north-1:240462142849:parameter/devops-g9/adot/config",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "platform"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "/devops-g9/adot/config"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
             "ResourceARN": "arn:aws:ec2:eu-north-1:240462142849:subnet/subnet-0ddf0a8492b187ea7",
             "Tags": [
                 {
@@ -434,6 +504,39 @@
             ]
         },
         {
+            "ResourceARN": "arn:aws:apigateway:eu-north-1::/apis/ewi66kqbp8",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "platform"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-api"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
             "ResourceARN": "arn:aws:ec2:eu-north-1:240462142849:subnet/subnet-042d3c3a210381310",
             "Tags": [
                 {
@@ -463,6 +566,105 @@
                 {
                     "Key": "Name",
                     "Value": "devops-g9-private-eu-north-1a"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
+            "ResourceARN": "arn:aws:elasticloadbalancing:eu-north-1:240462142849:loadbalancer/app/devops-g9-alb/07fdaac8aaa247e4",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "platform"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-alb"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
+            "ResourceARN": "arn:aws:logs:eu-north-1:240462142849:log-group:/devops-g9/adot/metrics",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "platform"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "/devops-g9/adot/metrics"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
+            "ResourceARN": "arn:aws:logs:eu-north-1:240462142849:log-group:/devops-g9/adot/pos",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "pos"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "/devops-g9/adot/pos"
                 },
                 {
                     "Key": "group",
@@ -578,6 +780,39 @@
             ]
         },
         {
+            "ResourceARN": "arn:aws:ec2:eu-north-1:240462142849:security-group/sg-0736884bdd237212d",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "platform"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-alb"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
             "ResourceARN": "arn:aws:ecs:eu-north-1:240462142849:service/devops-g9/devops-g9-pos",
             "Tags": [
                 {
@@ -644,7 +879,7 @@
             ]
         },
         {
-            "ResourceARN": "arn:aws:elasticloadbalancing:eu-north-1:240462142849:loadbalancer/app/devops-g9-alb/64503a48ba82a188",
+            "ResourceARN": "arn:aws:logs:eu-north-1:240462142849:log-group:/devops-g9/api-gateway",
             "Tags": [
                 {
                     "Key": "owner",
@@ -667,12 +902,45 @@
                     "Value": "tillflow"
                 },
                 {
+                    "Key": "Name",
+                    "Value": "/devops-g9/api-gateway"
+                },
+                {
                     "Key": "group",
                     "Value": "devops-g9"
+                }
+            ]
+        },
+        {
+            "ResourceARN": "arn:aws:apigateway:eu-north-1::/apis/ewi66kqbp8/stages/$default",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "platform"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
                 },
                 {
                     "Key": "Name",
-                    "Value": "devops-g9-alb"
+                    "Value": "devops-g9-api-default"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
                 }
             ]
         },
@@ -738,6 +1006,39 @@
                 },
                 {
                     "Key": "Name",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
+            "ResourceARN": "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:4",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "pos"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-pos"
+                },
+                {
+                    "Key": "group",
                     "Value": "devops-g9"
                 }
             ]

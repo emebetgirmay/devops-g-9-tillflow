@@ -1,0 +1,17 @@
+# Trivy config accepted risks — G1 lab (Group 9)
+# Format: rule id. Each line: justification — owner — expires YYYY-MM-DD
+
+# Public internet-facing ALB for G1 smoke until API Gateway + VPC Link.
+# AVD-AWS-0053 — public ALB intentional for G1 demo — @emebetgirmay — expires 2026-10-21
+AVD-AWS-0053
+
+# HTTP :80 without ACM cert in sandbox; TLS terminates at API GW in later gate.
+# AVD-AWS-0054 — HTTP listener G1 only — @emebetgirmay — expires 2026-10-21
+AVD-AWS-0054
+
+# POS tasks need 443 egress via NAT for ECR pull + CloudWatch/X-Ray.
+# AVD-AWS-0104 — ECS task egress 443 — @emebetgirmay — expires 2026-10-21
+AVD-AWS-0104
+
+# Alias used by some Trivy builds for the same egress check:
+aws-vpc-no-public-egress-sgr

@@ -1,0 +1,132 @@
+name: Release
+
+# G1: on main — build/push POS by digest, force ECS deploy, smoke /health.
+# Terraform apply on main can be added behind Environment `sandbox` once OIDC vars exist.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: eu-north-1
+  ECS_CLUSTER: devops-g9
+  ECS_SERVICE: devops-g9-pos
+  ECR_REPOSITORY: devops-g9/pos
+
+jobs:
+  deploy-pos:
+    name: Build push deploy POS
+    runs-on: ubuntu-latest
+    environment: sandbox
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, push (SHA + digest)
+        id: build
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          IMAGE_URI="${REGISTRY}/${ECR_REPOSITORY}:${SHA}"
+          docker build \
+            --build-arg COMMIT_SHA="${SHA}" \
+            -t "${IMAGE_URI}" \
+            services/pos
+          docker push "${IMAGE_URI}"
+          DIGEST="$(aws ecr describe-images \
+            --repository-name "${ECR_REPOSITORY}" \
+            --image-ids imageTag="${SHA}" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)"
+          echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "image_digest_uri=${REGISTRY}/${ECR_REPOSITORY}@${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Render task def with digest image
+        id: task
+        env:
+          IMAGE: ${{ steps.build.outputs.image_digest_uri }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          TASK_ARN=$(aws ecs describe-services \
+            --cluster "${ECS_CLUSTER}" \
+            --services "${ECS_SERVICE}" \
+            --query 'services[0].taskDefinition' \
+            --output text)
+          aws ecs describe-task-definition --task-definition "${TASK_ARN}" \
+            --query 'taskDefinition' > task.json
+          python3 - <<'PY'
+          import json, os
+          td = json.load(open("task.json"))
+          for k in ["taskDefinitionArn","revision","status","requiresAttributes",
+                    "compatibilities","registeredAt","registeredBy","deregisteredAt"]:
+              td.pop(k, None)
+          image = os.environ["IMAGE"]
+          sha = os.environ["SHA"]
+          for c in td["containerDefinitions"]:
+              if c["name"] == "pos":
+                  c["image"] = image
+                  env = {e["name"]: e["value"] for e in c.get("environment", [])}
+                  env["COMMIT_SHA"] = sha
+                  env["IMAGE_DIGEST"] = image.split("@", 1)[-1]
+                  c["environment"] = [{"name": k, "value": v} for k, v in env.items()]
+          json.dump(td, open("task-new.json", "w"))
+          PY
+          NEW_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://task-new.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "task_arn=${NEW_ARN}" >> "$GITHUB_OUTPUT"
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster "${ECS_CLUSTER}" \
+            --service "${ECS_SERVICE}" \
+            --task-definition "${{ steps.task.outputs.task_arn }}" \
+            --force-new-deployment
+
+      - name: Wait stable + smoke
+        run: |
+          set -euo pipefail
+          aws ecs wait services-stable \
+            --cluster "${ECS_CLUSTER}" \
+            --services "${ECS_SERVICE}"
+          # Discover ALB DNS from target group / service tags would be ideal;
+          # for G1 smoke use repo variable ALB_DNS if set.
+          if [ -n "${{ vars.ALB_DNS }}" ]; then
+            curl -sfS "http://${{ vars.ALB_DNS }}/health" | tee smoke-health.json
+            curl -sfS "http://${{ vars.ALB_DNS }}/ready" | tee smoke-ready.json
+            curl -sfS "http://${{ vars.ALB_DNS }}/version" | tee smoke-version.json
+          else
+            echo "Set Actions variable ALB_DNS for automated smoke; skipping curl."
+          fi
+
+      - name: Upload smoke
+        if: ${{ vars.ALB_DNS != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-${{ github.sha }}
+          path: smoke-*.json

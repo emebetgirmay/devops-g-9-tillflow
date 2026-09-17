@@ -1,0 +1,102 @@
+name: PR checks
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: read
+
+jobs:
+  gitleaks:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  iac-scan:
+    name: IaC scan (Trivy config)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy config scan (infra/)
+        env:
+          TRIVY_VERSION: "0.56.2"
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/scan" \
+            -w /scan \
+            "aquasec/trivy:${TRIVY_VERSION}" \
+            config infra/ \
+              --severity HIGH,CRITICAL \
+              --exit-code 1 \
+              --ignorefile .trivyignore \
+              --tf-exclude-downloaded-modules
+
+  terraform:
+    name: Terraform fmt + validate + plan
+    runs-on: ubuntu-latest
+    needs: [gitleaks, iac-scan]
+    defaults:
+      run:
+        working-directory: infra/envs/sandbox
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+
+      - name: terraform fmt
+        working-directory: infra
+        run: terraform fmt -check -recursive
+
+      - name: terraform validate
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: Configure AWS credentials (OIDC)
+        if: ${{ vars.AWS_CI_ROLE_ARN != '' && vars.TF_STATE_BUCKET != '' }}
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: eu-north-1
+          audience: sts.amazonaws.com
+
+      - name: terraform plan
+        if: ${{ vars.AWS_CI_ROLE_ARN != '' && vars.TF_STATE_BUCKET != '' }}
+        run: |
+          terraform init -backend-config=backend.hcl
+          terraform plan -input=false -no-color -out=plan.bin
+
+      - name: Upload plan
+        if: ${{ vars.AWS_CI_ROLE_ARN != '' && vars.TF_STATE_BUCKET != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: infra/envs/sandbox/plan.bin
+          retention-days: 7
+
+  pos-docker:
+    name: Build POS stub image
+    runs-on: ubuntu-latest
+    needs: [gitleaks]
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build
+        run: docker build -t local/pos:pr services/pos

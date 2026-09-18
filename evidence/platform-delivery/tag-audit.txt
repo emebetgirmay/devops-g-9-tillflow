@@ -1,4 +1,3 @@
-resources tagged capstone=tillflow: 22
-tag key coverage: {'owner': 22, 'environment': 22, 'managed-by': 22, 'tier': 4, 'service': 21, 'capstone': 22, 'Name': 21, 'group': 22, 'purpose': 2}
-MISSING REQUIRED TAGS:
-  arn:aws:elasticloadbalancing:eu-north-1:240462142849:listener/app/devops-g9-alb/64503a48ba82a188/24796585d8b945e8: service
+resources tagged capstone=tillflow: 31
+tag key coverage: {'owner': 31, 'environment': 31, 'managed-by': 31, 'tier': 4, 'service': 31, 'capstone': 31, 'Name': 30, 'group': 31, 'purpose': 2}
+all required tags present (among returned resources)

@@ -36,7 +36,3 @@ resource "aws_ecr_lifecycle_policy" "pos" {
     ]
   })
 }
-
-locals {
-  pos_image = "${aws_ecr_repository.pos.repository_url}:${var.pos_image_tag}"
-}

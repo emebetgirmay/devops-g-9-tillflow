@@ -23,15 +23,23 @@ variable "vpc_cidr" {
   default = "10.9.0.0/16"
 }
 
-variable "pos_image_tag" {
-  type        = string
-  description = "Immutable tag for pos image (use git SHA in CI; bootstrap for first push)"
-  default     = "bootstrap"
-}
-
 variable "pos_container_port" {
   type    = number
   default = 8080
+}
+
+# When null/empty, ECS uses a self-healthy busybox placeholder (P0-3).
+# Pipeline deploys real digests; service ignore_changes keeps them.
+variable "pos_image_digest" {
+  type        = string
+  description = "Optional ECR image URI including @sha256 digest for POS app"
+  default     = null
+  nullable    = true
+}
+
+variable "adot_collector_image" {
+  type    = string
+  default = "public.ecr.aws/aws-observability/aws-otel-collector:v0.43.1"
 }
 
 variable "github_org" {
@@ -44,7 +52,6 @@ variable "github_repo" {
   default = "devops-g-9-tillflow"
 }
 
-# Numeric IDs required for GitHub immutable OIDC subjects in this lab account.
 variable "github_owner_id" {
   type    = string
   default = "199029553"

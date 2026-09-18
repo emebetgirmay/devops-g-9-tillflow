@@ -1,17 +1,37 @@
-resource "aws_security_group" "alb" {
-  name        = "${var.name_prefix}-alb"
-  description = "Public ALB for G1 smoke"
+# Internal ALB + security groups (public edge is API Gateway).
+
+resource "aws_security_group" "vpclink" {
+  name        = "${var.name_prefix}-vpclink"
+  description = "ENIs for API Gateway VPC Link"
   vpc_id      = aws_vpc.main.id
 
-  ingress {
-    description = "HTTP smoke (G1; HTTPS/API GW later)"
+  egress {
+    description = "To internal ALB"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.vpc_cidr]
   }
 
-  # Only forward to tasks inside the VPC (not the public internet).
+  tags = {
+    Name    = "${var.name_prefix}-vpclink"
+    service = "platform"
+  }
+}
+
+resource "aws_security_group" "alb" {
+  name        = "${var.name_prefix}-alb"
+  description = "Internal ALB - only from VPC Link"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description     = "HTTP from VPC Link"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.vpclink.id]
+  }
+
   egress {
     description = "To POS tasks in VPC"
     from_port   = var.pos_container_port
@@ -39,8 +59,8 @@ resource "aws_security_group" "pos" {
     security_groups = [aws_security_group.alb.id]
   }
 
-  # Fargate pulls ECR/logs/OTLP via NAT — requires HTTPS egress.
-  # Accepted in .trivyignore for G1 (owner emebetgirmay, expires 2026-10-21).
+  # Fargate pulls ECR/logs via NAT - requires HTTPS egress.
+  # Accepted in .trivyignore (owner emebetgirmay, expires 2026-10-21).
   egress {
     description = "HTTPS via NAT (ECR, CloudWatch, APIs)"
     from_port   = 443
@@ -58,9 +78,9 @@ resource "aws_security_group" "pos" {
 resource "aws_lb" "main" {
   name                       = "${var.name_prefix}-alb"
   load_balancer_type         = "application"
-  internal                   = false
+  internal                   = true
   security_groups            = [aws_security_group.alb.id]
-  subnets                    = aws_subnet.public[*].id
+  subnets                    = aws_subnet.private[*].id
   drop_invalid_header_fields = true
 
   tags = {
@@ -78,7 +98,7 @@ resource "aws_lb_target_group" "pos" {
 
   health_check {
     enabled             = true
-    path                = "/health"
+    path                = "/ready"
     protocol            = "HTTP"
     matcher             = "200"
     interval            = 30

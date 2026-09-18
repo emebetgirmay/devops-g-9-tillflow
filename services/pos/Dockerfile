@@ -4,7 +4,12 @@ FROM python:3.12-slim
 ARG COMMIT_SHA=local
 ENV COMMIT_SHA=${COMMIT_SHA}
 
-RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
+# Patch OS packages so Trivy HIGH/CRITICAL on gzip/pcre2/sqlite/perl stay clear.
+RUN apt-get update \
+  && apt-get upgrade -y --no-install-recommends \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/* \
+  && useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
 
 WORKDIR /app
 COPY app.py .

@@ -100,3 +100,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: docker build
         run: docker build -t local/pos:pr services/pos
+
+      - name: Trivy image scan
+        env:
+          TRIVY_VERSION: "0.56.2"
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            "aquasec/trivy:${TRIVY_VERSION}" \
+            image --severity HIGH,CRITICAL --exit-code 1 \
+            --ignore-unfixed local/pos:pr

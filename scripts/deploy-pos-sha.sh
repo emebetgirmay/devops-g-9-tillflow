@@ -75,11 +75,16 @@ echo "Waiting for service stability..."
   --cluster "${CLUSTER}" \
   --services "${SERVICE}"
 
-ALB_DNS="${ALB_DNS:-devops-g9-alb-2139590754.eu-north-1.elb.amazonaws.com}"
-echo "Smoke:"
-curl -sfS "http://${ALB_DNS}/health" | tee /tmp/smoke-health.json; echo
-curl -sfS "http://${ALB_DNS}/ready" | tee /tmp/smoke-ready.json; echo
-curl -sfS "http://${ALB_DNS}/version" | tee /tmp/smoke-version.json; echo
+API_URL="${API_GATEWAY_URL:-}"
+if [ -z "${API_URL}" ]; then
+  echo "Set API_GATEWAY_URL to terraform output api_gateway_url (no trailing slash)" >&2
+  exit 1
+fi
+API_URL="${API_URL%/}"
+echo "Smoke via ${API_URL}:"
+curl -sfS "${API_URL}/health" | tee /tmp/smoke-health.json; echo
+curl -sfS "${API_URL}/ready" | tee /tmp/smoke-ready.json; echo
+curl -sfS "${API_URL}/version" | tee /tmp/smoke-version.json; echo
 
 echo "Deployed task: ${NEW_ARN}"
 echo "Re-run: ./evidence/platform-delivery/collect.sh"

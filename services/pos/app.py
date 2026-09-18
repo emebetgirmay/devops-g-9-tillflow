@@ -6,11 +6,22 @@ from __future__ import annotations
 import json
 import os
 import sys
+import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(os.environ.get("PORT", "8080"))
 COMMIT_SHA = os.environ.get("COMMIT_SHA", "local")
 IMAGE_DIGEST = os.environ.get("IMAGE_DIGEST", "unknown")
+ADOT_HEALTH_URL = os.environ.get("ADOT_HEALTH_URL", "http://127.0.0.1:13133/")
+
+
+def adot_healthy() -> bool:
+    try:
+        with urllib.request.urlopen(ADOT_HEALTH_URL, timeout=2) as resp:
+            return 200 <= resp.status < 300
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return False
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -30,6 +41,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"status": "ok", "service": "pos"})
             return
         if self.path == "/ready":
+            if not adot_healthy():
+                self._json(503, {"status": "not_ready", "service": "pos", "reason": "adot_unhealthy"})
+                return
             self._json(200, {"status": "ready", "service": "pos"})
             return
         if self.path == "/version":

@@ -1,2 +1,2 @@
-{'name': 'pos', 'lastStatus': 'RUNNING', 'healthStatus': 'HEALTHY', 'image': '240462142849.dkr.ecr.eu-north-1.amazonaws.com/devops-g9/pos@sha256:4a9042b29e3b700463ae998fb141d44360ff2adecd9356a34a960e051a4ac6b4'}
+{'name': 'pos', 'lastStatus': 'RUNNING', 'healthStatus': 'HEALTHY', 'image': '240462142849.dkr.ecr.eu-north-1.amazonaws.com/devops-g9/pos@sha256:e3e054825eed3c4f1c7d41d2c0ff5d0dc47af5094e8488ab416212d884af4dab'}
 {'name': 'adot-collector', 'lastStatus': 'RUNNING', 'healthStatus': 'UNKNOWN', 'image': 'public.ecr.aws/aws-observability/aws-otel-collector:v0.41.1'}

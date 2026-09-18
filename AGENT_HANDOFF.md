@@ -129,5 +129,54 @@ will show the **new commit SHA** (this fix's commit), not `3f65945` itself,
 since `3f65945` alone can never produce a healthy `adot` container — the
 pipeline bug that prevents that is only fixed in this later commit.
 
-**Outcome:** pending the user's commit + push; agent will watch the
-triggered `Release` run and recapture final evidence once it completes.
+**Outcome (round 1):** user committed (`21bdc70`) and merged PR #6
+(`4c92cea`). `Release` run `35383513989` triggered automatically on push to
+`main`, as expected:
+- `terraform plan`/`apply`: succeeded (output-only change, 0 resources).
+- `deploy-pos`: built/pushed the image, correctly resolved
+  `steps.base_arn.outputs.task_arn` = `devops-g9-pos:4` (Terraform's), and
+  registered a new revision 6 with the corrected `adot` container carried
+  forward. **`adot` reached `HEALTHY`** — confirms the round-1 fix (clone
+  from Terraform's output) was correct and sufficient for `adot`.
+- But `aws ecs wait services-stable` then failed ("Max attempts exceeded")
+  and rollback to `devops-g9-pos:5` kicked in. `aws ecs describe-tasks` on
+  the two revision-6 tasks ECS cycled through
+  (`72426beb…`, `5868154836…`) showed why: `adot: HEALTHY`, but
+  **`pos: UNHEALTHY`, exitCode 143** (ECS killed it after repeated
+  healthcheck failures).
+
+**Root cause (round 2):** `var.pos_image_digest` is never passed to
+`terraform apply` in this pipeline (no `-var` anywhere in `release.yml`), so
+`local.pos_uses_placeholder` in `ecs.tf` is always `true` at apply time —
+Terraform's tracked revision 4 always carries the **placeholder** (busybox
+`wget`) healthCheck for `pos`, never the real app's. The round-1 fix
+correctly clones container *structure* from Terraform's revision, but that
+means it also clones this wrong, placeholder-shaped `pos` healthCheck onto
+the real digest-deployed image — which doesn't have (or doesn't correctly
+serve under) `wget`, so the health check always fails.
+
+Revision 5 (the old, pre-round-1-fix chain) happened to carry the *correct*
+python-based `/ready` healthCheck for `pos` — evidently inherited from some
+earlier point in this repo's history where it was set correctly and then
+just kept getting cloned forward by the old (service-pinned) logic, by
+coincidence of history rather than by design. Nothing was ever setting it
+correctly going forward; round 1 exposed that by switching the clone base.
+
+**Fix (round 2):** `release.yml`'s "Register digest task definition" python
+patch step now explicitly overwrites `pos`'s `healthCheck` to the real-app
+form (`python -c "import urllib.request; urllib.request.urlopen(...)" ||
+exit 1` against `/ready`, matching `ecs.tf`'s non-placeholder branch
+exactly) instead of inheriting whatever the base happened to have. This is
+the correct place for it: this step is the one place that *knows* a real
+digest image is being deployed (that's its entire job), so it — not
+Terraform, which never gets told the digest — should own the healthCheck
+that matches the real image.
+
+**Live state right now:** service is stable and serving on `devops-g9-pos:5`
+(the old shape — rollback succeeded outside the pipeline's own wait-timeout
+window; `rolloutState: COMPLETED`, `runningCount: 1/1`). No outage. This
+round-2 fix is written but uncommitted — same handoff to the user as round
+1: they commit/push, the pipeline runs again automatically, agent watches
+and recaptures final evidence.
+
+**Outcome:** pending round 2 commit + push.

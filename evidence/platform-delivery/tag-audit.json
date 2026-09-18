@@ -527,12 +527,12 @@
                     "Value": "tillflow"
                 },
                 {
-                    "Key": "Name",
-                    "Value": "devops-g9-api"
-                },
-                {
                     "Key": "group",
                     "Value": "devops-g9"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-api"
                 }
             ]
         },
@@ -597,12 +597,12 @@
                     "Value": "tillflow"
                 },
                 {
-                    "Key": "Name",
-                    "Value": "devops-g9-alb"
-                },
-                {
                     "Key": "group",
                     "Value": "devops-g9"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-alb"
                 }
             ]
         },
@@ -630,12 +630,12 @@
                     "Value": "tillflow"
                 },
                 {
-                    "Key": "Name",
-                    "Value": "/devops-g9/adot/metrics"
-                },
-                {
                     "Key": "group",
                     "Value": "devops-g9"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "/devops-g9/adot/metrics"
                 }
             ]
         },
@@ -803,12 +803,12 @@
                     "Value": "tillflow"
                 },
                 {
-                    "Key": "Name",
-                    "Value": "devops-g9-alb"
-                },
-                {
                     "Key": "group",
                     "Value": "devops-g9"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-alb"
                 }
             ]
         },

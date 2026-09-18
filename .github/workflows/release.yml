@@ -196,12 +196,27 @@ jobs:
       - name: Capture previous task definition
         id: prev
         run: |
+          set -euo pipefail
           PREV=$(aws ecs describe-services \
             --cluster "${ECS_CLUSTER}" \
             --services "${ECS_SERVICE}" \
             --query 'services[0].taskDefinition' \
             --output text)
           echo "task_arn=${PREV}" >> "$GITHUB_OUTPUT"
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+
+      - name: Resolve base task definition (Terraform-managed)
+        id: base_arn
+        working-directory: infra/envs/sandbox
+        run: |
+          set -euo pipefail
+          terraform init -backend-config=backend.hcl -input=false
+          BASE=$(terraform output -raw pos_task_definition_arn)
+          echo "task_arn=${BASE}" >> "$GITHUB_OUTPUT"
 
       - name: Register digest task definition
         id: task
@@ -211,7 +226,7 @@ jobs:
         run: |
           set -euo pipefail
           aws ecs describe-task-definition \
-            --task-definition "${{ steps.prev.outputs.task_arn }}" \
+            --task-definition "${{ steps.base_arn.outputs.task_arn }}" \
             --query 'taskDefinition' > task.json
           python3 - <<'PY'
           import json, os

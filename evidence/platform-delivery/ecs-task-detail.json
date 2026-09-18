@@ -3,7 +3,7 @@
         {
             "attachments": [
                 {
-                    "id": "f4c9b0ab-1900-4c32-8368-52077422c340",
+                    "id": "408d52f9-c411-491f-bf63-74c0ed52bc58",
                     "type": "ElasticNetworkInterface",
                     "status": "ATTACHED",
                     "details": [
@@ -13,19 +13,19 @@
                         },
                         {
                             "name": "networkInterfaceId",
-                            "value": "eni-04613df3b5cd854ec"
+                            "value": "eni-0adf3b2b2348eb1a5"
                         },
                         {
                             "name": "macAddress",
-                            "value": "0a:ff:ed:e0:4e:2b"
+                            "value": "0a:ff:cc:d1:ce:c9"
                         },
                         {
                             "name": "privateDnsName",
-                            "value": "ip-10-9-149-247.eu-north-1.compute.internal"
+                            "value": "ip-10-9-154-4.eu-north-1.compute.internal"
                         },
                         {
                             "name": "privateIPv4Address",
-                            "value": "10.9.149.247"
+                            "value": "10.9.154.4"
                         }
                     ]
                 }
@@ -39,47 +39,47 @@
             "availabilityZone": "eu-north-1b",
             "clusterArn": "arn:aws:ecs:eu-north-1:240462142849:cluster/devops-g9",
             "connectivity": "CONNECTED",
-            "connectivityAt": "2026-09-17T10:31:28.992000+03:00",
+            "connectivityAt": "2026-09-18T10:07:58.670000+03:00",
             "containers": [
                 {
-                    "containerArn": "arn:aws:ecs:eu-north-1:240462142849:container/devops-g9/3621b47ad29d469a87aec34d953eaa04/a0c6995d-3fab-4718-892f-31a9863f4684",
-                    "taskArn": "arn:aws:ecs:eu-north-1:240462142849:task/devops-g9/3621b47ad29d469a87aec34d953eaa04",
-                    "name": "pos",
-                    "image": "240462142849.dkr.ecr.eu-north-1.amazonaws.com/devops-g9/pos@sha256:e3e054825eed3c4f1c7d41d2c0ff5d0dc47af5094e8488ab416212d884af4dab",
-                    "imageDigest": "sha256:e3e054825eed3c4f1c7d41d2c0ff5d0dc47af5094e8488ab416212d884af4dab",
-                    "runtimeId": "3621b47ad29d469a87aec34d953eaa04-1412654217",
-                    "lastStatus": "RUNNING",
-                    "networkBindings": [],
-                    "networkInterfaces": [
-                        {
-                            "attachmentId": "f4c9b0ab-1900-4c32-8368-52077422c340",
-                            "privateIpv4Address": "10.9.149.247"
-                        }
-                    ],
-                    "healthStatus": "HEALTHY",
-                    "cpu": "0"
-                },
-                {
-                    "containerArn": "arn:aws:ecs:eu-north-1:240462142849:container/devops-g9/3621b47ad29d469a87aec34d953eaa04/c878c23b-56cf-4e35-8ec8-bbfb09e271c4",
-                    "taskArn": "arn:aws:ecs:eu-north-1:240462142849:task/devops-g9/3621b47ad29d469a87aec34d953eaa04",
+                    "containerArn": "arn:aws:ecs:eu-north-1:240462142849:container/devops-g9/56381a7a4b9440fbb4591b18cacdcb9b/3696bdeb-002e-4363-93e9-73fa308091e8",
+                    "taskArn": "arn:aws:ecs:eu-north-1:240462142849:task/devops-g9/56381a7a4b9440fbb4591b18cacdcb9b",
                     "name": "adot-collector",
                     "image": "public.ecr.aws/aws-observability/aws-otel-collector:v0.41.1",
                     "imageDigest": "sha256:2fbdee4adde727cbab0e4f8362b4f1b32c7737053ffca7dcd7ac93f7a322f4d3",
-                    "runtimeId": "3621b47ad29d469a87aec34d953eaa04-1654308097",
+                    "runtimeId": "56381a7a4b9440fbb4591b18cacdcb9b-1654308097",
                     "lastStatus": "RUNNING",
                     "networkBindings": [],
                     "networkInterfaces": [
                         {
-                            "attachmentId": "f4c9b0ab-1900-4c32-8368-52077422c340",
-                            "privateIpv4Address": "10.9.149.247"
+                            "attachmentId": "408d52f9-c411-491f-bf63-74c0ed52bc58",
+                            "privateIpv4Address": "10.9.154.4"
                         }
                     ],
                     "healthStatus": "UNKNOWN",
                     "cpu": "0"
+                },
+                {
+                    "containerArn": "arn:aws:ecs:eu-north-1:240462142849:container/devops-g9/56381a7a4b9440fbb4591b18cacdcb9b/b1ea1c3a-18f3-4953-b4d3-7be7eece9581",
+                    "taskArn": "arn:aws:ecs:eu-north-1:240462142849:task/devops-g9/56381a7a4b9440fbb4591b18cacdcb9b",
+                    "name": "pos",
+                    "image": "240462142849.dkr.ecr.eu-north-1.amazonaws.com/devops-g9/pos@sha256:4dd4ea69087b4605d6c7b05e2c4b769205b67808d3a8453a0da92708931cb816",
+                    "imageDigest": "sha256:4dd4ea69087b4605d6c7b05e2c4b769205b67808d3a8453a0da92708931cb816",
+                    "runtimeId": "56381a7a4b9440fbb4591b18cacdcb9b-1412654217",
+                    "lastStatus": "RUNNING",
+                    "networkBindings": [],
+                    "networkInterfaces": [
+                        {
+                            "attachmentId": "408d52f9-c411-491f-bf63-74c0ed52bc58",
+                            "privateIpv4Address": "10.9.154.4"
+                        }
+                    ],
+                    "healthStatus": "HEALTHY",
+                    "cpu": "0"
                 }
             ],
             "cpu": "256",
-            "createdAt": "2026-09-17T10:31:25.695000+03:00",
+            "createdAt": "2026-09-18T10:07:54.978000+03:00",
             "desiredStatus": "RUNNING",
             "enableExecuteCommand": false,
             "group": "service:devops-g9-pos",
@@ -100,13 +100,13 @@
             },
             "platformVersion": "1.4.0",
             "platformFamily": "Linux",
-            "pullStartedAt": "2026-09-17T10:31:40.094000+03:00",
-            "pullStoppedAt": "2026-09-17T10:31:45.024000+03:00",
-            "startedAt": "2026-09-17T10:31:58.735000+03:00",
-            "startedBy": "ecs-svc/4035069430326908709",
+            "pullStartedAt": "2026-09-18T10:08:05.737000+03:00",
+            "pullStoppedAt": "2026-09-18T10:08:10.864000+03:00",
+            "startedAt": "2026-09-18T10:08:22.588000+03:00",
+            "startedBy": "ecs-svc/3468825343560096387",
             "tags": [],
-            "taskArn": "arn:aws:ecs:eu-north-1:240462142849:task/devops-g9/3621b47ad29d469a87aec34d953eaa04",
-            "taskDefinitionArn": "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:3",
+            "taskArn": "arn:aws:ecs:eu-north-1:240462142849:task/devops-g9/56381a7a4b9440fbb4591b18cacdcb9b",
+            "taskDefinitionArn": "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:5",
             "version": 6,
             "ephemeralStorage": {
                 "sizeInGiB": 20

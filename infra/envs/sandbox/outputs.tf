@@ -57,3 +57,7 @@ output "ci_role_arn" {
 output "pos_image" {
   value = local.pos_image
 }
+
+output "pos_task_definition_arn" {
+  value = aws_ecs_task_definition.pos.arn
+}

@@ -249,6 +249,21 @@ jobs:
                   env.setdefault("ADOT_HEALTH_URL", "http://127.0.0.1:13133/")
                   c["environment"] = [{"name": k, "value": v} for k, v in env.items()]
                   c["user"] = "10001:10001"
+                  # Cloned base is Terraform's placeholder-shaped definition
+                  # (pos_image_digest is never passed to terraform apply, so
+                  # ecs.tf always registers the busybox/wget healthCheck).
+                  # This is a real digest deploy, so always use the real
+                  # app's healthCheck, matching ecs.tf's non-placeholder
+                  # branch — the base's healthCheck command must not be
+                  # inherited as-is.
+                  port = env["PORT"]
+                  c["healthCheck"] = {
+                      "command": ["CMD-SHELL", f"python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:{port}/ready')\" || exit 1"],
+                      "interval": 15,
+                      "timeout": 5,
+                      "retries": 3,
+                      "startPeriod": 20,
+                  }
           json.dump(td, open("task-new.json", "w"))
           PY
           NEW_ARN=$(aws ecs register-task-definition \

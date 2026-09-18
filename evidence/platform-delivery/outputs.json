@@ -55,6 +55,11 @@
     "type": "string",
     "value": "public.ecr.aws/docker/library/busybox:1.37.0"
   },
+  "pos_task_definition_arn": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:4"
+  },
   "private_subnet_ids": {
     "sensitive": false,
     "type": [

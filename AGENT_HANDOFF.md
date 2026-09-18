@@ -179,4 +179,24 @@ round-2 fix is written but uncommitted — same handoff to the user as round
 1: they commit/push, the pipeline runs again automatically, agent watches
 and recaptures final evidence.
 
-**Outcome:** pending round 2 commit + push.
+**Outcome (round 2):** user committed (`5039683`) and merged PR #7
+(`0d7e057`). `Release` run `35388373965` triggered automatically, all jobs
+succeeded including `deploy-pos` (3m44s — stabilized cleanly, no rollback).
+
+**Final verification (live, post-merge):**
+- `aws ecs describe-tasks` on the running task
+  (`devops-g9-pos:7`): `healthStatus: HEALTHY` overall;
+  `pos: HEALTHY` (image digest `sha256:90041c4e…`), `adot: HEALTHY`
+  (`aws-otel-collector:v0.43.1`).
+- `evidence/platform-delivery/` recaptured via `collect.sh` against this
+  live state: `smoke-version.json` → `commit: 0d7e05744dbefcf63f666643c263fdbf853e84a8`
+  (this PR's merge commit); `smoke-health.json`/`smoke-ready.json` both ok;
+  `ecs-containers.txt` shows both `pos` and `adot` `HEALTHY`.
+
+This closes out the trainor's original feedback: the G1 fix is now
+demonstrably live (not just landed in code), through two follow-up rounds
+that fixed real pipeline bugs the original feedback's investigation
+surfaced (Terraform's ADOT fix never being adopted by the service; then the
+digest-deploy step inheriting the wrong, placeholder-shaped `pos`
+healthCheck). Evidence files are staged, uncommitted — left for the user to
+review and commit/push per their stated preference.

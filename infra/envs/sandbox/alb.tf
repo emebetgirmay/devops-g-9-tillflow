@@ -33,17 +33,9 @@ resource "aws_security_group" "alb" {
   }
 
   egress {
-    description = "To POS tasks in VPC"
+    description = "To ECS tasks in VPC (POS and Payments)"
     from_port   = var.pos_container_port
     to_port     = var.pos_container_port
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  egress {
-    description = "To Payments tasks in VPC"
-    from_port   = var.payments_container_port
-    to_port     = var.payments_container_port
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }

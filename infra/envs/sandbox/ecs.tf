@@ -283,7 +283,9 @@ resource "aws_ecs_task_definition" "payments" {
           name                   = "payments"
           image                  = local.payments_image
           essential              = true
-          readonlyRootFilesystem = true
+          # SQLite needs a writable path; Fargate empty volumes are root-owned, so
+          # keep the root FS writable and use /app/data from the image (uid 10001).
+          readonlyRootFilesystem = false
           user                   = local.payments_uses_placeholder ? "0:0" : "10001:10001"
           portMappings = [
             {
@@ -293,7 +295,7 @@ resource "aws_ecs_task_definition" "payments" {
           ]
           environment = [
             { name = "PORT", value = tostring(var.payments_container_port) },
-            { name = "DATABASE_URL", value = "sqlite:////tmp/payments.db" },
+            { name = "DATABASE_URL", value = "sqlite:////app/data/payments.db" },
             { name = "MPESA_ADAPTER", value = "fake" },
             { name = "OTEL_SERVICE_NAME", value = "payments" },
             { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = "http://127.0.0.1:4318" },

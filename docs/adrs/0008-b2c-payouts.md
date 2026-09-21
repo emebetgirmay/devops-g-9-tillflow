@@ -1,7 +1,8 @@
 # ADR 0008 - B2C commission payouts
 
-- **Status:** Proposed (draft for G2)
+- **Status:** Accepted (G2)
 - **Date:** 2026-09-21
+- **Accepted:** 2026-09-21 (G2; approved by `@Moraaalice` and `@emebetgirmay`)
 - **DRI:** Payments + integrity, Mitingi Joy Chesang (`@chesangJ`)
 - **Related:** [ADR 0004](0004-mpesa-adapter.md) (adapter port and sandbox boundary), [ADR 0006](0006-idempotency-replay.md) (keys, timeout and replay rules this ADR reuses), [ADR 0002](0002-rds-postgresql.md) (PostgreSQL), [ADR 0007](0007-multi-tenancy.md) (tenant scope), [architecture](../architecture.md), [SLOs](../slo-error-budgets.md), [threat model](../threat-model.md)
 - **Proof:** invariant tests in Commission and Payments driven by the FakeAdapter in `services/_shared/`
@@ -38,7 +39,7 @@ Documented facts this ADR relies on (B2C page unless noted):
 | Sending money: disbursement state, adapter call, provider references, reconciliation | Payments | Decide amounts or eligibility |
 | Provider access | Payments adapter only ([ADR 0004](0004-mpesa-adapter.md)) | Be reachable from Commission or CI |
 
-Commission asks Payments to disburse through `POST /v1/disbursements` with an `Idempotency-Key`. Commission advances a payout to paid or failed only from the disbursement status Payments reports, never by inference.
+Commission asks Payments to disburse through `POST /payouts` with an `Idempotency-Key`. Commission advances a payout to paid or failed only from the disbursement status Payments reports, never by inference.
 
 ### 2. Eligibility and the payout ledger
 
@@ -138,10 +139,10 @@ The pages describe these as declines by M-PESA, but do not state that no money c
 ### 6. Money safety controls
 
 - **Credentials.** A dedicated API user with only the B2C initiator role, in its own secret, used only by the Payments adapter. The security credential is produced inside the adapter with the environment's certificate and may be reused across requests. Nothing in Commission, CI, k6, fixtures or git. Repeated bad credentials lock the API user (code 8006) and stop every payout until the Business Administrator unlocks it, so a `CONFIGURATION` result (codes 21, 2001, 2028, 8006) trips the kill switch automatically and nothing retries.
-- **Ceilings and provider limits.** Per-payout and per-run maximums, set in configuration and never above the provider's KSh 250,000 per-transaction maximum. A payout below the KSh 10 minimum is carried forward, not sent. A payout above a ceiling is held for review and not split automatically in G2.
+- **Ceilings and provider limits.** Per-payout and per-run maximums, set in configuration and never above the provider's KSh 250,000 per-transaction maximum. Amounts must be whole shillings (decimals are unverified) and at least KSh 10. Payments answers 422 for a payout outside the limits and creates nothing; Commission carries a below-minimum amount forward, and an above-ceiling payout is held for review, not split automatically in G2.
 - **No undo, no provider approval.** B2C cannot be reversed with the API, and API-initiated B2C needs no manual approval. A wrong payout can only be recovered by hand in the M-PESA portal, so the controls here (snapshot, ceilings, kill switch, no resubmission) are the only protection before money leaves.
 - **Sensitive results.** A success result carries the recipient's name and phone and the B2C account balances. Store only the receipt, amount, time and our ids; keep names, phone numbers and balances out of logs and raw-result storage, or mask them, with a short retention.
-- **Kill switch.** A Payments configuration flag stops all sends without a deploy. Disbursements created while it is off stay `CREATED` and are picked up when it is re-enabled, never re-sent from scratch (their keys are unchanged).
+- **Kill switch.** A flag stops all sends without a deploy: `POST /payouts` answers 503 `payouts_disabled` and creates nothing while it is off, so nothing is queued or half-sent. A `CONFIGURATION` result or insufficient funds sets it automatically; an operator sets it back in the database.
 - **No manual double B2C.** The runbook already says so; operators resolve `NEEDS_REVIEW` with evidence, never by re-sending.
 - **Funding.** B2C debits the **Utility** account, not the Working account. A code 1 result is a definitive `FAILED` for that payout; the run then pauses the remaining sends and alerts instead of sending the rest into the same failure. Nothing retries it in a loop. Moving money to the Utility account is an operational step (portal, B2B or Top Up API), outside G2.
 
@@ -180,6 +181,19 @@ Real PostgreSQL, FakeAdapter only.
 | P17 | Result code table | Codes outside the table stay `UNKNOWN`; the STK table is not used for B2C |
 
 **k6 outline (FakeAdapter only):** seed many tenants and attendants with confirmed sales; run the close repeatedly and in parallel; inject each fake scenario; then assert by SQL that no payout row has more than one non-`FAILED` disbursement, no sale appears twice, and no `provider_ref` has more than one ledger entry. Thresholds come from the SLO doc once smoke results exist.
+
+### Implementation status (G2)
+
+Built in `services/payments/` (`core/payouts.py`) over the FakeAdapter, and `services/commission/worker.py`. See the Payments README for the API.
+
+- **Built and tested:** the `POST /payouts` idempotency contract, the server-derived `payout_key` (callers cannot send one), the deterministic 20-character `OriginatorConversationID` stored before the provider call, one live disbursement per payout key, the disbursement state machine, the documented B2C result codes and their fail-safe gate, result callbacks (replay, out-of-order, contradiction raising a critical anomaly), the duplicate-originator answer treated as `UNKNOWN`, reconcile ending in `NEEDS_REVIEW`, provider limits, and the kill switch. Tests are in `services/payments/tests/test_payouts.py` and `services/commission/tests/test_worker.py`; the run-level invariants P1, P2, P4, P5, P6, P8, P9, P12, P14, P15 and P17 are covered there.
+- **Not built yet:**
+  - the Commission `payout_ledger` and `payout_items` tables and the recipient snapshot (section 2), so P3, P10, P11 and P13 have no test; the worker currently reads a stubbed CSV;
+  - handling of the `QueueTimeOutURL` timeout notification (the fake does not emit one, so P7 is untested);
+  - the asynchronous Transaction Status reconcile (the fake's status query is synchronous);
+  - B2C Hakikisha, the funding alarm, and the sandbox contract test that closes open question 1;
+  - k6 runs against the fake.
+- **Differences from the wording above:** the endpoint is `/payouts`, an over-limit payout is rejected with 422 instead of being held in Payments, the whole-shilling rule was added, the kill switch answers 503 instead of queueing `CREATED` rows, and the callback audit stores a hash and summary rather than results.
 
 ## Consequences
 

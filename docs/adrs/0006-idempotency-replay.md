@@ -1,9 +1,10 @@
 # ADR 0006 — Idempotency and callback replay safety
 
-- **Status:** Proposed (G0 follow-up — for G2)
+- **Status:** Accepted (G2)
 - **Date:** 2026-09-21
+- **Accepted:** 2026-09-21 (G2; approved by `@Moraaalice` and `@emebetgirmay`)
 - **DRI:** Payments + integrity — Mitingi Joy Chesang (`@chesangJ`)
-- **Related:** [ADR 0004](0004-mpesa-adapter.md) (adapter port and sandbox boundary), [ADR 0002](0002-rds-postgresql.md) (PostgreSQL, per-service schemas), [ADR 0007](0007-multi-tenancy.md) (tenant scope), [threat model](../threat-model.md)
+- **Related:** [ADR 0004](0004-mpesa-adapter.md) (adapter port and sandbox boundary), [ADR 0002](0002-rds-postgresql.md) (PostgreSQL, per-service schemas), [ADR 0007](0007-multi-tenancy.md) (tenant scope), [ADR 0008](0008-b2c-payouts.md) (B2C payouts reuse these rules), [threat model](../threat-model.md)
 - **Proof:** invariant tests in Payments driven by the FakeAdapter in `services/_shared/`
 
 ## Context
@@ -193,6 +194,37 @@ All tests use the FakeAdapter and a real PostgreSQL (unique constraints and row 
 - Scenario D, timeout then late success: no callback, then a late callback and reconcile.
 - Checks and thresholds: every replay response is 2xx; after the run, `count(ledger credits) == count(SUCCEEDED payments)` and no `provider_ref` has more than one credit (SQL assertion); zero payments `DECLINED` from a timeout scenario; p95 latency thresholds are set from the SLO doc once smoke results exist.
 
+### Implementation (G2)
+
+Implemented in `services/payments/` (`core/states.py`, `core/store.py`, `core/payments.py`) over the FakeAdapter, with sqlite storage until RDS lands ([ADR 0002](0002-rds-postgresql.md)); a Postgres `DATABASE_URL` is refused at startup. The invariants in section 5 are covered by the tests in `services/payments/tests/test_payments.py` (and the shared code tests in `services/_shared/tests/`):
+
+| Invariant | Test |
+|---|---|
+| I1 replay gives one ledger row | `test_replays_are_2xx_with_no_second_ledger_entry_event_or_notification` |
+| I2 same key, different payload | `test_same_key_different_payload_is_a_conflict_and_sends_nothing` |
+| I3 same key, same payload | `test_replay_returns_the_original_response_with_200_and_no_second_charge` |
+| I4 timeout then late success, one credit | `test_a_late_success_after_a_timeout_credits_exactly_once`, `test_reconcile_and_a_late_callback_together_credit_once` |
+| I5 concurrent duplicates, one charge | `test_concurrent_duplicate_requests_produce_one_charge` |
+| I6 timeout is never a decline | `test_no_callback_becomes_unknown_never_a_decline_and_is_escalated_not_failed` |
+| I7 terminal states immutable | `test_no_outcome_changes_a_terminal_payment`, `test_terminal_states_have_no_way_out` |
+| I8 contradicting callback | `test_success_then_a_stale_failure_stays_succeeded`, `test_failure_then_a_success_stays_declined_and_is_not_credited` |
+| I9 unverified code fails safe | `test_unverified_result_codes_never_become_terminal`, and `test_only_verified_codes_are_in_the_table` (shared) |
+| I10 max window escalates | `test_no_callback_becomes_unknown_never_a_decline_and_is_escalated_not_failed` |
+| I11 initiate timeout not retried | `test_an_initiate_timeout_is_unknown_and_never_retried` |
+| I12 one live payment per sale | `test_only_one_live_payment_per_sale`, `test_a_declined_payment_frees_the_sale` |
+
+`evidence/payments-integrity/collect.sh` runs the main invariants against the running service. The k6 scenarios are outlined but not run yet.
+
+Where the implementation differs from or adds to the text above:
+
+- **Callback audit stores a hash and the parsed summary, not the body,** so names, phone numbers and balances never reach the database (the ADR said a masked body).
+- **Backoff has no jitter,** to keep runs deterministic.
+- **An authentic but malformed callback answers 400** and is logged as an anomaly (the ADR was silent).
+- **The unmatched inbox stores the callback but does not yet propose candidate payments** for review.
+- **The source allowlist checks the socket peer only.** Where it is enforced behind a proxy is open question 10.
+- **Expired idempotency rows are kept;** the purge job is not written.
+- **Payment amount** is an integer in minor units named `amount` in the request.
+
 ## Consequences
 
 - **Correct by construction.** Duplicate charge and duplicate credit are prevented by DB constraints, not only by code review.
@@ -225,7 +257,7 @@ All tests use the FakeAdapter and a real PostgreSQL (unique constraints and row 
 | 2 | Partly closed 2026-09-21: `ResultCode` 0 and 1032, the callback body, the query fields, and `CheckoutRequestID` on all callbacks are verified against the STK Push and STK Query pages. Still unverified because neither page lists them: codes 1 (insufficient funds), 2001 (wrong PIN) and 1037 (prompt not answered), which resolve to `UNKNOWN` until verified, and the query response while a request is still processing | `@chesangJ` |
 | 3 | Closed per documentation 2026-09-21: the query needs `CheckoutRequestID` and callbacks echo no caller-supplied reference, so an initiate-timeout payment has no safe automatic match and goes to manual review. Re-confirm against a real sandbox callback during G2 | `@chesangJ` |
 | 4 | Partly closed 2026-09-21: the Reversals API is documented (asynchronous; keyed by the receipt number; own callback and codes) and the compensating-entry model above follows from it. Recorded facts: it needs an initiator username and an encrypted security credential for an API user with the Org Reversals Initiator role; results go to a `ResultURL` and timeouts to a `QueueTimeOutURL`; result code `R000001` means already reversed, so the provider itself rejects a second reversal of the same receipt. Still to decide: whether reversals are in scope for G2, amend ADR 0004 to add a reversal method to the port, who may authorise one (the credential can move money back, so it stays inside the Payments adapter only, per the threat model), and a reversal-specific result-code table (its `ResultCode` is documented as a string, for example `R000002`, unlike the numeric STK code) | `@chesangJ` |
-| 5 | Drafted in [ADR 0008](0008-b2c-payouts.md) (B2C payout state machine, ledger constraints, keys, reconciliation). Remaining B2C verification items are tracked there | `@chesangJ` |
+| 5 | Decided in [ADR 0008](0008-b2c-payouts.md) (B2C payout state machine, ledger constraints, keys, reconciliation). Remaining B2C verification items are tracked there | `@chesangJ` |
 | 6 | Payments request contract carries `sale_id`, and POS guarantees it is unique per sale | `@Moraaalice` |
 | 7 | Tenant scoping of keys depends on ADR 0007 landing | `@Moraaalice` |
 | 8 | Align the 60 s Payments SLO with `UNKNOWN` resolution time | `@emebetgirmay` |

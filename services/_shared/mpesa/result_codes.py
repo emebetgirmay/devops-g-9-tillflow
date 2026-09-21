@@ -4,6 +4,9 @@ Verified 2026-09-21 against the Daraja M-Pesa Express and Express Query pages (c
 query responses): 0 (success) and 1032 (cancelled by the user). Codes 1, 2001 and 1037 appear on
 neither page and are still UNVERIFIED: verify against Daraja docs before G2 relies on them.
 Anything not listed is UNKNOWN by design (fail safe, never a decline).
+
+STK collection path only. Result codes are API-specific: the Daraja Reversals page gives codes 1 and
+2001 different meanings, so never reuse this table for reversals, B2C or other APIs.
 """
 
 from __future__ import annotations

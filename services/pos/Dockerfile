@@ -12,10 +12,14 @@ RUN apt-get update \
   && useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
 
 WORKDIR /app
-COPY app.py .
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app ./app
 
 USER 10001:10001
 EXPOSE 8080
 
 ENV PORT=8080
-CMD ["python", "-u", "app.py"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]

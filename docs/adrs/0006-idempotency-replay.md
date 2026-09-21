@@ -41,7 +41,7 @@ Transitions (every row is the only way to make that move):
 | 3 | `CREATED` | Adapter timeout or network error after the attempt began, or worker crash (swept) | `UNKNOWN` | Schedule reconcile; **no retry of initiate** |
 | 4 | `PENDING` | Callback: success | `SUCCEEDED` | Ledger credit + outbox event, one transaction |
 | 5 | `PENDING` | Callback: definitive decline | `DECLINED` | Store reason and raw code; outbox event |
-| 6 | `PENDING` | Callback: prompt not answered / unreachable | `EXPIRED` | Outbox event |
+| 6 | `PENDING` | Callback: prompt not answered / unreachable (only once such a code is verified; none is today) | `EXPIRED` | Outbox event |
 | 7 | `PENDING` | Callback deadline passed with no callback | `UNKNOWN` | Schedule reconcile |
 | 8 | `UNKNOWN` | Status query or late callback: success | `SUCCEEDED` | Same ledger path as row 4 |
 | 9 | `UNKNOWN` | Status query or late callback: definitive decline | `DECLINED` | As row 5 |
@@ -100,7 +100,7 @@ Transitions are enforced in code by a single transition function backed by this 
 A missing or late callback, a network timeout, or an adapter timeout moves the payment to `UNKNOWN` (rows 3 and 7). It is never recorded as `DECLINED`, and it never triggers a retry of the initiate call, because that could charge the customer twice.
 
 - `DECLINED` is written only from a provider-authoritative result code. Our own timeouts are observations, not provider answers.
-- **Fail-safe mapping.** A provider code we do not recognise maps to `UNKNOWN`, not `DECLINED`.
+- **Fail-safe mapping.** Only codes verified against Daraja documentation produce a terminal outcome. Any other code, including the unverified candidates in the mapping table, maps to `UNKNOWN`, never to `DECLINED` or `EXPIRED`. A wrong terminal outcome is worse than waiting: it blocks a later success credit (terminal states are immutable) and only raises an alert.
 - **Adapter contract** ([ADR 0004](0004-mpesa-adapter.md)). The port distinguishes a definitive decline from an unknown outcome as different error types, so callers cannot conflate them.
 
 **Reconciliation path.** A reconcile job calls the adapter's status query by `provider_ref` (never Daraja directly).
@@ -114,15 +114,15 @@ A missing or late callback, a network timeout, or an adapter timeout moves the p
 
 An "in progress" or errored query response is inconclusive (row 11), not a decline.
 
-**Provider result mapping.** Partially verified on 2026-09-21 against saved copies of the Daraja portal pages for M-Pesa Express (STK Push, including its callback section) and M-Pesa Express Query. Both document `ResultCode` 0 (success) and 1032 (request cancelled by the user) and state that any other `ResultCode` means an error or failure. Codes 1, 2001 and 1037 appear on neither page and stay marked to verify before G2 relies on them. Codes not listed are `UNKNOWN`. **Result codes are specific to each API and must never share one mapping.** The Reversals page lists code 1 as "The balance is insufficient" (the short code lacks money) and 2001 as "The initiator information is invalid", which differ from the STK meanings in this table, so that page does not verify them.
+**Provider result mapping.** Partially verified on 2026-09-21 against saved copies of the Daraja portal pages for M-Pesa Express (STK Push, including its callback section) and M-Pesa Express Query. Both document `ResultCode` 0 (success) and 1032 (request cancelled by the user) and state that any other `ResultCode` means an error or failure. Codes 1, 2001 and 1037 appear on neither page, so they are **candidates only**: until verified they resolve to `UNKNOWN` (reconcile, then manual review), not to the intended outcome shown for them below, which applies once a code is verified from Daraja docs or a sandbox contract test. The adapter's mapping table holds only verified codes, and a test fails if a code is added without updating this ADR. Codes not listed are `UNKNOWN`. **Result codes are specific to each API and must never share one mapping.** The Reversals page lists code 1 as "The balance is insufficient" (the short code lacks money) and 2001 as "The initiator information is invalid", which differ from the STK meanings in this table, so that page does not verify them.
 
 | Provider signal | Outcome | Payment result | Status |
 |---|---|---|---|
 | `ResultCode` 0 | Success | `SUCCEEDED` | Verified in callbacks and query responses |
-| `ResultCode` 1 | Insufficient funds | `DECLINED` (`INSUFFICIENT_FUNDS`) | Verify against Daraja docs |
+| `ResultCode` 1 | Insufficient funds | `UNKNOWN` now; intended `DECLINED` (`INSUFFICIENT_FUNDS`) once verified | Unverified candidate |
 | `ResultCode` 1032 | Cancelled by user | `DECLINED` (`USER_CANCELLED`) | Verified in callbacks and query responses (documented text: "Request cancelled by user") |
-| `ResultCode` 2001 | Wrong PIN | `DECLINED` (`WRONG_PIN`) | Verify against Daraja docs |
-| `ResultCode` 1037 | Prompt not answered / handset unreachable | `EXPIRED` | Verify against Daraja docs, including that it guarantees no charge |
+| `ResultCode` 2001 | Wrong PIN | `UNKNOWN` now; intended `DECLINED` (`WRONG_PIN`) once verified | Unverified candidate |
+| `ResultCode` 1037 | Prompt not answered / handset unreachable | `UNKNOWN` now; intended `EXPIRED` once verified | Unverified candidate; verification must also show it guarantees no charge |
 | Synchronous error response to the initiate call with a documented client error: `400.002.02`, `404.001.01`, `404.001.03`, `405.001`, `500.001.1001` (merchant does not exist, wrong credentials, or unable to lock subscriber) | Rejected, this request sent no prompt | `DECLINED` (`REJECTED_AT_INITIATION`) | Error codes verified as documented; the page does not say each guarantees no prompt, so confirm |
 | Synchronous `500.003.1001` (internal server error), `500.003.02` (system busy or spike arrest), `500.003.03` (quota), or any 5xx with no error body | Unknown | `UNKNOWN` | Fail-safe: for busy and spike arrest the page says only "retry after a short wait", which we do not assume means unprocessed |
 | No callback, HTTP timeout, 5xx, network error, adapter timeout | Unknown | `UNKNOWN` | By design, not a provider code |
@@ -180,7 +180,7 @@ All tests use the FakeAdapter and a real PostgreSQL (unique constraints and row 
 | I6 | Timeout is never a decline | Property test over every timeout path (initiate timeout, no callback, query error): state is never `DECLINED` |
 | I7 | Terminal states are immutable | For every terminal state and every event, state is unchanged and an `illegal_transition` row is written |
 | I8 | Contradicting callback | Success then stale failure: stays `SUCCEEDED`. Failure then success: stays `DECLINED`, high-severity alert raised |
-| I9 | Unknown result code fails safe | Unrecognised code leaves the payment `UNKNOWN` |
+| I9 | Unverified or unknown result code fails safe | Codes 1, 2001, 1037, unrecognised numbers and malformed values leave the payment `UNKNOWN`; only 0 and 1032 are terminal; a test fails if the verified set changes without this ADR |
 | I10 | Max window escalates | With the clock advanced past the window, payment is `NEEDS_REVIEW`, not `DECLINED` |
 | I11 | Initiate timeout is not retried | Initiate timeout followed by sweeper and reconciler: adapter initiate count stays 1 |
 | I12 | Second live payment for a sale rejected | New key, same sale, first payment non-terminal or `SUCCEEDED`: rejected |
@@ -222,7 +222,7 @@ All tests use the FakeAdapter and a real PostgreSQL (unique constraints and row 
 | # | Question | Owner |
 |---|---|---|
 | 1 | Partly closed 2026-09-21: the documented control is a source-IP allowlist (12 gateway addresses on the Getting Started page); no callback signature is documented. Still to decide: whether to add an unguessable callback path, and to confirm with Safaricom that the list is current and complete. The [threat model](../threat-model.md) risk row still says TBD and needs updating (its owners are Product and Payments). Target G2 | `@chesangJ` |
-| 2 | Partly closed 2026-09-21: `ResultCode` 0 and 1032, the callback body, the query fields, and `CheckoutRequestID` on all callbacks are verified against the STK Push and STK Query pages. Still unverified because neither page lists them: codes 1 (insufficient funds), 2001 (wrong PIN) and 1037 (prompt not answered), and the query response while a request is still processing | `@chesangJ` |
+| 2 | Partly closed 2026-09-21: `ResultCode` 0 and 1032, the callback body, the query fields, and `CheckoutRequestID` on all callbacks are verified against the STK Push and STK Query pages. Still unverified because neither page lists them: codes 1 (insufficient funds), 2001 (wrong PIN) and 1037 (prompt not answered), which resolve to `UNKNOWN` until verified, and the query response while a request is still processing | `@chesangJ` |
 | 3 | Closed per documentation 2026-09-21: the query needs `CheckoutRequestID` and callbacks echo no caller-supplied reference, so an initiate-timeout payment has no safe automatic match and goes to manual review. Re-confirm against a real sandbox callback during G2 | `@chesangJ` |
 | 4 | Partly closed 2026-09-21: the Reversals API is documented (asynchronous; keyed by the receipt number; own callback and codes) and the compensating-entry model above follows from it. Recorded facts: it needs an initiator username and an encrypted security credential for an API user with the Org Reversals Initiator role; results go to a `ResultURL` and timeouts to a `QueueTimeOutURL`; result code `R000001` means already reversed, so the provider itself rejects a second reversal of the same receipt. Still to decide: whether reversals are in scope for G2, amend ADR 0004 to add a reversal method to the port, who may authorise one (the credential can move money back, so it stays inside the Payments adapter only, per the threat model), and a reversal-specific result-code table (its `ResultCode` is documented as a string, for example `R000002`, unlike the numeric STK code) | `@chesangJ` |
 | 5 | B2C payout (Commission) state machine and ledger key; reuses these rules but needs its own section or ADR | `@chesangJ` |
@@ -233,3 +233,16 @@ All tests use the FakeAdapter and a real PostgreSQL (unique constraints and row 
 | 10 | Where the source-IP allowlist is enforced (WAF or ALB rule, API gateway, or the app reading a trusted forwarded address), given the API gateway edge the platform uses. Also that the callback endpoint stays highly available, since missed callbacks are discarded | `@emebetgirmay` |
 | 11 | Whether the Transaction Status API accepts an STK `MerchantRequestID` as `OriginalConversationID`, and the exact `TransactionStatus` strings for non-completed states. Verify in the sandbox contract test run by the deployed adapter, not from CI | `@chesangJ` |
 | 12 | Daraja API roles are assigned per API user (B2C initiator, Transaction Status query, Reversals initiator). Use a separate API user, and a separate Secrets Manager secret, per role so the reversal credential is not shared with lower-risk ones. ADR 0004 names a single `devops-g9/daraja` secret; agree the layout. Infra is out of scope for this ADR | `@emebetgirmay` |
+
+## Appendix: unverified candidate ResultCodes (not in the mapping table)
+
+Source: unattributed text pasted into a review conversation on 2026-09-21. It cites no Safaricom page and reads as generated, so it is **not evidence**. It is recorded only so a verifier knows what to look for. **None of these may be added to the adapter's mapping table** without confirmation from current Daraja documentation or a sandbox contract test; until then they resolve to `UNKNOWN` like any unrecognised code.
+
+Codes the text lists that appear on none of the saved Daraja pages: 2, 3, 4, 5, 6, 7, 8, 12, 13, 14, 15, 17, 20, 26, 1019, 1025, 1050, 9999.
+
+Where the text conflicts with saved pages, the saved pages win:
+
+- `11` is described as "Debit Account Invalid"; the Reversals page says "The DebitParty is in an invalid state".
+- `1001` "unable to lock subscriber" is listed as a `ResultCode`; the STK Push page shows it as the HTTP error code `500.001.1001`.
+- `TransactionStatus` values `Pending`, `Failed` and `Not Found` are listed; the Transaction Status FAQ documents initiated, authorized, then a final cancelled, declined, completed or expired, and only `Completed` appears in a sample.
+- Code `15` ("Duplicate Detected") would, if real, be a useful provider-side replay signal; verify before relying on it.

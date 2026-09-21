@@ -92,10 +92,27 @@ jobs:
           path: infra/envs/sandbox/plan.bin
           retention-days: 7
 
-  pos-docker:
-    name: Build POS stub image
+  pos-tests:
+    name: POS unit + invariant tests
     runs-on: ubuntu-latest
     needs: [gitleaks]
+    defaults:
+      run:
+        working-directory: services/pos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install -r requirements-dev.txt
+      - name: pytest (70% line coverage floor)
+        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=70
+
+  pos-docker:
+    name: Build POS image
+    runs-on: ubuntu-latest
+    needs: [gitleaks, pos-tests]
     steps:
       - uses: actions/checkout@v4
       - name: docker build

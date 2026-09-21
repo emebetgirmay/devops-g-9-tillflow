@@ -149,16 +149,16 @@ Callbacks can arrive 0, 1 or N times and out of order.
   4. Update `state`.
   5. `INSERT` the outbox event with `UNIQUE (payment_id, event_type)`. Notifications are sent from the outbox, so they inherit the same uniqueness.
   6. `COMMIT`.
-- **Replays return 2xx, change nothing.** A replay gets 2xx so the provider stops retrying, and produces no second ledger entry, no second event and no second notification. The unique constraints make this true even if the row lock is somehow bypassed.
-- **Response codes.** 2xx after durable handling of: a valid callback, a replay, or an unmatched provider reference (stored in the inbox). Non-2xx only for failed authenticity (rejected, nothing stored as a payment fact) and for transient server failure (so the provider can retry). Exact provider retry behaviour: verify against Daraja docs.
+- **Replays return 2xx, change nothing.** A replay gets 2xx (retry behaviour is not documented, so we assume 0, 1 or N deliveries), and produces no second ledger entry, no second event and no second notification. The unique constraints make this true even if the row lock is somehow bypassed.
+- **Response codes.** 2xx after durable handling of: a valid callback, a replay, or an unmatched provider reference (stored in the inbox). Non-2xx only for failed authenticity (rejected, nothing stored as a payment fact) and for genuine server failure. **Do not rely on a provider retry after a failure:** the Daraja Getting Started page says that if the callback server is unavailable, the API gateway logs a 503 and discards the results. A callback missed during an outage is therefore lost, and the reconcile job (section 3) is the only recovery path.
 - **Raw callback log.** Every accepted callback body is appended to `provider_callbacks` (with `UNIQUE (provider_ref, payload_sha256)`) for audit and forensics. Contact data is masked before storage.
 - **Late callback after timeout.** A payment in `UNKNOWN` or `NEEDS_REVIEW` with a known `provider_ref` takes the same transaction as an on-time callback (rows 8-10, 13). If the reconciler already resolved it, the callback finds a terminal state with the same outcome and is a no-op, so the customer is credited once whichever of callback or query wins.
 - **Callback authenticity.** Money transitions never trust the body alone ([threat model](../threat-model.md)). The handler checks:
-  1. The request passes the authenticity check for the provider (mechanism is an open question; see below).
+  1. The request comes from an allowed source. The only control the Daraja Getting Started page documents is a **source-IP allowlist** of the Safaricom API gateway addresses (12 addresses listed on 2026-09-21; the list is read from Safaricom's page into configuration, not copied into this ADR), stated to ensure only notifications from the gateway are processed. No callback signature is documented. Where the allowlist is enforced (edge or app) is an open question below.
   2. The `provider_ref` matches a payment in a non-terminal state (otherwise: replay, illegal transition, or unmatched inbox).
   3. The amount in the callback equals the stored payment amount. Mismatch goes to `NEEDS_REVIEW` with an alert, not `SUCCEEDED`.
-  4. Optionally, for `SUCCEEDED`, a confirming status query through the adapter before commit (config flag; cost is one extra call per payment).
-- **Simulation in the FakeAdapter.** No real Daraja calls. The FakeAdapter signs each emitted callback with an HMAC over the body using a fixed, public test key and rejects callbacks whose signature does not match. This is a **stand-in** that exercises the verify-then-parse code path and the authenticity-failure branch. It does not claim to model how Daraja authenticates callbacks. It also emits duplicate, delayed, out-of-order and unmatched callbacks on documented magic inputs (see `services/_shared/README.md`).
+  4. For `SUCCEEDED`, a confirming status query through the adapter before commit. Config flag, **on by default** until the allowlist enforcement point is decided, because behind a proxy or API gateway the source address may be forwarded rather than seen directly. Cost is one extra call per payment (mind the documented spike arrest and quota errors).
+- **Simulation in the FakeAdapter.** No real Daraja calls. The FakeAdapter signs each emitted callback with an HMAC over the body using a fixed, public test key and rejects callbacks whose signature does not match. This is a **stand-in** that exercises the verify-then-parse code path and the authenticity-failure branch. It does not model the documented source-IP allowlist, which is enforced by the Payments callback handler before the port is called. It also emits duplicate, delayed, out-of-order and unmatched callbacks on documented magic inputs (see `services/_shared/README.md`).
 
 ### 5. Test and verification plan
 
@@ -191,6 +191,7 @@ All tests use the FakeAdapter and a real PostgreSQL (unique constraints and row 
 
 - **Correct by construction.** Duplicate charge and duplicate credit are prevented by DB constraints, not only by code review.
 - **Storage cost.** Idempotency rows (with stored responses), the raw callback log and audit rows grow with volume. Bounded by the retention above and by masking contact data.
+- **Callback endpoint availability matters.** Because a callback sent while our endpoint is down is discarded, not queued (documented), an outage turns every in-flight payment into `UNKNOWN` work for the reconciler.
 - **Reconciliation lag.** A timed-out payment can stay `UNKNOWN` for minutes to hours. Customers and attendants see "pending" longer than a decline would take. That is the accepted price of never double-charging or wrongly declining a paid sale.
 - **Manual toil.** `NEEDS_REVIEW` needs a human process and a runbook entry.
 - **SLO interaction.** The Payments SLO counts callback or reconcile terminal within 60 s ([SLOs](../slo-error-budgets.md)). `UNKNOWN` resolution can exceed that, so the exclusions or the measurement must be aligned (Open questions).
@@ -214,7 +215,7 @@ All tests use the FakeAdapter and a real PostgreSQL (unique constraints and row 
 
 | # | Question | Owner |
 |---|---|---|
-| 1 | Callback authenticity. The STK Push page (reviewed 2026-09-21) documents no signature or source-IP mechanism. Decide the controls (for example an unguessable callback path over TLS, a source allowlist if Safaricom publishes ranges, and the confirming status query in section 4) and confirm with Safaricom. Tracked as an open risk in the [threat model](../threat-model.md); target G2 | `@chesangJ` |
+| 1 | Partly closed 2026-09-21: the documented control is a source-IP allowlist (12 gateway addresses on the Getting Started page); no callback signature is documented. Still to decide: whether to add an unguessable callback path, and to confirm with Safaricom that the list is current and complete. The [threat model](../threat-model.md) risk row still says TBD and needs updating (its owners are Product and Payments). Target G2 | `@chesangJ` |
 | 2 | Partly closed 2026-09-21: `ResultCode` 0 and 1032, the callback body, the query fields, and `CheckoutRequestID` on all callbacks are verified against the STK Push and STK Query pages. Still unverified because neither page lists them: codes 1 (insufficient funds), 2001 (wrong PIN) and 1037 (prompt not answered), and the query response while a request is still processing | `@chesangJ` |
 | 3 | Closed per documentation 2026-09-21: the query needs `CheckoutRequestID` and callbacks echo no caller-supplied reference, so an initiate-timeout payment has no safe automatic match and goes to manual review. Re-confirm against a real sandbox callback during G2 | `@chesangJ` |
 | 4 | Reversals: ADR 0004 lists no reversal. If needed, decide the compensating-entry model and amend ADR 0004 | `@chesangJ` |
@@ -223,3 +224,4 @@ All tests use the FakeAdapter and a real PostgreSQL (unique constraints and row 
 | 7 | Tenant scoping of keys depends on ADR 0007 landing | `@Moraaalice` |
 | 8 | Align the 60 s Payments SLO with `UNKNOWN` resolution time | `@emebetgirmay` |
 | 9 | Scheduling mechanism for the reconcile job (for example SQS delay or EventBridge); infra is out of scope for this ADR | `@emebetgirmay` |
+| 10 | Where the source-IP allowlist is enforced (WAF or ALB rule, API gateway, or the app reading a trusted forwarded address), given the API gateway edge the platform uses. Also that the callback endpoint stays highly available, since missed callbacks are discarded | `@emebetgirmay` |

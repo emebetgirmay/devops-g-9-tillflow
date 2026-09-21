@@ -110,7 +110,7 @@ A missing or late callback, a network timeout, or an adapter timeout moves the p
 | Callback deadline (`PENDING` to `UNKNOWN`) | 90 s |
 | Query schedule after entering `UNKNOWN` | +30 s, +1 m, +2 m, +5 m, +10 m, +30 m, +1 h, then hourly with jitter |
 | Max window | 24 h, then `NEEDS_REVIEW` |
-| At max window | Alert with payment id and provider ref. **Not auto-failed.** A human resolves with provider evidence (row 13). |
+| At max window | Alert with payment id and provider ref. **Not auto-failed.** A human resolves with provider evidence (row 13), for example a transaction lookup in the M-PESA Organization Portal, which the Daraja pages document as offering transaction management and account reconciliation. |
 
 An "in progress" or errored query response is inconclusive (row 11), not a decline.
 
@@ -134,6 +134,12 @@ An "in progress" or errored query response is inconclusive (row 11), not a decli
 **Verified query facts** (STK Query page): the status query is keyed by `CheckoutRequestID` and requires the shortcode, a password (base64 of shortcode, passkey and timestamp) and a timestamp. Its response returns `MerchantRequestID`, `CheckoutRequestID`, `ResponseCode`, `ResultCode` and `ResultDesc`. The reconcile job therefore needs the shortcode and passkey inside the adapter implementation, never in Commission or CI ([ADR 0004](0004-mpesa-adapter.md)).
 
 The adapter normalises these to an outcome (`SUCCEEDED`, `DECLINED`, `EXPIRED`, `UNKNOWN`) plus a decline reason and the raw code. Payments and Commission never branch on raw codes.
+
+**Secondary reconciliation: Transaction Status API** (saved page reviewed 2026-09-21). The page describes it as a secondary reconciliation mechanism when callbacks are not received, keyed by an M-PESA receipt number or an `OriginatorConversationID`. It is asynchronous (result to a `ResultURL`, timeouts to a `QueueTimeOutURL`) and needs an API user with the Transaction Status query role, so it needs initiator credentials, unlike the synchronous STK Query. Rules for using it:
+
+- **Read the transaction status, not the result code.** Its `ResultCode` 0 says the status query was processed, not that the payment succeeded; the payment outcome is in the `TransactionStatus` result parameter (the sample shows `Completed`). The page's own result-code list (`0`, `SFC_IC0003` "The operator does not exist") is about the query call.
+- **Documented lifecycle** (FAQ): initiated (pending revalidation), authorized or pending authorized, then a final status of cancelled, declined, completed or expired. Proposed mapping: completed to `SUCCEEDED`; cancelled or declined to `DECLINED`; expired to `EXPIRED`; initiated or pending to `UNKNOWN`. The page shows only `Completed` in a sample, so the exact strings for the others are to be verified.
+- **Limited use for STK.** We hold a receipt number only after a success callback, and it is not documented whether `OriginalConversationID` accepts the STK `MerchantRequestID`. STK Query by `CheckoutRequestID` therefore stays the primary reconcile path (open question 11).
 
 **Initiate timeout has no provider reference.** If the initiate call times out we may not hold a provider reference. The status query requires `CheckoutRequestID` (verified), so a query is impossible and we cannot retry safely. The callback echoes no caller reference (verified), so there is no safe automatic match either. Such a payment waits in `UNKNOWN`. If a callback later arrives for an unrecognised provider reference it goes to the unmatched-callback inbox (section 4) and is surfaced for review, where candidates may be proposed from amount, `PhoneNumber` and `TransactionDate`. It is never auto-credited to a guessed payment.
 
@@ -225,3 +231,5 @@ All tests use the FakeAdapter and a real PostgreSQL (unique constraints and row 
 | 8 | Align the 60 s Payments SLO with `UNKNOWN` resolution time | `@emebetgirmay` |
 | 9 | Scheduling mechanism for the reconcile job (for example SQS delay or EventBridge); infra is out of scope for this ADR | `@emebetgirmay` |
 | 10 | Where the source-IP allowlist is enforced (WAF or ALB rule, API gateway, or the app reading a trusted forwarded address), given the API gateway edge the platform uses. Also that the callback endpoint stays highly available, since missed callbacks are discarded | `@emebetgirmay` |
+| 11 | Whether the Transaction Status API accepts an STK `MerchantRequestID` as `OriginalConversationID`, and the exact `TransactionStatus` strings for non-completed states. Verify in the sandbox contract test run by the deployed adapter, not from CI | `@chesangJ` |
+| 12 | Daraja API roles are assigned per API user (B2C initiator, Transaction Status query, Reversals initiator). Use a separate API user, and a separate Secrets Manager secret, per role so the reversal credential is not shared with lower-risk ones. ADR 0004 names a single `devops-g9/daraja` secret; agree the layout. Infra is out of scope for this ADR | `@emebetgirmay` |

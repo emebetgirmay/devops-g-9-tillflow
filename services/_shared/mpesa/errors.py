@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from mpesa.models import DeclineReason
+from mpesa.models import DeclineReason, FailureReason
 
 
 class MpesaError(Exception):
@@ -33,3 +33,18 @@ class CallbackAuthenticityError(MpesaError):
 
 class CallbackMalformedError(MpesaError):
     """The callback was authentic but its body could not be parsed."""
+
+
+class DisbursementRejectedError(MpesaError):
+    """The provider definitively refused the disbursement request. No money moved."""
+
+    def __init__(self, reason: FailureReason, raw_code: str | None = None) -> None:
+        super().__init__(f"disbursement rejected: {reason.value}")
+        self.reason = reason
+        self.raw_code = raw_code
+
+
+class DuplicateOriginatorConversationError(OutcomeUnknownError):
+    """The provider says this originator conversation id was already used (documented sample
+    error 500.002.1001). An earlier attempt exists and may have paid, so the outcome is
+    unknown: reconcile by that id, never treat as a failure, never retry with a new id."""

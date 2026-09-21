@@ -1,0 +1,1 @@
+{"payment_id": "pay_d5811ac2a606425a9f03020e6e6ac806", "checkout_request_id": "fake-co-9604f78030a9d27f", "state": "SUCCEEDED", "decline_reason": null, "tenant_id": "evidence", "sale_id": null, "amount_minor": 150000, "currency": "KES", "msisdn": "2540****009", "receipt": "FAKEC181A2C3", "ledger_entries": 1}

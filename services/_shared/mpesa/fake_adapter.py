@@ -20,7 +20,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from enum import Enum
-from typing import Protocol
 
 from mpesa import result_codes
 from mpesa.errors import (
@@ -31,17 +30,27 @@ from mpesa.errors import (
     OutcomeUnknownError,
     UnknownReferenceError,
 )
+from mpesa.fake_common import (
+    SIGNATURE_HEADER,
+    CallbackDelivery,
+    Clock,
+    FakeAdapterConfig,
+    ManualClock,
+    sign,
+)
+from mpesa.fake_disbursement import FakeDisbursements
 from mpesa.models import (
     CallbackEvent,
     ChargeAccepted,
     ChargeRequest,
     DeclineReason,
+    DisbursementAccepted,
+    DisbursementEvent,
+    DisbursementRequest,
+    DisbursementStatus,
     Outcome,
     PaymentStatus,
 )
-
-SIGNATURE_HEADER = "X-Fake-Signature"
-DEFAULT_SIGNING_KEY = b"fake-adapter-test-key"
 
 
 class Scenario(str, Enum):
@@ -81,43 +90,6 @@ MAGIC_MSISDNS: dict[str, Scenario] = {
 }
 
 
-class Clock(Protocol):
-    def now(self) -> float: ...
-
-
-class ManualClock:
-    """Test clock. Time only moves when advance() is called."""
-
-    def __init__(self, start: float = 0.0) -> None:
-        self._now = start
-
-    def now(self) -> float:
-        return self._now
-
-    def advance(self, seconds: float) -> None:
-        if seconds < 0:
-            raise ValueError("cannot move the clock backwards")
-        self._now += seconds
-
-
-@dataclass(frozen=True)
-class FakeAdapterConfig:
-    callback_delay_s: float = 1.0
-    late_after_s: float = 120.0
-    duplicate_count: int = 3
-    signing_key: bytes = DEFAULT_SIGNING_KEY
-
-
-@dataclass(frozen=True)
-class CallbackDelivery:
-    """One callback the provider would POST to the callback handler."""
-
-    provider_ref: str
-    deliver_at: float
-    headers: dict[str, str]
-    body: bytes
-
-
 class DuplicateInitiateError(MpesaError):
     """initiate_charge was called twice for one idempotency key.
 
@@ -149,10 +121,6 @@ def _receipt_for(provider_ref: str) -> str:
     return "FAKE" + hashlib.sha256(provider_ref.encode("utf-8")).hexdigest()[:8].upper()
 
 
-def sign(body: bytes, key: bytes = DEFAULT_SIGNING_KEY) -> str:
-    return hmac.new(key, body, hashlib.sha256).hexdigest()
-
-
 class FakeAdapter:
     """In-memory MpesaPort implementation. Drive time with the injected clock."""
 
@@ -164,6 +132,7 @@ class FakeAdapter:
         self._delivered: set[tuple[str, int]] = set()
         self._seq = 0
         self.initiate_call_count = 0
+        self._disbursements = FakeDisbursements(self._clock, self._config)
 
     # MpesaPort -----------------------------------------------------------------------------
 
@@ -276,6 +245,38 @@ class FakeAdapter:
         charge.deliveries.append((deliver_at, self._seq, delivery))
         charge.resolution = (deliver_at, self._status_for(charge, raw_code))
         return delivery
+
+    # B2C disbursements (DisbursementPort), delegated to FakeDisbursements ---------------------
+
+    @property
+    def disburse_call_count(self) -> int:
+        return self._disbursements.disburse_call_count
+
+    def disburse(self, request: DisbursementRequest) -> DisbursementAccepted:
+        return self._disbursements.disburse(request)
+
+    def query_disbursement_status(self, originator_conversation_id: str) -> DisbursementStatus:
+        return self._disbursements.query_disbursement_status(originator_conversation_id)
+
+    def parse_disbursement_result(
+        self, headers: Mapping[str, str], body: bytes
+    ) -> DisbursementEvent:
+        return self._disbursements.parse_disbursement_result(headers, body)
+
+    def due_disbursement_results(self) -> list[CallbackDelivery]:
+        return self._disbursements.due_results()
+
+    def scheduled_disbursement_results(
+        self, originator_conversation_id: str
+    ) -> list[CallbackDelivery]:
+        return self._disbursements.scheduled_results(originator_conversation_id)
+
+    def deliver_disbursement_code(
+        self, originator_conversation_id: str, raw_code: object, delay_s: float = 0.0
+    ) -> CallbackDelivery:
+        return self._disbursements.deliver_result_code(
+            originator_conversation_id, raw_code, delay_s
+        )
 
     def scheduled_callbacks(self, provider_ref: str) -> list[CallbackDelivery]:
         """Every callback scheduled for a reference, regardless of the clock, in order."""

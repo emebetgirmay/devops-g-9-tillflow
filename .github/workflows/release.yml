@@ -252,18 +252,20 @@ jobs:
                   env["COMMIT_SHA"] = sha
                   env["IMAGE_DIGEST"] = image.split("@", 1)[-1]
                   env.setdefault("PORT", "8080")
+                  env.setdefault("DATABASE_URL", "sqlite:////app/data/pos.db")
                   env.setdefault("OTEL_SERVICE_NAME", "pos")
                   env.setdefault("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:4318")
                   env.setdefault("ADOT_HEALTH_URL", "http://127.0.0.1:13133/")
                   c["environment"] = [{"name": k, "value": v} for k, v in env.items()]
                   c["user"] = "10001:10001"
+                  c["readonlyRootFilesystem"] = False
                   port = env["PORT"]
                   c["healthCheck"] = {
                       "command": ["CMD-SHELL", f"python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:{port}/ready')\" || exit 1"],
                       "interval": 15,
                       "timeout": 5,
                       "retries": 3,
-                      "startPeriod": 20,
+                      "startPeriod": 40,
                   }
           json.dump(td, open("task-new.json", "w"))
           PY

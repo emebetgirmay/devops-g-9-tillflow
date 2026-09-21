@@ -149,10 +149,11 @@ resource "aws_ecs_task_definition" "pos" {
     [
       merge(
         {
-          name                   = "pos"
-          image                  = local.pos_image
-          essential              = true
-          readonlyRootFilesystem = true
+          name      = "pos"
+          image     = local.pos_image
+          essential = true
+          # SQLite under /app/data needs a writable root; Fargate /tmp volumes are root-owned.
+          readonlyRootFilesystem = false
           user                   = local.pos_uses_placeholder ? "0:0" : "10001:10001"
           portMappings = [
             {
@@ -162,6 +163,7 @@ resource "aws_ecs_task_definition" "pos" {
           ]
           environment = [
             { name = "PORT", value = tostring(var.pos_container_port) },
+            { name = "DATABASE_URL", value = "sqlite:////app/data/pos.db" },
             { name = "PAYMENTS_BASE_URL", value = local.payments_base_url },
             { name = "OTEL_SERVICE_NAME", value = "pos" },
             { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = "http://127.0.0.1:4318" },
@@ -178,7 +180,7 @@ resource "aws_ecs_task_definition" "pos" {
             interval    = 15
             timeout     = 5
             retries     = 3
-            startPeriod = 20
+            startPeriod = 40
           }
           logConfiguration = {
             logDriver = "awslogs"

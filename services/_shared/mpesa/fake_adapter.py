@@ -7,7 +7,8 @@ portal's M-Pesa Express page. Optional metadata items Balance, TransactionDate a
 omitted; CallbackMetadata is emitted only for success, as documented.
 
 Callback authenticity here is an HMAC over the body with a fixed, public test key. It is a
-stand-in that exercises verify-then-parse; it does not model how Daraja authenticates callbacks.
+stand-in that exercises verify-then-parse. The control Daraja documents is a source-IP allowlist,
+which the Payments callback handler enforces before calling the port and this fake does not model.
 """
 
 from __future__ import annotations

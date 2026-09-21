@@ -37,7 +37,7 @@ The scenario is chosen by the customer phone number. These numbers (`254` plus n
 | `254000000003` | `USER_CANCELLED` | Decline callback |
 | `254000000004` | `WRONG_PIN` | Decline callback |
 | `254000000005` | `PROMPT_EXPIRED` | Callback mapping to `EXPIRED` (not a decline) |
-| `254000000006` | `TIMEOUT_NO_CALLBACK` | Accepted, no callback ever, query stays `UNKNOWN` |
+| `254000000006` | `TIMEOUT_NO_CALLBACK` | Accepted, no callback ever, query stays `UNKNOWN`. Also models a callback discarded because the endpoint was down (documented gateway behaviour) |
 | `254000000007` | `TIMEOUT_QUERY_RESOLVES` | Accepted, no callback, query returns success after `late_after_s` (default 120 s) |
 | `254000000008` | `DELAYED_CALLBACK` | Success callback only after `late_after_s` |
 | `254000000009` | `DUPLICATE_CALLBACK` | Same success callback delivered `duplicate_count` times (default 3), byte-identical |
@@ -64,7 +64,7 @@ for delivery in adapter.due_callbacks():  # handed out once, in delivery order
     ...
 ```
 
-`scheduled_callbacks(provider_ref)` returns every callback for a reference regardless of the clock. Callback bodies follow the documented Daraja STK callback (`Body.stkCallback`, verified against the portal's M-Pesa Express page); `CallbackMetadata` appears only on success. Authenticity is simulated with an HMAC over the body using a fixed public test key in header `X-Fake-Signature`. This is a stand-in that exercises the verify-then-parse path, not a model of how Daraja authenticates callbacks.
+`scheduled_callbacks(provider_ref)` returns every callback for a reference regardless of the clock. Callback bodies follow the documented Daraja STK callback (`Body.stkCallback`, verified against the portal's M-Pesa Express page); `CallbackMetadata` appears only on success. Authenticity is simulated with an HMAC over the body using a fixed public test key in header `X-Fake-Signature`. This is a stand-in that exercises the verify-then-parse path. The control Daraja documents is a source-IP allowlist, enforced by the Payments callback handler before the port is called; it is not modelled here.
 
 ### Using it in CI and k6
 

@@ -1,124 +1,107 @@
 # POS ↔ Payments contract
 
-**Status:** agreed by Product+POS, drafted here for Payments to confirm before implementing.
+**Status:** implemented and integration-tested (both sides, live, deterministic — see below).
 **Owners:** Alice Moraa (`@Moraaalice`, POS side) · Mitingi Joy Chesang (`@chesangJ`, Payments side)
 
-This is the interface between `services/pos` and `services/payments` referenced in
-`docs/architecture.md`. POS is always the caller of the outbound request; Payments is always
-the caller of the callback. Both are internal service-to-service calls (not exposed through
-API Gateway — see `docs/threat-model.md`).
+This is the interface between `services/pos` and `services/payments`. POS is always the caller —
+Payments has **no outbound callback to POS**; POS polls for the outcome. That matches the brief's
+"a timeout is not a decline — keep it pending, query/reconcile" directly.
+
+The wire format below is Joy's actual, shipped `services/payments` API (`core/payments.py`,
+`core/config.py`), verified by running both services together — this doc originally guessed at a
+push-callback design before that branch was pulled; this version replaces it.
 
 ## 1. POS → Payments: request a payment
 
-POS calls this once a sale reaches `READY_FOR_PAYMENT` and the attendant/customer is ready to
-pay. Implemented on the POS side at `services/pos/app/payments_client.py` /
-`POST /tenants/{tenant_id}/sales/{sale_id}/payment-request` (POS's own endpoint, which then
-calls Payments internally).
+`services/pos/app/payments_client.py::request_payment`, called from
+`POST /tenants/{tenant_id}/sales/{sale_id}/payment-request` (POS's own endpoint).
 
 ```
 POST {PAYMENTS_BASE_URL}/payments
+Idempotency-Key: <sale_id>          (header, not a body field — 16-64 chars [A-Za-z0-9_-])
 ```
-
-Request body:
 
 ```json
 {
-  "sale_id": "b6c1...-uuid",
   "tenant_id": "9fe6...-uuid",
-  "amount_minor": 24000,
-  "currency": "KES",
-  "phone": "254712345678",
-  "idempotency_key": "b6c1...-uuid"
-}
-```
-
-Notes:
-- `idempotency_key` is always the `sale_id` — one sale can only ever have one in-flight
-  payment. Payments must treat repeat calls with the same `idempotency_key` as returning the
-  same (or a fresh, if the previous one failed) payment rather than creating a duplicate STK
-  push, mirroring how POS treats sale creation.
-- `amount_minor` is server-computed by POS from the tenant's product catalog — never trust a
-  client-supplied price. Payments should treat this value as authoritative for the STK amount.
-
-Expected response (`2xx`):
-
-```json
-{
-  "payment_id": "pay-uuid",
-  "status": "PENDING"
-}
-```
-
-POS stores `payment_id` on the sale and moves the sale to `PAYMENT_REQUESTED`. If this call
-fails or times out, POS's own state stays `READY_FOR_PAYMENT` (no transition applied — see
-`services/pos/app/routers/sales.py::request_payment`), so retrying is always safe: **a timeout
-here must not be recorded as a payment**, matching "a timeout is not a decline" from the brief.
-
-## 2. Payments → POS: report a payment outcome
-
-Payments calls this once STK completes, is confirmed via query/reconcile, or B2C-adjacent flows
-resolve — whenever a sale's payment reaches a terminal outcome. Implemented on the POS side at
-
-```
-POST {POS_BASE_URL}/internal/sales/{sale_id}/payment-events
-```
-
-Request body:
-
-```json
-{
-  "event_id": "evt-uuid",
-  "payment_id": "pay-uuid",
-  "status": "PAID",
-  "amount_minor": 24000,
-  "occurred_at": "2026-09-21T10:00:00Z"
-}
-```
-
-- `status` is one of `PAID` | `PAYMENT_FAILED` — POS has no `PENDING`-facing state for this
-  endpoint; a pending/uncertain payment is simply not reported yet.
-- `event_id` is **Payments' own idempotency key for this specific event**, distinct from
-  `payment_id` — one payment can produce more than one event over its lifecycle (e.g. an
-  STK timeout followed by a query/reconcile correction). POS deduplicates on `event_id`: the
-  same `event_id` delivered twice is a no-op (`applied: false`, sale status unchanged).
-- `amount_minor` must match the sale's total exactly, or POS rejects with `409` — this is a
-  cross-check against tampering or a Payments-side bug, not just a formality.
-
-Response:
-
-```json
-{
   "sale_id": "b6c1...-uuid",
-  "status": "PAID",
-  "applied": true
+  "msisdn": "254712345678",
+  "amount": 24000,
+  "currency": "KES",
+  "account_reference": "b6c1...uu"
 }
 ```
 
-`applied: false` means this call caused no new effect — either the `event_id` was already
-seen, or the transition was illegal for the sale's current status (e.g. a reordered
-`PAYMENT_FAILED` arriving after the sale already reached `PAID`). Either way POS still records
-the event for the audit trail/trace; it just never overwrites a settled sale. **Reordering or
-replaying callbacks must always produce exactly one legal transition and one ledger effect** —
-this endpoint is where POS enforces that on its side of the boundary.
+- `Idempotency-Key` is always the `sale_id` — one sale, one in-flight payment. Payments treats a
+  repeat with the same key + same payload as a replay (returns the original response); a
+  different payload under the same key is a `409`.
+- `amount` is minor units, server-computed by POS from the tenant's catalog — never trust a
+  client-supplied price.
+- `account_reference` ≤ 12 chars (POS sends `sale_id[:12]`).
 
-Sale state machine on the POS side (for reference — POS owns this, Payments doesn't need to
-replicate it, just knows PAID/PAYMENT_FAILED are the two terminal-ish outcomes it can report):
+Response (`201`, or `200` on idempotent replay):
 
-```
-READY_FOR_PAYMENT --(payment-request)--> PAYMENT_REQUESTED --(PAID event)--> PAID  [terminal]
-                                                 |
-                                                 +--(PAYMENT_FAILED event)--> PAYMENT_FAILED
-                                                        |
-                                                        +--(payment-request retry)--> PAYMENT_REQUESTED
+```json
+{"payment_id": "pay_...", "checkout_request_id": "...", "state": "PENDING", "decline_reason": null}
 ```
 
-`VOID` exists on the POS side for pre-payment cancellation and is not reachable from
-Payments-originated events.
+POS stores `payment_id` on the sale and moves it to `PAYMENT_REQUESTED`. A failed/timed-out call
+here leaves the sale at `READY_FOR_PAYMENT` untouched — retrying is always safe.
 
-## Open items for Payments to confirm
+## 2. POS → Payments: find out how it settled (the active integration path)
 
-- Exact base path/port Payments will listen on internally (`PAYMENTS_BASE_URL` POS reads from
-  env — Platform to wire the actual service-discovery address in Terraform).
-- Whether Payments needs anything else from POS in the request body (e.g. till_id) — everything
-  Payments should need to drive Daraja is in the body above; add fields here rather than
-  inventing them ad hoc once implementation starts.
+`services/pos/app/payments_client.py::get_payment`, called from
+`POST /tenants/{tenant_id}/sales/{sale_id}/payment-reconcile` (POS's own endpoint — POS-initiated,
+safe to call repeatedly, including while still pending).
+
+```
+GET {PAYMENTS_BASE_URL}/payments/{payment_id}
+```
+
+```json
+{
+  "payment_id": "pay_...", "checkout_request_id": "...", "state": "SUCCEEDED",
+  "decline_reason": null, "tenant_id": "...", "sale_id": "...",
+  "amount_minor": 24000, "currency": "KES", "msisdn": "2547****678",
+  "receipt": "...", "ledger_entries": 1
+}
+```
+
+`state` is one of `CREATED | PENDING | UNKNOWN | NEEDS_REVIEW | SUCCEEDED | DECLINED | EXPIRED`
+(`services/payments/core/states.py::PaymentState`). POS maps only the terminal ones:
+
+| Payments `state` | POS sale status |
+|---|---|
+| `SUCCEEDED` | `PAID` |
+| `DECLINED`, `EXPIRED` | `PAYMENT_FAILED` |
+| `CREATED`, `PENDING`, `UNKNOWN`, `NEEDS_REVIEW` | *(no change — not a verdict yet)* |
+
+POS also checks `amount_minor` against the sale's own total before applying — a mismatch is a
+`409`, not silently trusted. Applying is idempotent per `(payment_id, state)`: polling again once
+settled is a no-op (`applied: false`), and a stale/reordered non-matching state polled after the
+sale already reached a terminal status is rejected, never overwrites it.
+
+**There is no push callback in this build.** `POST /internal/sales/{sale_id}/payment-events` still
+exists on the POS side (`app/routers/internal.py`) sharing the same idempotent apply logic, in
+case a push model (e.g. Payments → SQS/EventBridge → POS) gets wired later by Platform — but
+nothing calls it today. Whoever polls (a POS-side scheduler, or the web frontend after STK push)
+is an open wiring question — see below.
+
+## Verified live (deterministic, no mocking)
+
+Ran both real services together (`services/pos` + `services/payments`, Payments'
+`FAKE_CLOCK=manual`) through: create sale → `payment-request` → `/_fake/advance` +
+`/_fake/deliver-callbacks` (Payments' own deterministic driver, not Daraja) → `payment-reconcile`.
+Result: sale reached `PAID`, a repeat `payment-reconcile` came back `applied: false` — this is
+G2's literal pass criterion ("Sale → STK callback → paid"), done for real.
+
+## Open items
+
+- **Who calls `payment-reconcile` and when?** Nobody schedules it yet — needs either a POS-side
+  poller/cron, or the web frontend calling it after STK push, or Platform wiring an
+  EventBridge-triggered sweep. Not decided.
+- **Commission input gap**: `services/commission/worker.py` takes a pre-aggregated CSV
+  (`tenant_id, attendant_id, payout_period, msisdn, amount`) — it does **not** read POS's sales at
+  all. Its own docstring says computing commission from confirmed-paid sales is "Product's work
+  and is not built here." Nothing currently builds that CSV from POS data. POS doesn't yet expose
+  an endpoint to list/aggregate paid sales per attendant either — needed either way.

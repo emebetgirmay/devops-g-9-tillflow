@@ -19,14 +19,33 @@ class FakePaymentsClient:
 
     Records every call it receives so tests can assert on what POS sent
     (sale_id, amount, idempotency_key, ...) without a network dependency.
+    Shaped after the actual services/payments response (payment_id + state,
+    not payment_id + status), since that's what reconcile_payment parses.
     """
 
     def __init__(self) -> None:
         self.calls: list[dict] = []
+        self._payments: dict[str, dict] = {}
 
     def request_payment(self, **kwargs) -> dict:
         self.calls.append(kwargs)
-        return {"payment_id": f"pay-{uuid.uuid4()}", "status": "PENDING"}
+        payment_id = f"pay-{uuid.uuid4()}"
+        self._payments[payment_id] = {
+            "payment_id": payment_id,
+            "state": "PENDING",
+            "amount_minor": kwargs["amount_minor"],
+        }
+        return dict(self._payments[payment_id])
+
+    def get_payment(self, payment_id: str) -> dict:
+        return dict(self._payments[payment_id])
+
+    def set_state(self, payment_id: str, state: str, amount_minor: int | None = None) -> None:
+        """Test helper: simulate Payments settling (or not) a payment."""
+        record = self._payments.setdefault(payment_id, {"payment_id": payment_id})
+        record["state"] = state
+        if amount_minor is not None:
+            record["amount_minor"] = amount_minor
 
 
 @pytest.fixture()

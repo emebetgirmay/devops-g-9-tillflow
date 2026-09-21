@@ -123,8 +123,16 @@ class PaymentRequestOut(BaseModel):
     status: str
 
 
+class PaymentReconcileOut(BaseModel):
+    sale_id: str
+    status: str
+    applied: bool
+    payments_state: str
+
+
 class PaymentEventIn(BaseModel):
-    """Body Payments sends to POS's internal callback.
+    """Body Payments would send to POS's internal push callback (internal.py)
+    — not currently wired to anything; see that router's docstring.
 
     ``event_id`` is Payments' own idempotency key for this specific event —
     distinct from ``payment_id``, since one payment can produce more than

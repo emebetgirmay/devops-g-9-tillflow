@@ -70,6 +70,7 @@ class RequestValidationTest(unittest.TestCase):
             "amount_minor": 100,
         }
         ChargeRequest(**good)
+        ChargeRequest(**{**good, "reference": "x" * 12, "description": "x" * 13})
         for override in (
             {"idempotency_key": "short"},
             {"idempotency_key": "x" * 65},
@@ -79,6 +80,8 @@ class RequestValidationTest(unittest.TestCase):
             {"amount_minor": -5},
             {"amount_minor": 10.5},
             {"amount_minor": True},
+            {"reference": "x" * 13},
+            {"description": "x" * 14},
         ):
             with self.subTest(override=override), self.assertRaises((ValueError, TypeError)):
                 ChargeRequest(**{**good, **override})

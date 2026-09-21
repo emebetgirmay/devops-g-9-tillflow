@@ -64,7 +64,7 @@ for delivery in adapter.due_callbacks():  # handed out once, in delivery order
     ...
 ```
 
-`scheduled_callbacks(provider_ref)` returns every callback for a reference regardless of the clock. Callback bodies are Daraja-shaped JSON (modelled on the STK callback; verify against Daraja docs). Authenticity is simulated with an HMAC over the body using a fixed public test key in header `X-Fake-Signature`. This is a stand-in that exercises the verify-then-parse path, not a model of how Daraja authenticates callbacks.
+`scheduled_callbacks(provider_ref)` returns every callback for a reference regardless of the clock. Callback bodies follow the documented Daraja STK callback (`Body.stkCallback`, verified against the portal's M-Pesa Express page); `CallbackMetadata` appears only on success. Authenticity is simulated with an HMAC over the body using a fixed public test key in header `X-Fake-Signature`. This is a stand-in that exercises the verify-then-parse path, not a model of how Daraja authenticates callbacks.
 
 ### Using it in CI and k6
 

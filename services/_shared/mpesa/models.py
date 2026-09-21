@@ -10,6 +10,9 @@ from enum import Enum
 IDEMPOTENCY_KEY_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 # Kenyan MSISDN in international form, digits only.
 MSISDN_RE = re.compile(r"^254[0-9]{9}$")
+# Documented STK Push request limits (verified 2026-09-21).
+MAX_REFERENCE_LEN = 12
+MAX_DESCRIPTION_LEN = 13
 
 
 class Outcome(str, Enum):
@@ -37,8 +40,8 @@ class ChargeRequest:
     msisdn: str
     amount_minor: int
     currency: str = "KES"
-    reference: str = ""
-    description: str = ""
+    reference: str = ""  # AccountReference: at most 12 characters (Daraja STK Push page)
+    description: str = ""  # TransactionDesc: at most 13 characters (Daraja STK Push page)
 
     def __post_init__(self) -> None:
         if not IDEMPOTENCY_KEY_RE.match(self.idempotency_key):
@@ -49,6 +52,10 @@ class ChargeRequest:
             raise TypeError("amount_minor must be an int (minor units)")
         if self.amount_minor <= 0:
             raise ValueError("amount_minor must be positive")
+        if len(self.reference) > MAX_REFERENCE_LEN:
+            raise ValueError(f"reference must be at most {MAX_REFERENCE_LEN} characters")
+        if len(self.description) > MAX_DESCRIPTION_LEN:
+            raise ValueError(f"description must be at most {MAX_DESCRIPTION_LEN} characters")
 
 
 @dataclass(frozen=True)

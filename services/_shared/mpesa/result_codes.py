@@ -1,8 +1,8 @@
 """Provider ResultCode to normalised outcome (ADR 0006 section 3 mapping table).
 
-Verified 2026-09-21 against the Daraja M-Pesa Express Query page (status query response):
-0 (success) and 1032 (cancelled by the user). Codes 1, 2001 and 1037 are still UNVERIFIED:
-verify against Daraja docs before G2 relies on them.
+Verified 2026-09-21 against the Daraja M-Pesa Express and Express Query pages (callbacks and
+query responses): 0 (success) and 1032 (cancelled by the user). Codes 1, 2001 and 1037 appear on
+neither page and are still UNVERIFIED: verify against Daraja docs before G2 relies on them.
 Anything not listed is UNKNOWN by design (fail safe, never a decline).
 """
 

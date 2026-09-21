@@ -2,7 +2,9 @@
 
 No network, no real credentials, no unseeded randomness. Time comes from an injected clock.
 Scenarios are selected by magic MSISDNs (see MAGIC_MSISDNS and the README). The callback
-payload shape is modelled on the Daraja STK callback; verify against Daraja docs.
+payload shape follows the Daraja STK callback (Body.stkCallback), verified 2026-09-21 against the
+portal's M-Pesa Express page. Optional metadata items Balance, TransactionDate and PhoneNumber are
+omitted; CallbackMetadata is emitted only for success, as documented.
 
 Callback authenticity here is an HMAC over the body with a fixed, public test key. It is a
 stand-in that exercises verify-then-parse; it does not model how Daraja authenticates callbacks.

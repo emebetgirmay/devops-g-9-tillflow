@@ -1,9 +1,12 @@
 """M-Pesa port and deterministic FakeAdapter (ADR 0004, ADR 0006). No network access."""
 
+from mpesa import b2c_result_codes
 from mpesa.errors import (
     CallbackAuthenticityError,
     CallbackMalformedError,
     ChargeDeclinedError,
+    DisbursementRejectedError,
+    DuplicateOriginatorConversationError,
     MpesaError,
     OutcomeUnknownError,
     UnknownReferenceError,
@@ -17,18 +20,30 @@ from mpesa.fake_adapter import (
     ManualClock,
     Scenario,
 )
+from mpesa.fake_disbursement import MAGIC_RECIPIENTS, B2CScenario
 from mpesa.models import (
+    MAX_DISBURSEMENT_MINOR,
+    MIN_DISBURSEMENT_MINOR,
     CallbackEvent,
     ChargeAccepted,
     ChargeRequest,
     DeclineReason,
+    DisbursementAccepted,
+    DisbursementEvent,
+    DisbursementRequest,
+    DisbursementStatus,
+    FailureReason,
     Outcome,
     PaymentStatus,
 )
-from mpesa.port import MpesaPort
+from mpesa.port import DisbursementPort, MpesaPort
 
 __all__ = [
     "MAGIC_MSISDNS",
+    "MAGIC_RECIPIENTS",
+    "MAX_DISBURSEMENT_MINOR",
+    "MIN_DISBURSEMENT_MINOR",
+    "B2CScenario",
     "CallbackAuthenticityError",
     "CallbackDelivery",
     "CallbackEvent",
@@ -37,7 +52,15 @@ __all__ = [
     "ChargeDeclinedError",
     "ChargeRequest",
     "DeclineReason",
+    "DisbursementAccepted",
+    "DisbursementEvent",
+    "DisbursementPort",
+    "DisbursementRejectedError",
+    "DisbursementRequest",
+    "DisbursementStatus",
     "DuplicateInitiateError",
+    "DuplicateOriginatorConversationError",
+    "FailureReason",
     "FakeAdapter",
     "FakeAdapterConfig",
     "ManualClock",
@@ -48,4 +71,5 @@ __all__ = [
     "PaymentStatus",
     "Scenario",
     "UnknownReferenceError",
+    "b2c_result_codes",
 ]

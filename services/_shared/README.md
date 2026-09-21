@@ -20,7 +20,11 @@ Currently implemented: the M-Pesa port skeleton and the FakeAdapter (`mpesa/`). 
 
 Errors follow [ADR 0006](../../docs/adrs/0006-idempotency-replay.md): `ChargeDeclinedError` means definitively declined (no charge exists); `OutcomeUnknownError` means timeout or transport failure (a charge may exist, so never treat it as a decline and never retry initiate). Provider result codes are mapped once in `mpesa/result_codes.py`, and unrecognised codes are `UNKNOWN`. Only codes 0 and 1032 are verified against Daraja documentation and produce terminal outcomes. Every other code, including the candidates 1, 2001 and 1037, resolves `UNKNOWN` until verified; a test fails if a code is added to the table without updating it. See the ADR 0006 mapping table.
 
-Not in the skeleton yet: auth and B2C (listed in ADR 0004), to be added with G2.
+### B2C disbursements
+
+`DisbursementPort` (ADR 0008) adds `disburse`, `query_disbursement_status` and `parse_disbursement_result`. The caller chooses the `originator_conversation_id` (20 characters or fewer) and the provider rejects a repeat, which the fake models with `DuplicateOriginatorConversationError` (an unknown outcome, never a failure). Definitive refusals raise `DisbursementRejectedError`. B2C result codes live in `mpesa/b2c_result_codes.py` and are separate from the STK table (code 2001 differs). Amounts are minor units; the provider limits KSh 10 to 250,000 are enforced by the fake with the documented codes 2 and 3.
+
+Auth (token generation) is still not in the port.
 
 ## FakeAdapter
 
@@ -48,6 +52,30 @@ The scenario is chosen by the customer phone number. These numbers (`254` plus n
 | `254000000014` | `UNRECOGNISED_CODE` | Callback with a code outside the mapping, must resolve to `UNKNOWN` |
 
 `FakeAdapter` refuses a second `initiate_charge` for the same idempotency key (`DuplicateInitiateError`), because a real provider would charge twice. `initiate_call_count` lets tests assert exactly one provider call.
+
+### B2C magic recipients
+
+Same non-real number range as above, `2540000001NN`. Any other well-formed number behaves as `SUCCESS`.
+
+| MSISDN | Scenario | Behaviour |
+|---|---|---|
+| `254000000101` | `SUCCESS` | Success result after `callback_delay_s` |
+| `254000000102` | `INSUFFICIENT_FUNDS` | Result code 1 |
+| `254000000103` | `RECIPIENT_NOT_REGISTERED` | Result code 2040 |
+| `254000000104` | `RECIPIENT_INVALID` | Result code `SFC_IC0003` |
+| `254000000105` | `CONFIGURATION_ERROR` | Result code 2001 (invalid initiator) |
+| `254000000106` | `TIMEOUT_NO_RESULT` | Accepted, no result ever, query stays `UNKNOWN` |
+| `254000000107` | `TIMEOUT_QUERY_RESOLVES` | No result; query returns success after `late_after_s` |
+| `254000000108` | `DELAYED_RESULT` | Success result only after `late_after_s` |
+| `254000000109` | `DUPLICATE_RESULT` | Same success result `duplicate_count` times |
+| `254000000110` | `OUT_OF_ORDER_SUCCESS_THEN_FAILURE` | Success, then a contradicting failure |
+| `254000000111` | `OUT_OF_ORDER_FAILURE_THEN_SUCCESS` | Failure, then a contradicting success |
+| `254000000112` | `DISBURSE_TIMEOUT` | `disburse` raises `OutcomeUnknownError`; a success result arrives late |
+| `254000000113` | `DISBURSE_REJECTED` | `disburse` raises `DisbursementRejectedError` |
+| `254000000114` | `DUPLICATE_ORIGINATOR_ERROR` | `disburse` raises the duplicate error; the earlier attempt paid, visible by query |
+| `254000000115` | `UNRECOGNISED_CODE` | Result with a code outside the table, resolves `UNKNOWN` |
+
+Drive them with `due_disbursement_results()`, `scheduled_disbursement_results(id)` and `deliver_disbursement_code(id, raw_code)`. The success result omits the recipient name and account balances that a real one carries, on purpose.
 
 ### Driving callbacks
 

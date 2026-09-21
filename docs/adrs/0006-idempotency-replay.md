@@ -114,29 +114,31 @@ A missing or late callback, a network timeout, or an adapter timeout moves the p
 
 An "in progress" or errored query response is inconclusive (row 11), not a decline.
 
-**Provider result mapping.** Written from memory of the public Daraja documentation. **No row has been verified against current Daraja docs**, so every code is marked to verify before G2 relies on it. Codes not listed are `UNKNOWN`.
+**Provider result mapping.** Partially verified on 2026-09-21 against the Daraja portal page for M-Pesa Express Query (saved copy of the page). That page documents `ResultCode` 0 (success) and 1032 (request cancelled by the user) and states that any other `ResultCode` means an error occurred or the transaction failed. Rows that page does not confirm stay marked to verify before G2 relies on them. The M-Pesa Express (STK Push) and callback pages were not captured. Codes not listed are `UNKNOWN`.
 
 | Provider signal | Outcome | Payment result | Status |
 |---|---|---|---|
-| `ResultCode` 0 | Success | `SUCCEEDED` | Verify against Daraja docs |
+| `ResultCode` 0 | Success | `SUCCEEDED` | Verified for the status query response (STK Query page). Confirm the same in callbacks |
 | `ResultCode` 1 | Insufficient funds | `DECLINED` (`INSUFFICIENT_FUNDS`) | Verify against Daraja docs |
-| `ResultCode` 1032 | Cancelled by user | `DECLINED` (`USER_CANCELLED`) | Verify against Daraja docs |
+| `ResultCode` 1032 | Cancelled by user | `DECLINED` (`USER_CANCELLED`) | Verified for the status query response (STK Query page). Confirm the same in callbacks |
 | `ResultCode` 2001 | Wrong PIN | `DECLINED` (`WRONG_PIN`) | Verify against Daraja docs |
 | `ResultCode` 1037 | Prompt not answered / handset unreachable | `EXPIRED` | Verify against Daraja docs, including that it guarantees no charge |
 | Synchronous rejection of the initiate request | Invalid request | `DECLINED` (`REJECTED_AT_INITIATION`) | Verify which responses are definitive |
 | No callback, HTTP timeout, 5xx, network error, adapter timeout | Unknown | `UNKNOWN` | By design, not a provider code |
-| Status query says request still processing, or query errors | Unknown | stays `UNKNOWN` | Verify exact query response |
+| Status query returns a non-zero `ResponseCode`, an error, or says the request is still processing | Unknown | stays `UNKNOWN` | Fail-safe by design. The STK Query page says a non-zero `ResponseCode` means an error occurred; the in-progress response itself is not documented there, verify |
 | Any other `ResultCode` | Unknown | `UNKNOWN` | By design (fail-safe) |
+
+**Verified query facts** (STK Query page): the status query is keyed by `CheckoutRequestID` and requires the shortcode, a password (base64 of shortcode, passkey and timestamp) and a timestamp. Its response returns `MerchantRequestID`, `CheckoutRequestID`, `ResponseCode`, `ResultCode` and `ResultDesc`. The reconcile job therefore needs the shortcode and passkey inside the adapter implementation, never in Commission or CI ([ADR 0004](0004-mpesa-adapter.md)).
 
 The adapter normalises these to an outcome (`SUCCEEDED`, `DECLINED`, `EXPIRED`, `UNKNOWN`) plus a decline reason and the raw code. Payments and Commission never branch on raw codes.
 
-**Initiate timeout has no provider reference.** If the initiate call times out we may not hold a provider reference, so a status query is impossible and we cannot retry safely. Such a payment waits in `UNKNOWN`. If a callback later arrives for an unrecognised provider reference it goes to the unmatched-callback inbox (section 4) and is surfaced for review. It is never auto-credited to a guessed payment.
+**Initiate timeout has no provider reference.** If the initiate call times out we may not hold a provider reference. The status query requires `CheckoutRequestID` (verified), so a query is impossible and we cannot retry safely. Such a payment waits in `UNKNOWN`. If a callback later arrives for an unrecognised provider reference it goes to the unmatched-callback inbox (section 4) and is surfaced for review. It is never auto-credited to a guessed payment.
 
 ### 4. Callback replay equals exactly one ledger effect
 
 Callbacks can arrive 0, 1 or N times and out of order.
 
-- **Dedupe key.** The provider's request identifier for the STK request (`CheckoutRequestID`), stored as `provider_ref`. ADR 0004 does not name the identifier; this ADR assumes `CheckoutRequestID` (present on every STK callback, including failures) and stores the receipt number (`MpesaReceiptNumber`, success only) as a secondary reference. **Verify against Daraja docs.**
+- **Dedupe key.** The provider's request identifier for the STK request (`CheckoutRequestID`), stored as `provider_ref`. ADR 0004 does not name the identifier; this ADR uses `CheckoutRequestID`. The STK Query page confirms it is a global unique identifier of the checkout request and the key for status query. Still to verify from the callback docs: that it is present on every STK callback including failures. The receipt number (`MpesaReceiptNumber`, success only, unverified) is stored as a secondary reference.
 - **One transaction.** The handler runs, in a single DB transaction:
   1. `SELECT ... FROM payments WHERE provider_ref = $1 FOR UPDATE` (serialises concurrent callbacks and the reconcile job for the same payment).
   2. Check the transition is legal (section 1). If the payment already holds this outcome, the transaction is a no-op.
@@ -210,8 +212,8 @@ All tests use the FakeAdapter and a real PostgreSQL (unique constraints and row 
 | # | Question | Owner |
 |---|---|---|
 | 1 | Real Daraja callback authenticity mechanism in the sandbox (signature, source allowlist, secret path). Tracked as an open risk in the [threat model](../threat-model.md); target G2 | `@chesangJ` |
-| 2 | Verify every result code and query behaviour in the mapping table, and that `CheckoutRequestID` is on all STK callbacks | `@chesangJ` |
-| 3 | Whether callbacks echo any caller-supplied reference, so an initiate-timeout payment with no `provider_ref` can be matched safely | `@chesangJ` |
+| 2 | Partly closed 2026-09-21: `ResultCode` 0 and 1032 and the query request and response fields are verified (STK Query page). Still to verify from the STK Push and callback pages: codes 1, 2001 and 1037, the in-progress query response, and that `CheckoutRequestID` is on all STK callbacks | `@chesangJ` |
+| 3 | Query needs `CheckoutRequestID` (verified), so an initiate-timeout payment cannot be queried. Still open: whether callbacks echo any caller-supplied reference so it can be matched safely | `@chesangJ` |
 | 4 | Reversals: ADR 0004 lists no reversal. If needed, decide the compensating-entry model and amend ADR 0004 | `@chesangJ` |
 | 5 | B2C payout (Commission) state machine and ledger key; reuses these rules but needs its own section or ADR | `@chesangJ` |
 | 6 | Payments request contract carries `sale_id`, and POS guarantees it is unique per sale | `@Moraaalice` |

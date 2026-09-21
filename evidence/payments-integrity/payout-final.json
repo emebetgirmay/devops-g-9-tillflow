@@ -1,0 +1,1 @@
+{"disbursement_id": "dis_360eea69ec374ef49779f49ce1b47f73", "conversation_id": "AG_d5403be3803f4115", "originator_conversation_id": "W2WMANOJPYGKYXVIQ7IA", "state": "SUCCEEDED", "failure_reason": null, "tenant_id": "evidence", "attendant_id": "att-1", "payout_period": "2026-09-20", "amount_minor": 500000, "msisdn": "2540****109", "receipt": "FAKEC86693AA", "ledger_entries": 1}

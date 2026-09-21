@@ -145,17 +145,17 @@ class ImmediateOutcomeScenariosTest(unittest.TestCase):
         self.assertTrue(event.receipt and event.receipt.startswith("FAKE"))
         self.assertEqual(adapter.query_status(accepted.provider_ref).receipt, event.receipt)
 
-    def test_insufficient_funds(self) -> None:
-        self.check(Scenario.INSUFFICIENT_FUNDS, Outcome.DECLINED, DeclineReason.INSUFFICIENT_FUNDS)
+    def test_insufficient_funds_code_is_unknown_until_verified(self) -> None:
+        self.check(Scenario.INSUFFICIENT_FUNDS, Outcome.UNKNOWN, None)
 
     def test_user_cancelled(self) -> None:
         self.check(Scenario.USER_CANCELLED, Outcome.DECLINED, DeclineReason.USER_CANCELLED)
 
-    def test_wrong_pin(self) -> None:
-        self.check(Scenario.WRONG_PIN, Outcome.DECLINED, DeclineReason.WRONG_PIN)
+    def test_wrong_pin_code_is_unknown_until_verified(self) -> None:
+        self.check(Scenario.WRONG_PIN, Outcome.UNKNOWN, None)
 
-    def test_prompt_expired_is_expired_not_declined(self) -> None:
-        self.check(Scenario.PROMPT_EXPIRED, Outcome.EXPIRED, None)
+    def test_prompt_expired_code_is_unknown_until_verified(self) -> None:
+        self.check(Scenario.PROMPT_EXPIRED, Outcome.UNKNOWN, None)
 
     def test_unrecognised_code_fails_safe_to_unknown(self) -> None:
         self.check(Scenario.UNRECOGNISED_CODE, Outcome.UNKNOWN, None)
@@ -299,21 +299,85 @@ class GuardRailsTest(unittest.TestCase):
             ManualClock().advance(-1)
 
 
+class ScriptedResultCodeTest(unittest.TestCase):
+    def scripted(self, raw_code: object):
+        adapter, _ = fresh()
+        ref = adapter.initiate_charge(make(Scenario.TIMEOUT_NO_CALLBACK)).provider_ref
+        adapter.deliver_result_code(ref, raw_code)
+        deliveries = adapter.due_callbacks()
+        self.assertEqual(len(deliveries), 1)
+        event = adapter.parse_callback(deliveries[0].headers, deliveries[0].body)
+        return adapter, ref, event
+
+    def test_unverified_and_odd_codes_resolve_to_unknown(self) -> None:
+        raw_codes = (
+            1,
+            2001,
+            1037,
+            2,
+            17,
+            26,
+            1019,
+            1025,
+            1050,
+            9999,
+            -1,
+            "0",
+            None,
+            1.5,
+            True,
+            False,
+        )
+        for raw in raw_codes:
+            with self.subTest(raw=raw):
+                adapter, ref, event = self.scripted(raw)
+                self.assertIs(event.outcome, Outcome.UNKNOWN)
+                self.assertIsNone(event.decline_reason)
+                self.assertIs(adapter.query_status(ref).outcome, Outcome.UNKNOWN)
+
+    def test_verified_codes_resolve_as_documented(self) -> None:
+        adapter, ref, event = self.scripted(0)
+        self.assertIs(event.outcome, Outcome.SUCCEEDED)
+        self.assertEqual(event.amount_minor, 150000)
+        self.assertIs(adapter.query_status(ref).outcome, Outcome.SUCCEEDED)
+        adapter, ref, event = self.scripted(1032)
+        self.assertIs(event.outcome, Outcome.DECLINED)
+        self.assertIs(event.decline_reason, DeclineReason.USER_CANCELLED)
+
+    def test_delay_and_errors(self) -> None:
+        adapter, clock = fresh()
+        ref = adapter.initiate_charge(make(Scenario.TIMEOUT_NO_CALLBACK)).provider_ref
+        adapter.deliver_result_code(ref, 0, delay_s=30)
+        self.assertEqual(adapter.due_callbacks(), [])
+        self.assertIs(adapter.query_status(ref).outcome, Outcome.UNKNOWN)
+        clock.advance(30)
+        self.assertEqual(len(adapter.due_callbacks()), 1)
+        self.assertIs(adapter.query_status(ref).outcome, Outcome.SUCCEEDED)
+        with self.assertRaises(UnknownReferenceError):
+            adapter.deliver_result_code("fake-co-nope", 0)
+        with self.assertRaises(ValueError):
+            adapter.deliver_result_code(ref, 0, delay_s=-1)
+
+
 class ResultCodeMappingTest(unittest.TestCase):
     def test_mapping(self) -> None:
         cases = {
             0: (Outcome.SUCCEEDED, None),
-            1: (Outcome.DECLINED, DeclineReason.INSUFFICIENT_FUNDS),
             1032: (Outcome.DECLINED, DeclineReason.USER_CANCELLED),
-            2001: (Outcome.DECLINED, DeclineReason.WRONG_PIN),
-            1037: (Outcome.EXPIRED, None),
         }
         for code, expected in cases.items():
             with self.subTest(code=code):
                 self.assertEqual(result_codes.classify(code), expected)
 
+    def test_only_verified_codes_are_in_the_table(self) -> None:
+        self.assertEqual(
+            result_codes.VERIFIED_CODES,
+            {0, 1032},
+            "add a code only after verifying it against Daraja docs, and update ADR 0006",
+        )
+
     def test_anything_else_is_unknown_never_declined(self) -> None:
-        for code in (42, -1, 99999, "0", None, 1.0, True):
+        for code in (1, 2001, 1037, 42, -1, 99999, "0", None, 1.0, True, False):
             with self.subTest(code=code):
                 self.assertEqual(result_codes.classify(code), (Outcome.UNKNOWN, None))
 

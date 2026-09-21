@@ -18,7 +18,7 @@ Currently implemented: the M-Pesa port skeleton and the FakeAdapter (`mpesa/`). 
 | `query_status(provider_ref) -> PaymentStatus` | Ask for the state of a charge (reconciliation). |
 | `parse_callback(headers, body) -> CallbackEvent` | Verify authenticity, then parse a callback into a normalised event. |
 
-Errors follow [ADR 0006](../../docs/adrs/0006-idempotency-replay.md): `ChargeDeclinedError` means definitively declined (no charge exists); `OutcomeUnknownError` means timeout or transport failure (a charge may exist, so never treat it as a decline and never retry initiate). Provider result codes are mapped once in `mpesa/result_codes.py`, and unrecognised codes are `UNKNOWN`. Only codes 0 and 1032 are verified (Daraja STK Query page); the rest are marked unverified in the ADR 0006 mapping table.
+Errors follow [ADR 0006](../../docs/adrs/0006-idempotency-replay.md): `ChargeDeclinedError` means definitively declined (no charge exists); `OutcomeUnknownError` means timeout or transport failure (a charge may exist, so never treat it as a decline and never retry initiate). Provider result codes are mapped once in `mpesa/result_codes.py`, and unrecognised codes are `UNKNOWN`. Only codes 0 and 1032 are verified against Daraja documentation and produce terminal outcomes. Every other code, including the candidates 1, 2001 and 1037, resolves `UNKNOWN` until verified; a test fails if a code is added to the table without updating it. See the ADR 0006 mapping table.
 
 Not in the skeleton yet: auth and B2C (listed in ADR 0004), to be added with G2.
 
@@ -33,10 +33,10 @@ The scenario is chosen by the customer phone number. These numbers (`254` plus n
 | MSISDN | Scenario | Behaviour |
 |---|---|---|
 | `254000000001` | `SUCCESS` | Success callback after `callback_delay_s` (default 1 s) |
-| `254000000002` | `INSUFFICIENT_FUNDS` | Decline callback |
+| `254000000002` | `INSUFFICIENT_FUNDS` | Callback with candidate code 1, which resolves `UNKNOWN` until the code is verified |
 | `254000000003` | `USER_CANCELLED` | Decline callback |
-| `254000000004` | `WRONG_PIN` | Decline callback |
-| `254000000005` | `PROMPT_EXPIRED` | Callback mapping to `EXPIRED` (not a decline) |
+| `254000000004` | `WRONG_PIN` | Callback with candidate code 2001, which resolves `UNKNOWN` until verified |
+| `254000000005` | `PROMPT_EXPIRED` | Callback with candidate code 1037, which resolves `UNKNOWN` until verified |
 | `254000000006` | `TIMEOUT_NO_CALLBACK` | Accepted, no callback ever, query stays `UNKNOWN`. Also models a callback discarded because the endpoint was down (documented gateway behaviour) |
 | `254000000007` | `TIMEOUT_QUERY_RESOLVES` | Accepted, no callback, query returns success after `late_after_s` (default 120 s) |
 | `254000000008` | `DELAYED_CALLBACK` | Success callback only after `late_after_s` |
@@ -64,7 +64,7 @@ for delivery in adapter.due_callbacks():  # handed out once, in delivery order
     ...
 ```
 
-`scheduled_callbacks(provider_ref)` returns every callback for a reference regardless of the clock. Callback bodies follow the documented Daraja STK callback (`Body.stkCallback`, verified against the portal's M-Pesa Express page); `CallbackMetadata` appears only on success. Authenticity is simulated with an HMAC over the body using a fixed public test key in header `X-Fake-Signature`. This is a stand-in that exercises the verify-then-parse path. The control Daraja documents is a source-IP allowlist, enforced by the Payments callback handler before the port is called; it is not modelled here.
+`scheduled_callbacks(provider_ref)` returns every callback for a reference regardless of the clock. `deliver_result_code(provider_ref, raw_code, delay_s=0)` is a test-only hook that schedules a signed callback carrying any raw `ResultCode` (including unrecognised or odd values) so tests can prove it resolves the way the mapping says. Callback bodies follow the documented Daraja STK callback (`Body.stkCallback`, verified against the portal's M-Pesa Express page); `CallbackMetadata` appears only on success. Authenticity is simulated with an HMAC over the body using a fixed public test key in header `X-Fake-Signature`. This is a stand-in that exercises the verify-then-parse path. The control Daraja documents is a source-IP allowlist, enforced by the Payments callback handler before the port is called; it is not modelled here.
 
 ### Using it in CI and k6
 

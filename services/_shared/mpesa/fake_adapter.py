@@ -257,6 +257,26 @@ class FakeAdapter:
             self._delivered.add((delivery.provider_ref, seq))
         return [delivery for _, _, delivery in due]
 
+    def deliver_result_code(
+        self, provider_ref: str, raw_code: object, delay_s: float = 0.0
+    ) -> CallbackDelivery:
+        """Test-only: schedule a signed callback carrying any raw ResultCode for a known charge.
+
+        Lets tests prove that codes outside the verified table (see result_codes) resolve to
+        UNKNOWN. The status query answers the same way once the delivery time is reached.
+        """
+        if delay_s < 0:
+            raise ValueError("delay_s must not be negative")
+        charge = self._charges.get(provider_ref)
+        if charge is None:
+            raise UnknownReferenceError(provider_ref)
+        deliver_at = self._clock.now() + delay_s
+        delivery = self._build_delivery(charge, deliver_at, raw_code)
+        self._seq += 1
+        charge.deliveries.append((deliver_at, self._seq, delivery))
+        charge.resolution = (deliver_at, self._status_for(charge, raw_code))
+        return delivery
+
     def scheduled_callbacks(self, provider_ref: str) -> list[CallbackDelivery]:
         """Every callback scheduled for a reference, regardless of the clock, in order."""
         charge = self._charges.get(provider_ref)
@@ -313,19 +333,19 @@ class FakeAdapter:
             first_code = plan[0][1]
             charge.resolution = (first_at, self._status_for(charge, first_code))
 
-    def _status_for(self, charge: _Charge, code: int) -> PaymentStatus:
+    def _status_for(self, charge: _Charge, code: object) -> PaymentStatus:
         outcome, reason = result_codes.classify(code)
         receipt = _receipt_for(charge.provider_ref) if outcome is Outcome.SUCCEEDED else None
         return PaymentStatus(charge.provider_ref, outcome, reason, receipt, str(code))
 
-    def _build_delivery(self, charge: _Charge, deliver_at: float, code: int) -> CallbackDelivery:
+    def _build_delivery(self, charge: _Charge, deliver_at: float, code: object) -> CallbackDelivery:
         callback: dict[str, object] = {
             "MerchantRequestID": charge.merchant_request_id,
             "CheckoutRequestID": charge.provider_ref,
             "ResultCode": code,
             "ResultDesc": f"fake result {code}",
         }
-        if code == result_codes.RESULT_SUCCESS:
+        if type(code) is int and code == result_codes.RESULT_SUCCESS:
             amount = charge.request.amount_minor
             major = amount // 100 if amount % 100 == 0 else amount / 100
             callback["CallbackMetadata"] = {

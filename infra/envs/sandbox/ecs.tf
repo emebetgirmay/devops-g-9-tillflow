@@ -280,9 +280,9 @@ resource "aws_ecs_task_definition" "payments" {
     [
       merge(
         {
-          name                   = "payments"
-          image                  = local.payments_image
-          essential              = true
+          name      = "payments"
+          image     = local.payments_image
+          essential = true
           # SQLite needs a writable path; Fargate empty volumes are root-owned, so
           # keep the root FS writable and use /app/data from the image (uid 10001).
           readonlyRootFilesystem = false

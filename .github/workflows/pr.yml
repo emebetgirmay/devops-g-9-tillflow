@@ -128,3 +128,38 @@ jobs:
             "aquasec/trivy:${TRIVY_VERSION}" \
             image --severity HIGH,CRITICAL --exit-code 1 \
             --ignore-unfixed local/pos:pr
+
+  payments-tests:
+    name: Payments unit tests
+    runs-on: ubuntu-latest
+    needs: [gitleaks]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Shared + Payments unittest
+        run: |
+          set -euo pipefail
+          (cd services/_shared && python3 -m unittest discover -s tests -t .)
+          (cd services/payments && python3 -m unittest discover -s tests)
+
+  payments-docker:
+    name: Build Payments image
+    runs-on: ubuntu-latest
+    needs: [gitleaks, payments-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build
+        run: docker build -f services/payments/Dockerfile -t local/payments:pr .
+
+      - name: Trivy image scan
+        env:
+          TRIVY_VERSION: "0.56.2"
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            "aquasec/trivy:${TRIVY_VERSION}" \
+            image --severity HIGH,CRITICAL --exit-code 1 \
+            --ignore-unfixed local/payments:pr

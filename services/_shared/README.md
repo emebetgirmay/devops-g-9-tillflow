@@ -18,7 +18,7 @@ Currently implemented: the M-Pesa port skeleton and the FakeAdapter (`mpesa/`). 
 | `query_status(provider_ref) -> PaymentStatus` | Ask for the state of a charge (reconciliation). |
 | `parse_callback(headers, body) -> CallbackEvent` | Verify authenticity, then parse a callback into a normalised event. |
 
-Errors follow [ADR 0006](../../docs/adrs/0006-idempotency-replay.md): `ChargeDeclinedError` means definitively declined (no charge exists); `OutcomeUnknownError` means timeout or transport failure (a charge may exist, so never treat it as a decline and never retry initiate). Provider result codes are mapped once in `mpesa/result_codes.py`, and unrecognised codes are `UNKNOWN`. Those codes are unverified; see the ADR 0006 mapping table.
+Errors follow [ADR 0006](../../docs/adrs/0006-idempotency-replay.md): `ChargeDeclinedError` means definitively declined (no charge exists); `OutcomeUnknownError` means timeout or transport failure (a charge may exist, so never treat it as a decline and never retry initiate). Provider result codes are mapped once in `mpesa/result_codes.py`, and unrecognised codes are `UNKNOWN`. Only codes 0 and 1032 are verified (Daraja STK Query page); the rest are marked unverified in the ADR 0006 mapping table.
 
 Not in the skeleton yet: auth and B2C (listed in ADR 0004), to be added with G2.
 

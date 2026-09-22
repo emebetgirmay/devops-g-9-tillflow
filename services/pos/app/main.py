@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from .db import init_db
-from .routers import catalog, internal, sales
+from .routers import catalog, commission, internal, sales
 
 COMMIT_SHA = os.environ.get("COMMIT_SHA", "local")
 IMAGE_DIGEST = os.environ.get("IMAGE_DIGEST", "unknown")
@@ -63,3 +63,4 @@ def version() -> dict:
 app.include_router(catalog.router)
 app.include_router(sales.router)
 app.include_router(internal.router)
+app.include_router(commission.router)

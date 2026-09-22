@@ -28,11 +28,23 @@ variable "pos_container_port" {
   default = 8080
 }
 
+variable "payments_container_port" {
+  type    = number
+  default = 8080
+}
+
 # When null/empty, ECS uses a self-healthy busybox placeholder (P0-3).
 # Pipeline deploys real digests; service ignore_changes keeps them.
 variable "pos_image_digest" {
   type        = string
   description = "Optional ECR image URI including @sha256 digest for POS app"
+  default     = null
+  nullable    = true
+}
+
+variable "payments_image_digest" {
+  type        = string
+  description = "Optional ECR image URI including @sha256 digest for Payments app"
   default     = null
   nullable    = true
 }

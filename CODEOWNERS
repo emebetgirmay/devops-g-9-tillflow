@@ -12,6 +12,7 @@
 /docs/adrs/0004-mpesa-adapter.md @chesangJ
 /docs/adrs/0006-idempotency-replay.md @chesangJ
 /docs/adrs/0008-b2c-payouts.md @chesangJ
+/docs/adrs/0009-payments-observability.md @chesangJ
 /evidence/payments-integrity/ @chesangJ
 
 # Platform + delivery — Emebet Girmay

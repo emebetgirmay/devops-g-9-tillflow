@@ -19,7 +19,6 @@ Safety properties:
 from __future__ import annotations
 
 import csv
-import hashlib
 import json
 import os
 import sys
@@ -29,10 +28,30 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from ledger.common import classify_payout_response, idempotency_key_for
+
 REQUIRED_COLUMNS = ("tenant_id", "attendant_id", "payout_period", "msisdn", "amount")
 EXIT_OK, EXIT_PROBLEMS, EXIT_BAD_INPUT, EXIT_ABORTED = 0, 1, 2, 3
 
 Post = Callable[[str, str, dict], tuple[int, dict]]
+
+# Re-exported so `from worker import idempotency_key_for` (existing tests, this module's own
+# history) keeps working now that the implementation lives in ledger/common.py alongside the
+# ledger-driven path in ledger/disburse.py, which needs the exact same functions.
+__all__ = [
+    "EXIT_ABORTED",
+    "EXIT_BAD_INPUT",
+    "EXIT_OK",
+    "EXIT_PROBLEMS",
+    "Entry",
+    "classify",
+    "exit_code",
+    "idempotency_key_for",
+    "main",
+    "post_payout",
+    "read_entries",
+    "run",
+]
 
 
 @dataclass(frozen=True)
@@ -46,12 +65,6 @@ class Entry:
     @property
     def key(self) -> tuple[str, str, str]:
         return (self.tenant_id, self.attendant_id, self.payout_period)
-
-
-def idempotency_key_for(tenant_id: str, attendant_id: str, payout_period: str) -> str:
-    """Deterministic, 43 characters of [A-Za-z0-9_]: the same payout always gets the same key."""
-    digest = hashlib.sha256(f"{tenant_id}|{attendant_id}|{payout_period}".encode()).hexdigest()
-    return "po_" + digest[:40]
 
 
 def read_entries(path: str | Path) -> list[Entry]:
@@ -128,23 +141,9 @@ def run(entries: list[Entry], base_url: str, post: Post = post_payout) -> dict:
     return {"requested": len(seen), "counts": counts, "aborted": aborted, "results": results}
 
 
-def classify(status: int, reply: dict) -> str:
-    error = reply.get("error", "")
-    if status == 201:
-        return "created"
-    if status == 200:
-        return "already_requested"
-    if status == 409 and error == "payout_already_requested":
-        return "already_requested"
-    if status == 409 and error == "idempotency_in_flight":
-        return "in_flight_retry_next_run"
-    if status == 409:
-        return "conflict_needs_review"
-    if status == 422:
-        return f"held_{error}"
-    if status == 503 and error == "payouts_disabled":
-        return "payouts_disabled"
-    return f"rejected_{status}"
+# Kept as a module-level name (not a bare re-import) so `worker.classify` and the diff on this
+# file stay obvious; the implementation is shared with ledger/disburse.py via ledger/common.py.
+classify = classify_payout_response
 
 
 def exit_code(summary: dict) -> int:

@@ -157,3 +157,21 @@ class PaymentEventOut(BaseModel):
     sale_id: str
     status: str
     applied: bool
+
+
+class PaidSaleOut(BaseModel):
+    """One PAID sale, with the attendant's rate joined in so Commission never has to look up
+    Attendant separately (POS owns commission_rate_bps; Commission owns the ledger)."""
+
+    sale_id: str
+    attendant_id: str
+    attendant_msisdn: str
+    commission_rate_bps: int
+    total_minor: int
+    currency: str
+    paid_at: datetime
+
+
+class PaidSalesPage(BaseModel):
+    sales: list[PaidSaleOut]
+    next_cursor: str | None = None

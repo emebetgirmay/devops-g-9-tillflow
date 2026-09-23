@@ -184,16 +184,38 @@ Real PostgreSQL, FakeAdapter only.
 
 ### Implementation status (G2)
 
-Built in `services/payments/` (`core/payouts.py`) over the FakeAdapter, and `services/commission/worker.py`. See the Payments README for the API.
+Built in `services/payments/` (`core/payouts.py`) over the FakeAdapter, and in
+`services/commission/` (`ledger/`, `close.py`, `disburse.py`, with `worker.py`'s original CSV path
+kept for manual corrections). See the Payments README and the Commission README for the APIs, and
+`services/_shared/pos-commission-contract.md` for how Commission reads POS's confirmed-paid sales.
 
-- **Built and tested:** the `POST /payouts` idempotency contract, the server-derived `payout_key` (callers cannot send one), the deterministic 20-character `OriginatorConversationID` stored before the provider call, one live disbursement per payout key, the disbursement state machine, the documented B2C result codes and their fail-safe gate, result callbacks (replay, out-of-order, contradiction raising a critical anomaly), the duplicate-originator answer treated as `UNKNOWN`, reconcile ending in `NEEDS_REVIEW`, provider limits, and the kill switch. Tests are in `services/payments/tests/test_payouts.py` and `services/commission/tests/test_worker.py`; the run-level invariants P1, P2, P4, P5, P6, P8, P9, P12, P14, P15 and P17 are covered there.
-- **Not built yet:**
-  - the Commission `payout_ledger` and `payout_items` tables and the recipient snapshot (section 2), so P3, P10, P11 and P13 have no test; the worker currently reads a stubbed CSV;
-  - handling of the `QueueTimeOutURL` timeout notification (the fake does not emit one, so P7 is untested);
+- **Built and tested:** the `POST /payouts` idempotency contract, the server-derived `payout_key`
+  (callers cannot send one), the deterministic 20-character `OriginatorConversationID` stored
+  before the provider call, one live disbursement per payout key, the disbursement state machine,
+  the documented B2C result codes and their fail-safe gate, result callbacks (replay, out-of-order,
+  contradiction raising a critical anomaly), the duplicate-originator answer treated as `UNKNOWN`,
+  reconcile ending in `NEEDS_REVIEW`, provider limits, and the kill switch. **Now also built:** the
+  Commission `payout_ledger` and `payout_items` tables with the recipient snapshot (section 2, so
+  P3, P10, P11 and P13 are covered), the daily close computing commission from POS's real paid
+  sales via the new `GET /tenants/{id}/commission/paid-sales` endpoint, and the carry-forward
+  mechanism for a below-minimum or sub-shilling remainder (an explicit judgment call for ADR
+  0008's own open questions 3 and 4 pending Product sign-off — see the Commission README). Tests:
+  `services/payments/tests/test_payouts.py`, `services/commission/tests/test_close.py`,
+  `test_disburse.py`, `test_worker.py`, and `test_end_to_end.py` (all three real services together
+  over real HTTP, run twice to prove the whole pipeline is idempotent, not just each half). The
+  run-level invariants P1, P2, P3, P4, P5, P6, P8, P9, P10, P11, P12, P13, P14, P15 and P17 are
+  covered.
+- **Still not built:**
+  - handling of the `QueueTimeOutURL` timeout notification (the fake does not emit one, so P7 is
+    untested);
   - the asynchronous Transaction Status reconcile (the fake's status query is synchronous);
   - B2C Hakikisha, the funding alarm, and the sandbox contract test that closes open question 1;
+  - a scheduler for `close.py`/`disburse.py` (ADR 0006 open question 9);
   - k6 runs against the fake.
-- **Differences from the wording above:** the endpoint is `/payouts`, an over-limit payout is rejected with 422 instead of being held in Payments, the whole-shilling rule was added, the kill switch answers 503 instead of queueing `CREATED` rows, and the callback audit stores a hash and summary rather than results.
+- **Differences from the wording above:** the endpoint is `/payouts`, an over-limit payout is
+  rejected with 422 instead of being held in Payments, the whole-shilling rule was added, the kill
+  switch answers 503 instead of queueing `CREATED` rows, and the callback audit stores a hash and
+  summary rather than results.
 
 ## Consequences
 

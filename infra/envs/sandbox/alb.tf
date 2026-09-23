@@ -32,6 +32,17 @@ resource "aws_security_group" "alb" {
     security_groups = [aws_security_group.vpclink.id]
   }
 
+  # Service-to-service calls (POS -> Payments, Commission -> POS/Payments) go through this
+  # internal ALB. CIDR rather than task SG references, which would cycle with the task SGs'
+  # own "from ALB" ingress.
+  ingress {
+    description = "HTTP from ECS tasks in VPC"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   egress {
     description = "To ECS tasks in VPC (POS and Payments)"
     from_port   = var.pos_container_port
@@ -67,6 +78,15 @@ resource "aws_security_group" "pos" {
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # POS -> Payments via the internal ALB (PAYMENTS_BASE_URL).
+  egress {
+    description = "HTTP to internal ALB"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
   }
 
   tags = {

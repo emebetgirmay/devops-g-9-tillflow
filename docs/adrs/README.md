@@ -17,18 +17,21 @@ index mirrors the files.
 | [0004](0004-mpesa-adapter.md) | M-Pesa adapter and sandbox boundary | `@chesangJ` | Accepted (G2) |
 | [0005](0005-dual-cicd-lanes.md) | Dual CI/CD lanes (GHA + CodePipeline) | `@emebetgirmay` | Accepted (G1) |
 | [0006](0006-idempotency-replay.md) | Idempotency and callback replay | `@chesangJ` | Accepted (G2) |
-| [0007](0007-multi-tenancy.md) | Multi-tenancy isolation | `@Moraaalice` | Proposed (Product fills before G2) |
+| [0007](0007-multi-tenancy.md) | Multi-tenancy isolation | `@Moraaalice` | Accepted |
 | [0008](0008-b2c-payouts.md) | B2C commission payouts | `@chesangJ` | Accepted (G2) |
+| [0009](0009-payments-observability.md) | Payments observability for G3 | `@chesangJ` | Proposed (G3 draft) |
 
 ## Reading order for the money path
 
-0004 (who may talk to M-Pesa) then 0006 (charges, timeouts, callback replay) then 0008 (payouts).
-The rules in 0006 are reused by 0008. Each of the three has an "Implementation" section saying what
-is built, where, and how it differs from the wording.
+0004 (who may talk to M-Pesa) then 0006 (charges, timeouts, callback replay) then 0008 (payouts),
+then 0009 (how the money path is observed at G3). The rules in 0006 are reused by 0008. Each of the
+0004/0006/0008 has an "Implementation" section saying what is built, where, and how it differs
+from the wording.
 
 ## Known follow-ups
 
 - ADR 0002 and 0003 are still `Proposed`; their owner decides when to accept them.
-- ADR 0007 is filled in Product's own PR; update its row here when it lands.
 - Items marked "verify against Daraja docs" in 0006 and 0008 are confirmed by a sandbox contract
   test run by the deployed adapter, which does not exist yet.
+- ADR 0009 is a draft (G3); it needs Platform sign-off on the metrics-exposure approach before
+  it can move to Accepted.

@@ -29,7 +29,6 @@ BANNED = {
 PATTERNS = [
     re.compile(r"https?://[^\s\"']*(safaricom|daraja)", re.IGNORECASE),
     re.compile(r"safaricom\.co\.ke", re.IGNORECASE),
-    re.compile(r"_shared", re.IGNORECASE),
     re.compile(
         r"(consumer_key|consumer_secret|pass_?key|initiator_password|security_credential)"
         r"\s*[:=]\s*[\"'][^\"']{8,}[\"']",
@@ -39,6 +38,10 @@ PATTERNS = [
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r"gh[pousr]_[A-Za-z0-9]{30,}"),
 ]
+# Code reaching into services/_shared (the mpesa package) is banned; a doc file *linking* to
+# services/_shared/pos-commission-contract.md or pos-payments-contract.md in prose is fine and
+# expected, so this one only applies to .py files, not the generic PATTERNS list above.
+CODE_ONLY_PATTERNS = [re.compile(r"_shared", re.IGNORECASE)]
 
 
 def worker_files() -> list[Path]:
@@ -76,18 +79,36 @@ class CommissionGuardTest(unittest.TestCase):
                 with self.subTest(file=path.name):
                     self.assertEqual(banned_imports_in(path.read_text()), [])
 
-    def test_no_safaricom_urls_secrets_or_shared_references(self) -> None:
+    def test_no_safaricom_urls_or_secrets(self) -> None:
         for path in worker_files():
             with self.subTest(file=path.name):
                 text = path.read_text(errors="replace")
                 self.assertEqual([p.pattern for p in PATTERNS if p.search(text)], [])
+
+    def test_no_code_reaches_into_shared(self) -> None:
+        for path in worker_files():
+            if path.suffix != ".py":
+                continue
+            with self.subTest(file=path.name):
+                text = path.read_text(errors="replace")
+                self.assertEqual([p.pattern for p in CODE_ONLY_PATTERNS if p.search(text)], [])
 
     def test_the_guard_catches_violations(self) -> None:
         self.assertTrue(banned_imports_in("import mpesa"))
         self.assertTrue(banned_imports_in("from mpesa.fake_adapter import FakeAdapter"))
         self.assertTrue(banned_imports_in("import requests"))
         self.assertEqual(banned_imports_in("import urllib.request\nimport json"), [])
-        self.assertTrue(any(p.search("from _" + "shared import x") for p in PATTERNS))
+        self.assertTrue(
+            any(p.search("sys.path.insert(0, '../_" + "shared')") for p in CODE_ONLY_PATTERNS)
+        )
+        self.assertEqual(
+            [
+                p.pattern
+                for p in PATTERNS
+                if p.search("see services/_shared/pos-commission-contract.md")
+            ],
+            [],
+        )
 
 
 if __name__ == "__main__":

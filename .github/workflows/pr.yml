@@ -163,3 +163,46 @@ jobs:
             "aquasec/trivy:${TRIVY_VERSION}" \
             image --severity HIGH,CRITICAL --exit-code 1 \
             --ignore-unfixed local/payments:pr
+
+  commission-tests:
+    name: Commission unit + end-to-end tests
+    runs-on: ubuntu-latest
+    needs: [gitleaks]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # The end-to-end test runs the real POS app, so it needs POS's dependencies.
+      - name: Install POS deps
+        run: pip install -r services/pos/requirements.txt
+      - name: Commission unittest
+        working-directory: services/commission
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -v 2>&1 | tee test.log
+          # The end-to-end tests skip themselves without POS's deps; never let that pass silently.
+          if grep -q "skipped" test.log; then
+            echo "::error::Commission tests were skipped"
+            exit 1
+          fi
+
+  commission-docker:
+    name: Build Commission image
+    runs-on: ubuntu-latest
+    needs: [gitleaks, commission-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build
+        run: docker build -t local/commission:pr services/commission
+
+      - name: Trivy image scan
+        env:
+          TRIVY_VERSION: "0.56.2"
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            "aquasec/trivy:${TRIVY_VERSION}" \
+            image --severity HIGH,CRITICAL --exit-code 1 \
+            --ignore-unfixed local/commission:pr

@@ -1,0 +1,165 @@
+{
+    "SecurityGroups": [
+        {
+            "GroupId": "sg-0736884bdd237212d",
+            "IpPermissionsEgress": [
+                {
+                    "IpProtocol": "tcp",
+                    "FromPort": 8080,
+                    "ToPort": 8080,
+                    "UserIdGroupPairs": [],
+                    "IpRanges": [
+                        {
+                            "Description": "To ECS tasks in VPC (POS and Payments)",
+                            "CidrIp": "10.9.0.0/16"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-alb"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                },
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "service",
+                    "Value": "platform"
+                }
+            ],
+            "VpcId": "vpc-0d13a92f32c15aa08",
+            "SecurityGroupArn": "arn:aws:ec2:eu-north-1:240462142849:security-group/sg-0736884bdd237212d",
+            "OwnerId": "240462142849",
+            "GroupName": "devops-g9-alb",
+            "Description": "Internal ALB - only from VPC Link",
+            "IpPermissions": [
+                {
+                    "IpProtocol": "tcp",
+                    "FromPort": 80,
+                    "ToPort": 80,
+                    "UserIdGroupPairs": [
+                        {
+                            "Description": "HTTP from VPC Link",
+                            "UserId": "240462142849",
+                            "GroupId": "sg-081efdbc7349e74fb"
+                        }
+                    ],
+                    "IpRanges": [
+                        {
+                            "Description": "HTTP from ECS tasks in VPC",
+                            "CidrIp": "10.9.0.0/16"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                }
+            ]
+        },
+        {
+            "GroupId": "sg-00f88cdcb07545c63",
+            "IpPermissionsEgress": [
+                {
+                    "IpProtocol": "tcp",
+                    "FromPort": 80,
+                    "ToPort": 80,
+                    "UserIdGroupPairs": [],
+                    "IpRanges": [
+                        {
+                            "Description": "HTTP to internal ALB",
+                            "CidrIp": "10.9.0.0/16"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                },
+                {
+                    "IpProtocol": "tcp",
+                    "FromPort": 443,
+                    "ToPort": 443,
+                    "UserIdGroupPairs": [],
+                    "IpRanges": [
+                        {
+                            "Description": "HTTPS via NAT (ECR, CloudWatch, APIs)",
+                            "CidrIp": "0.0.0.0/0"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-pos"
+                },
+                {
+                    "Key": "service",
+                    "Value": "pos"
+                }
+            ],
+            "VpcId": "vpc-0d13a92f32c15aa08",
+            "SecurityGroupArn": "arn:aws:ec2:eu-north-1:240462142849:security-group/sg-00f88cdcb07545c63",
+            "OwnerId": "240462142849",
+            "GroupName": "devops-g9-pos",
+            "Description": "POS ECS tasks",
+            "IpPermissions": [
+                {
+                    "IpProtocol": "tcp",
+                    "FromPort": 8080,
+                    "ToPort": 8080,
+                    "UserIdGroupPairs": [
+                        {
+                            "Description": "From ALB",
+                            "UserId": "240462142849",
+                            "GroupId": "sg-0736884bdd237212d"
+                        }
+                    ],
+                    "IpRanges": [],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,2 @@
+{'name': 'adot', 'lastStatus': 'RUNNING', 'healthStatus': 'HEALTHY', 'image': 'public.ecr.aws/aws-observability/aws-otel-collector:v0.43.1'}
+{'name': 'payments', 'lastStatus': 'RUNNING', 'healthStatus': 'HEALTHY', 'image': '240462142849.dkr.ecr.eu-north-1.amazonaws.com/devops-g9/payments@sha256:7de8a287710dd6343cd49eaac1f9a8021804574f255736ee9ec197c1b209aa8c'}

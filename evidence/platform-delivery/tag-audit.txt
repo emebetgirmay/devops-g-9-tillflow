@@ -1,3 +1,3 @@
-resources tagged capstone=tillflow: 31
-tag key coverage: {'owner': 31, 'environment': 31, 'managed-by': 31, 'tier': 4, 'service': 31, 'capstone': 31, 'Name': 30, 'group': 31, 'purpose': 2}
+resources tagged capstone=tillflow: 42
+tag key coverage: {'owner': 42, 'environment': 42, 'managed-by': 42, 'tier': 4, 'service': 42, 'capstone': 42, 'Name': 40, 'group': 42, 'purpose': 2}
 all required tags present (among returned resources)

@@ -16,7 +16,9 @@ export AWS_REGION="$REGION"
 echo "Collecting into ${OUT} (region=${REGION})"
 
 cd "${ROOT}/infra/envs/sandbox"
-terraform output -json > "${OUT}/outputs.json"
+# Write aside, then replace, so a failed terraform output cannot empty the evidence file.
+terraform output -json > "${OUT}/outputs.json.tmp"
+mv "${OUT}/outputs.json.tmp" "${OUT}/outputs.json"
 
 HEALTH_URL="$(terraform output -raw health_url)"
 READY_URL="$(terraform output -raw ready_url)"

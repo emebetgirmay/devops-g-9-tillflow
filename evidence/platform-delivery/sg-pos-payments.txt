@@ -1,0 +1,4 @@
+devops-g9-alb
+  ingress [{'Description': 'HTTP from ECS tasks in VPC', 'CidrIp': '10.9.0.0/16'}] [{'Description': 'HTTP from VPC Link', 'UserId': '240462142849', 'GroupId': 'sg-081efdbc7349e74fb'}]
+devops-g9-pos
+  egress [{'Description': 'HTTP to internal ALB', 'CidrIp': '10.9.0.0/16'}] []

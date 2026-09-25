@@ -1,1 +1,1 @@
-{"service": "pos", "commit": "0d7e05744dbefcf63f666643c263fdbf853e84a8", "image_digest": "sha256:90041c4eaa47449358137ce1991e26587028696a917e818e6f782fb09be84e41"}
+{"service":"pos","commit":"8866d1b13f70be20b166cfe4a0ae249f496361fb","image_digest":"sha256:428764e2b41b38b8b8b0bc0e8ff236a9b7ebf73774bbf3b6cc429b2ad0e08578"}

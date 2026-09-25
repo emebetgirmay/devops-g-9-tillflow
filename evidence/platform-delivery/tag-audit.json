@@ -170,6 +170,35 @@
             ]
         },
         {
+            "ResourceARN": "arn:aws:elasticloadbalancing:eu-north-1:240462142849:listener-rule/app/devops-g9-alb/07fdaac8aaa247e4/4f61d45068edf6ce/978e66efa4bff25e",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "platform"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
             "ResourceARN": "arn:aws:elasticloadbalancing:eu-north-1:240462142849:listener/app/devops-g9-alb/07fdaac8aaa247e4/4f61d45068edf6ce",
             "Tags": [
                 {
@@ -504,6 +533,39 @@
             ]
         },
         {
+            "ResourceARN": "arn:aws:ecs:eu-north-1:240462142849:service/devops-g9/devops-g9-payments",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "payments"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-payments"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
             "ResourceARN": "arn:aws:apigateway:eu-north-1::/apis/ewi66kqbp8",
             "Tags": [
                 {
@@ -574,6 +636,39 @@
             ]
         },
         {
+            "ResourceARN": "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:13",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "pos"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-pos"
+                }
+            ]
+        },
+        {
             "ResourceARN": "arn:aws:elasticloadbalancing:eu-north-1:240462142849:loadbalancer/app/devops-g9-alb/07fdaac8aaa247e4",
             "Tags": [
                 {
@@ -636,6 +731,39 @@
                 {
                     "Key": "Name",
                     "Value": "/devops-g9/adot/metrics"
+                }
+            ]
+        },
+        {
+            "ResourceARN": "arn:aws:logs:eu-north-1:240462142849:log-group:/devops-g9/adot/payments",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "payments"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "/devops-g9/adot/payments"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
                 }
             ]
         },
@@ -813,6 +941,39 @@
             ]
         },
         {
+            "ResourceARN": "arn:aws:ecr:eu-north-1:240462142849:repository/devops-g9/payments",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "payments"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9/payments"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
             "ResourceARN": "arn:aws:ecs:eu-north-1:240462142849:service/devops-g9/devops-g9-pos",
             "Tags": [
                 {
@@ -875,6 +1036,105 @@
                 {
                     "Key": "Name",
                     "Value": "devops-g9-nat"
+                }
+            ]
+        },
+        {
+            "ResourceARN": "arn:aws:ec2:eu-north-1:240462142849:security-group/sg-00a26cf17e568512f",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "payments"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-payments"
+                }
+            ]
+        },
+        {
+            "ResourceARN": "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-payments:1",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "payments"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-payments"
+                }
+            ]
+        },
+        {
+            "ResourceARN": "arn:aws:elasticloadbalancing:eu-north-1:240462142849:targetgroup/devops-g9-payments/9401734eb4e8ef50",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "payments"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-payments"
                 }
             ]
         },
@@ -1011,6 +1271,72 @@
             ]
         },
         {
+            "ResourceARN": "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:11",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "pos"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-pos"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
+            "ResourceARN": "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-payments:3",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "payments"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "devops-g9-payments"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                }
+            ]
+        },
+        {
             "ResourceARN": "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:4",
             "Tags": [
                 {
@@ -1040,6 +1366,39 @@
                 {
                     "Key": "group",
                     "Value": "devops-g9"
+                }
+            ]
+        },
+        {
+            "ResourceARN": "arn:aws:logs:eu-north-1:240462142849:log-group:/devops-g9/payments",
+            "Tags": [
+                {
+                    "Key": "owner",
+                    "Value": "emebetgirmay"
+                },
+                {
+                    "Key": "environment",
+                    "Value": "sandbox"
+                },
+                {
+                    "Key": "managed-by",
+                    "Value": "terraform"
+                },
+                {
+                    "Key": "service",
+                    "Value": "payments"
+                },
+                {
+                    "Key": "capstone",
+                    "Value": "tillflow"
+                },
+                {
+                    "Key": "group",
+                    "Value": "devops-g9"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "/devops-g9/payments"
                 }
             ]
         }

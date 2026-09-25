@@ -30,6 +30,11 @@
     "type": "string",
     "value": "arn:aws:iam::240462142849:role/devops-g9-ci-deploy"
   },
+  "ecr_payments_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "240462142849.dkr.ecr.eu-north-1.amazonaws.com/devops-g9/payments"
+  },
   "ecr_pos_url": {
     "sensitive": false,
     "type": "string",
@@ -39,6 +44,11 @@
     "sensitive": false,
     "type": "string",
     "value": "devops-g9"
+  },
+  "ecs_payments_service_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "devops-g9-payments"
   },
   "ecs_service_name": {
     "sensitive": false,
@@ -50,6 +60,21 @@
     "type": "string",
     "value": "https://ewi66kqbp8.execute-api.eu-north-1.amazonaws.com/health"
   },
+  "payments_base_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "http://internal-devops-g9-alb-843420818.eu-north-1.elb.amazonaws.com"
+  },
+  "payments_image": {
+    "sensitive": false,
+    "type": "string",
+    "value": "public.ecr.aws/docker/library/busybox:1.37.0"
+  },
+  "payments_task_definition_arn": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-payments:3"
+  },
   "pos_image": {
     "sensitive": false,
     "type": "string",
@@ -58,7 +83,7 @@
   "pos_task_definition_arn": {
     "sensitive": false,
     "type": "string",
-    "value": "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:4"
+    "value": "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:13"
   },
   "private_subnet_ids": {
     "sensitive": false,

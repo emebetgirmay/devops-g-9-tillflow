@@ -1,8 +1,10 @@
 """Guard: the Payments service has no outbound HTTP client and no Safaricom URL or secret.
 
-ADR 0004: only a deployed sandbox adapter may talk to Daraja, and this build ships none. The
-content scan skips this file and the tests, which hold the patterns. reconcile.py may call the
-operator-supplied service URL, so it is exempt from the import ban only.
+ADR 0004: only the deployed sandbox adapter may talk to Daraja. core/daraja_sandbox.py is that
+adapter: it may import urllib.request and nothing else on the ban list, and its base URL and
+credentials come from the environment, so the content scan still covers it. The content scan skips
+this file and the tests, which hold the patterns. reconcile.py may call the operator-supplied
+service URL, so it is exempt from the import ban only.
 """
 
 from __future__ import annotations
@@ -28,6 +30,8 @@ BANNED_IMPORTS = {
     "botocore",
 }
 IMPORT_BAN_EXEMPT = {"reconcile.py"}
+ADAPTER_FILE = "daraja_sandbox.py"
+ADAPTER_ALLOWED_IMPORTS = {"urllib.request"}
 
 PATTERNS = [
     re.compile(r"https?://[^\s\"']*(safaricom|daraja)", re.IGNORECASE),
@@ -78,8 +82,11 @@ class NoOutboundGuardTest(unittest.TestCase):
         for path in service_files():
             if path.suffix != ".py" or path.name in IMPORT_BAN_EXEMPT:
                 continue
+            found = banned_imports_in(path.read_text())
+            if path.name == ADAPTER_FILE:
+                found = [n for n in found if n not in ADAPTER_ALLOWED_IMPORTS]
             with self.subTest(file=str(path.relative_to(SERVICE_DIR))):
-                self.assertEqual(banned_imports_in(path.read_text()), [])
+                self.assertEqual(found, [])
 
     def test_no_safaricom_urls_or_secrets(self) -> None:
         for path in service_files():

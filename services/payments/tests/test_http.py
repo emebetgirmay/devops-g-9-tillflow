@@ -203,18 +203,21 @@ class StartupRefusalTest(unittest.TestCase):
         self.assertIn("refusing to start", result.stderr)
         self.assertNotIn("listening", result.stdout)
 
-    def test_daraja_sandbox_with_every_credential_still_refuses(self) -> None:
+    def test_daraja_sandbox_with_a_non_sandbox_host_refuses(self) -> None:
         extra = {
             "MPESA_ADAPTER": "daraja_sandbox",
+            "MPESA_BASE_URL": "https://api.provider.test",
             "MPESA_CONSUMER_KEY": "x",
             "MPESA_CONSUMER_SECRET": "x",
-            "MPESA_SHORTCODE": "x",
-            "MPESA_PASSKEY": "x",
+            "MPESA_B2C_SHORTCODE": "x",
+            "MPESA_B2C_INITIATOR_NAME": "x",
+            "MPESA_B2C_SECURITY_CREDENTIAL": "x",
             "MPESA_CALLBACK_BASE_URL": "https://example.invalid",
         }
         result = self.run_app(extra)
         self.assertEqual(result.returncode, 2)
-        self.assertIn("only 'fake' is available", result.stderr)
+        self.assertIn("sandbox host", result.stderr)
+        self.assertNotIn("listening", result.stdout)
 
     def test_postgres_url_refuses_to_start(self) -> None:
         result = self.run_app({"DATABASE_URL": "postgres://u@h/db"})

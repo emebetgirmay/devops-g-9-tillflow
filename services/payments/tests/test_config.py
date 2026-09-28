@@ -1,4 +1,4 @@
-"""Startup refusals: this build never reaches Safaricom and never falls back silently."""
+"""Startup refusals: nothing reaches Daraja without full sandbox settings; no silent fallback."""
 
 from __future__ import annotations
 
@@ -9,10 +9,12 @@ import _bootstrap  # noqa: F401
 from core.config import ConfigError, Settings
 
 SANDBOX_VARS = {
+    "MPESA_BASE_URL": "https://api.provider.test",  # not a sandbox host
     "MPESA_CONSUMER_KEY": "x",
     "MPESA_CONSUMER_SECRET": "x",
-    "MPESA_SHORTCODE": "x",
-    "MPESA_PASSKEY": "x",
+    "MPESA_B2C_SHORTCODE": "x",
+    "MPESA_B2C_INITIATOR_NAME": "x",
+    "MPESA_B2C_SECURITY_CREDENTIAL": "x",
     "MPESA_CALLBACK_BASE_URL": "https://example.invalid",
 }
 
@@ -27,9 +29,9 @@ class SettingsTest(unittest.TestCase):
     def test_daraja_sandbox_is_refused_without_credentials(self) -> None:
         with self.assertRaises(ConfigError) as ctx:
             Settings.from_env({"MPESA_ADAPTER": "daraja_sandbox"})
-        self.assertIn("not supported", str(ctx.exception))
+        self.assertIn("needs MPESA_BASE_URL", str(ctx.exception))
 
-    def test_daraja_sandbox_is_refused_even_with_all_credentials(self) -> None:
+    def test_daraja_sandbox_is_refused_for_a_non_sandbox_host(self) -> None:
         env = {"MPESA_ADAPTER": "daraja_sandbox", **SANDBOX_VARS}
         with self.assertRaises(ConfigError):
             Settings.from_env(env)

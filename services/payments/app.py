@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Payments API for TillFlow (G2): idempotent STK charges and B2C payouts over the M-Pesa ports.
 
-Only the FakeAdapter is wired in this build (ADR 0004): nothing here talks to Safaricom, and
-MPESA_ADAPTER=daraja_sandbox is refused at startup. Commission calls /payouts only.
+The FakeAdapter is the default and the only adapter CI, tests and k6 use (ADR 0004).
+MPESA_ADAPTER=daraja_sandbox selects core/daraja_sandbox.py (B2C only) in the deployed sandbox, and
+refuses to start without its Platform-managed settings. Commission calls /payouts only.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from mpesa import FakeAdapter, ManualClock
 
 from core.common import Reply
 from core.config import ConfigError, Settings, SystemClock
+from core.daraja_sandbox import DarajaSandboxAdapter
 from core.payments import PaymentService
 from core.payouts import PayoutService
 from core.store import Store
@@ -38,7 +40,13 @@ class App:
         if clock is None:
             clock = ManualClock(time.time()) if settings.fake_clock == "manual" else SystemClock()
         self.clock = clock
-        self.adapter = adapter if adapter is not None else FakeAdapter(clock=clock)
+        if adapter is None:
+            adapter = (
+                DarajaSandboxAdapter(settings.daraja)
+                if settings.daraja is not None
+                else FakeAdapter(clock=clock)
+            )
+        self.adapter = adapter
         self.store = Store(settings.db_path)
         self.payments = PaymentService(settings, self.store, self.adapter, clock)
         self.payouts = PayoutService(settings, self.store, self.adapter, clock)
@@ -113,6 +121,8 @@ class App:
     # Fake-adapter driver (test and k6 only; this build has no other adapter) ---------------
 
     def _fake(self, path: str, body: bytes) -> Reply:
+        if not isinstance(self.adapter, FakeAdapter):
+            return Reply(404, {"error": "not_found"})
         try:
             data = json.loads(body) if body else {}
         except ValueError:

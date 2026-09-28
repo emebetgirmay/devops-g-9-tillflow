@@ -17,13 +17,11 @@ import hashlib
 import hmac
 import json
 from collections.abc import Mapping
-from decimal import Decimal, InvalidOperation
 from enum import Enum
 
 from mpesa import b2c_result_codes
 from mpesa.errors import (
     CallbackAuthenticityError,
-    CallbackMalformedError,
     DisbursementRejectedError,
     DuplicateOriginatorConversationError,
     OutcomeUnknownError,
@@ -160,39 +158,7 @@ class FakeDisbursements:
         if not hmac.compare_digest(supplied, sign(body, self._config.signing_key)):
             raise CallbackAuthenticityError("bad or missing fake signature")
 
-        try:
-            result = json.loads(body)["Result"]
-            oid = str(result["OriginatorConversationID"])
-            raw_code = result["ResultCode"]
-            conversation_id = result.get("ConversationID")
-        except (ValueError, KeyError, TypeError, AttributeError) as exc:
-            raise CallbackMalformedError("unparseable result body") from exc
-
-        outcome, reason = b2c_result_codes.classify_b2c(raw_code)
-        receipt: str | None = None
-        amount_minor: int | None = None
-        try:
-            params = result.get("ResultParameters", {}).get("ResultParameter", [])
-            values = {item["Key"]: item.get("Value") for item in params}
-            if "TransactionReceipt" in values:
-                receipt = str(values["TransactionReceipt"])
-            if "TransactionAmount" in values:
-                amount_minor = int(Decimal(str(values["TransactionAmount"])) * 100)
-        except (AttributeError, KeyError, TypeError, ValueError, InvalidOperation) as exc:
-            raise CallbackMalformedError("unparseable result parameters") from exc
-        if outcome is Outcome.SUCCEEDED and (receipt is None or amount_minor is None):
-            raise CallbackMalformedError("success result missing receipt or amount")
-
-        return DisbursementEvent(
-            originator_conversation_id=oid,
-            conversation_id=None if conversation_id is None else str(conversation_id),
-            outcome=outcome,
-            failure_reason=reason,
-            receipt=receipt,
-            amount_minor=amount_minor,
-            raw_code=str(raw_code),
-            payload_sha256=hashlib.sha256(body).hexdigest(),
-        )
+        return b2c_result_codes.parse_result(body)
 
     # Test and k6 driver API ----------------------------------------------------------------
 

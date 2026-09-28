@@ -100,14 +100,22 @@ Dashboards and Slack rules (Platform), Product's sale-side signals, the real Dar
 | Logs only, with metric filters | Weak for SLO burn, and it makes every alert a text match |
 | X-Ray spans now | Adds the SDK dependency; `trace_id` in logs plus `traceparent` propagation covers the tracing G3 asks for |
 
+## Platform sign-off (2026-09-28)
+
+`@emebetgirmay`. This does not accept the ADR. `@chesangJ` still sets `Accepted` after review.
+
+- **Question 1.** ADOT scrapes `127.0.0.1:<port>/metrics` (Prometheus text). Payments does not add an OTLP SDK. The scrape config is G3-7, after `GET /metrics` exists.
+- **Question 3.** `/metrics` is not added to the API Gateway or the ALB listener rules. `/_admin/*` and `/_fake/*` are operator and test paths: the G2 listener currently forwards them, and G3-7 removes that public route. Release smoke and evidence collection move to an in-VPC call.
+- **Question 4.** Closed in G2. Payments has `aws_cloudwatch_log_group.payments` and `aws_cloudwatch_log_group.adot_payments` (14-day retention) and `aws_ecs_service.payments`.
+
 ## Open questions
 
 | # | Question | Owner |
 |---|---|---|
-| 1 | Prometheus scrape added to the ADOT config, or OTLP from an SDK. This ADR proposes the scrape | `@emebetgirmay` with `@chesangJ` |
+| 1 | Closed 2026-09-28: Prometheus scrape on the ADOT sidecar, not an OTLP SDK | `@emebetgirmay` |
 | 2 | Where the 60 s window starts for STK (the customer's PIN time), and how it treats payments left `UNKNOWN` (same as ADR 0006 question 8) | `@emebetgirmay` |
-| 3 | Keep `/metrics`, `/_admin/*` and `/_fake/*` off the API gateway and the public ALB path | `@emebetgirmay` |
-| 4 | A Payments log group, retention and an ECS service definition | `@emebetgirmay` |
+| 3 | Closed 2026-09-28: `/metrics` stays off the public API. `/_admin/*` and `/_fake/*` leave the public listener in G3-7 | `@emebetgirmay` |
+| 4 | Closed in G2: Payments log groups (14-day retention) and the ECS service are deployed | `@emebetgirmay` |
 | 5 | Whether callbacks need a queue, as the runbook and architecture assume, or the synchronous handler plus reconcile is enough. Daraja documents no retry, so a queue only helps if it sits at the edge | `@chesangJ` with `@emebetgirmay` |
 | 6 | Per-tenant views, which cannot be metric labels; they come from logs or the database | `@Moraaalice` |
 
@@ -120,7 +128,7 @@ Dashboards and Slack rules (Platform), Product's sale-side signals, the real Dar
 | G3-3 | Fake-build `GET /_admin/invariants` | `@chesangJ` | none |
 | G3-4 | k6 scripts and thresholds under `services/payments/k6/`, run against the fake | `@chesangJ` | G3-3 |
 | G3-5 | Postgres backend for Payments and re-run k6 for capacity | `@chesangJ` | RDS (ADR 0002) |
-| G3-6 | Payments task, log group and CI build and test job | `@emebetgirmay` | none |
+| G3-6 | Payments task, log group and CI build and test job. Done in G2 | `@emebetgirmay` | none |
 | G3-7 | ADOT Prometheus scrape for Payments, kept off the public path | `@emebetgirmay` | G3-1 |
 | G3-8 | Grafana panels and Slack rules from sections 3 and 4 | `@emebetgirmay` | G3-1 |
 | G3-9 | Finalize the Payments SLI wording and error budget math (questions 2 and 5) | `@emebetgirmay` | none |

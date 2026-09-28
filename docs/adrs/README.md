@@ -33,5 +33,5 @@ from the wording.
 - ADR 0002 and 0003 are still `Proposed`; their owner decides when to accept them.
 - Items marked "verify against Daraja docs" in 0006 and 0008 are confirmed by a sandbox contract
   test run by the deployed adapter, which does not exist yet.
-- ADR 0009 is a draft (G3); it needs Platform sign-off on the metrics-exposure approach before
-  it can move to Accepted.
+- ADR 0009 is still `Proposed`. Platform signed off the metrics approach on 2026-09-28
+  (Prometheus scrape, `/metrics` off the public API). `@chesangJ` accepts it after review.

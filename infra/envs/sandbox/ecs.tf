@@ -295,14 +295,14 @@ resource "aws_ecs_task_definition" "payments" {
               protocol      = "tcp"
             }
           ]
-          environment = [
+          environment = concat([
             { name = "PORT", value = tostring(var.payments_container_port) },
             { name = "DATABASE_URL", value = "sqlite:////app/data/payments.db" },
-            { name = "MPESA_ADAPTER", value = "fake" },
+            { name = "MPESA_ADAPTER", value = var.payments_mpesa_adapter },
             { name = "OTEL_SERVICE_NAME", value = "payments" },
             { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = "http://127.0.0.1:4318" },
             { name = "ADOT_HEALTH_URL", value = "http://127.0.0.1:13133/" },
-          ]
+          ], local.payments_daraja_environment)
           mountPoints = [
             { sourceVolume = "tmp", containerPath = "/tmp", readOnly = false },
           ]
@@ -327,6 +327,8 @@ resource "aws_ecs_task_definition" "payments" {
           linuxParameters = { initProcessEnabled = true }
         },
         local.payments_uses_placeholder ? { command = local.payments_placeholder_command } : {},
+        # Credentials come from Secrets Manager at task start (daraja.tf); never plain env.
+        local.payments_daraja ? { secrets = local.payments_daraja_secrets } : {},
       ),
       {
         name                   = "adot"
@@ -359,6 +361,13 @@ resource "aws_ecs_task_definition" "payments" {
       },
     ]
   ))
+
+  lifecycle {
+    precondition {
+      condition     = !local.payments_daraja || (startswith(var.daraja_base_url, "https://sandbox.") && length(var.daraja_callback_ips) > 0)
+      error_message = "daraja_sandbox needs daraja_base_url (https://sandbox....) and daraja_callback_ips from the Daraja portal."
+    }
+  }
 
   tags = {
     Name    = "${var.name_prefix}-payments"

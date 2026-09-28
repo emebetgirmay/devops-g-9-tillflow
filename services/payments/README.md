@@ -11,11 +11,15 @@ Rules come from [ADR 0004](../../docs/adrs/0004-mpesa-adapter.md) (boundary),
 
 ## What this build does not do
 
-- **No real Daraja adapter.** Only the FakeAdapter is wired. `MPESA_ADAPTER=daraja_sandbox` (or
-  any other value) makes the service exit with code 2 at startup, with or without credentials, and
-  it never falls back to the fake. The sandbox adapter belongs to the deployed environment with
-  Platform-managed secrets. Nothing in this folder holds a Safaricom URL, an HTTP client or a
-  secret; `tests/test_no_outbound_guard.py` fails if that changes.
+- **Daraja sandbox is B2C only.** `MPESA_ADAPTER=daraja_sandbox` selects
+  `core/daraja_sandbox.py` for payouts in the deployed sandbox. It refuses to start unless every
+  `MPESA_*` setting below is present and the base URL is an https `sandbox.` host, and it never
+  falls back to the fake. STK charges through it are declined at initiation (not built), the
+  `QueueTimeOutURL` notification is not handled (the sweep covers it), and the Transaction Status
+  query always answers `UNKNOWN`, so an unresolved payout ends in `NEEDS_REVIEW` for an operator.
+  CI, tests and k6 use the FakeAdapter only. That file is the only one here allowed an HTTP client,
+  and no Safaricom URL or secret lives in code; `tests/test_no_outbound_guard.py` fails if that
+  changes.
 - **No Postgres yet.** SQLite is the storage. A `postgres://` `DATABASE_URL` is refused at startup
   until RDS lands (ADR 0002).
 - The fake keeps its state in memory, so `reconcile.py` only resolves references issued by the
@@ -35,7 +39,7 @@ Rules come from [ADR 0004](../../docs/adrs/0004-mpesa-adapter.md) (boundary),
 | `POST /payments/daraja/b2c-callback` | B2C result callback. |
 | `POST /payouts/{id}/reconcile` | Query the provider for a payout stuck in `UNKNOWN` or `NEEDS_REVIEW`. |
 | `POST /_admin/sweep` | Run the reconcile pass (also `python3 reconcile.py`). |
-| `POST /_fake/advance`, `/_fake/deliver-callbacks`, `/_fake/script-result-code` | Drive the FakeAdapter for tests and k6. This build has no other adapter. |
+| `POST /_fake/advance`, `/_fake/deliver-callbacks`, `/_fake/script-result-code` | Drive the FakeAdapter for tests and k6. `404` under the sandbox adapter. |
 
 ### Idempotency contract
 
@@ -83,9 +87,15 @@ sets `flags.payouts_enabled` back to 1 in the database. `PAYOUTS_ENABLED=false` 
 |---|---|---|
 | `PORT` | `8080` | Listen port |
 | `DATABASE_URL` | `sqlite:///data/payments.db` (under this folder) | `sqlite:///<path>` only |
-| `MPESA_ADAPTER` | `fake` | Only `fake` is accepted |
+| `MPESA_ADAPTER` | `fake` | `fake`, or `daraja_sandbox` (deployed sandbox, B2C only; forces the system clock) |
+| `MPESA_BASE_URL` | | `daraja_sandbox`: https `sandbox.` provider host |
+| `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET` | | `daraja_sandbox`: app credentials, from `devops-g9/daraja` |
+| `MPESA_B2C_SHORTCODE`, `MPESA_B2C_INITIATOR_NAME` | | `daraja_sandbox`: B2C short code and API initiator |
+| `MPESA_B2C_SECURITY_CREDENTIAL` | | `daraja_sandbox`: initiator password already encrypted with the sandbox certificate |
+| `MPESA_CALLBACK_BASE_URL` | | `daraja_sandbox`: public https base; results go to `/payments/daraja/b2c-callback` |
 | `FAKE_CLOCK` | `manual` | `manual` (advance with `/_fake/advance`) or `system` |
 | `CALLBACK_ALLOWED_IPS` | `127.0.0.1,::1` | Comma-separated source allowlist |
+| `TRUSTED_PROXY_HOPS` | `0` | Proxies we run in front (API Gateway + ALB = 2). The allowlist then checks the `X-Forwarded-For` entry that many hops from the right; `0` checks the socket peer |
 | `CONFIRM_SUCCESS_WITH_QUERY` | `true` | Confirm a success callback with a status query |
 | `RECONCILE_SLA_SECONDS` | `120` | Minimum time in `UNKNOWN` before the reconcile pass queries it |
 | `CALLBACK_DEADLINE_SECONDS` | `90` | `PENDING` to `UNKNOWN` |

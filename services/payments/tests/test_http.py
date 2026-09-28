@@ -181,6 +181,48 @@ class BlockedSourceTest(ServerCase):
         self.assertEqual((status, body["error"]), (403, "source_not_allowed"))
 
 
+class TrustedProxyTest(unittest.TestCase):
+    """Behind API Gateway and the ALB the socket peer is the ALB; the allowlist must see the
+    address the outermost proxy we run recorded, and never one the caller wrote itself."""
+
+    def make_app(self, hops: int) -> App:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        settings = replace(
+            Settings(),
+            db_path=str(Path(tmp.name) / "p.db"),
+            callback_allowed_ips=("198.51.100.7",),
+            trusted_proxy_hops=hops,
+        )
+        clock = ManualClock(1_000_000.0)
+        return App(settings, clock=clock, adapter=FakeAdapter(clock=clock))
+
+    def blocked(self, app: App, xff: str | None, peer: str = "10.0.1.5") -> bool:
+        """True if the source check refused it (the fake's signature check may refuse later)."""
+        headers = {} if xff is None else {"X-Forwarded-For": xff}
+        reply = app.dispatch("POST", "/payments/daraja/b2c-callback", headers, b"{}", peer)
+        return reply.body.get("error") == "source_not_allowed"
+
+    def test_two_hops_reads_the_address_api_gateway_recorded(self) -> None:
+        app = self.make_app(2)
+        # API Gateway appended the provider's address, the ALB appended the VPC link's.
+        self.assertFalse(self.blocked(app, "198.51.100.7, 10.0.2.9"))
+
+    def test_a_prepended_allowlisted_address_is_ignored(self) -> None:
+        app = self.make_app(2)
+        self.assertTrue(self.blocked(app, "198.51.100.7, 203.0.113.9, 10.0.2.9"))
+
+    def test_too_few_hops_or_no_header_is_rejected(self) -> None:
+        app = self.make_app(2)
+        self.assertTrue(self.blocked(app, None))
+        self.assertTrue(self.blocked(app, "10.0.2.9"))
+
+    def test_zero_hops_ignores_the_header(self) -> None:
+        app = self.make_app(0)
+        self.assertTrue(self.blocked(app, "198.51.100.7"))
+        self.assertFalse(self.blocked(app, "whatever", peer="198.51.100.7"))
+
+
 class StartupRefusalTest(unittest.TestCase):
     """Run the real entry point: it must refuse, loudly, and never fall back to the fake."""
 
@@ -203,18 +245,21 @@ class StartupRefusalTest(unittest.TestCase):
         self.assertIn("refusing to start", result.stderr)
         self.assertNotIn("listening", result.stdout)
 
-    def test_daraja_sandbox_with_every_credential_still_refuses(self) -> None:
+    def test_daraja_sandbox_with_a_non_sandbox_host_refuses(self) -> None:
         extra = {
             "MPESA_ADAPTER": "daraja_sandbox",
+            "MPESA_BASE_URL": "https://api.provider.test",
             "MPESA_CONSUMER_KEY": "x",
             "MPESA_CONSUMER_SECRET": "x",
-            "MPESA_SHORTCODE": "x",
-            "MPESA_PASSKEY": "x",
+            "MPESA_B2C_SHORTCODE": "x",
+            "MPESA_B2C_INITIATOR_NAME": "x",
+            "MPESA_B2C_SECURITY_CREDENTIAL": "x",
             "MPESA_CALLBACK_BASE_URL": "https://example.invalid",
         }
         result = self.run_app(extra)
         self.assertEqual(result.returncode, 2)
-        self.assertIn("only 'fake' is available", result.stderr)
+        self.assertIn("sandbox host", result.stderr)
+        self.assertNotIn("listening", result.stdout)
 
     def test_postgres_url_refuses_to_start(self) -> None:
         result = self.run_app({"DATABASE_URL": "postgres://u@h/db"})

@@ -20,11 +20,13 @@ index mirrors the files.
 | [0007](0007-multi-tenancy.md) | Multi-tenancy isolation | `@Moraaalice` | Accepted |
 | [0008](0008-b2c-payouts.md) | B2C commission payouts | `@chesangJ` | Accepted (G2) |
 | [0009](0009-payments-observability.md) | Payments observability for G3 | `@chesangJ` | Proposed (G3 draft) |
+| [0010](0010-reliability-observability.md) | Reliability and observability for G3 | `@emebetgirmay` | Proposed (G3 draft) |
 
 ## Reading order for the money path
 
 0004 (who may talk to M-Pesa) then 0006 (charges, timeouts, callback replay) then 0008 (payouts),
-then 0009 (how the money path is observed at G3). The rules in 0006 are reused by 0008. Each of the
+then 0009 (how the money path is observed at G3) and 0010 (Grafana, alerts, Slack and k6 for
+every service). The rules in 0006 are reused by 0008. Each of the
 0004/0006/0008 has an "Implementation" section saying what is built, where, and how it differs
 from the wording.
 

@@ -1,0 +1,14 @@
+{
+  "checks": {
+    "close_computed_one_payout_of_2400_minor": true,
+    "disburse_sent_it_to_payments_once": true,
+    "b2c_result_applied": true,
+    "reconcile_marked_it_succeeded": true,
+    "commission_ledger_row_succeeded": true,
+    "payments_payout_succeeded_one_ledger_entry": true,
+    "repeat_close_added_no_payout": true,
+    "repeat_disburse_sent_nothing": true,
+    "paid_exactly_once_in_payments_db": true
+  },
+  "all_passed": true
+}

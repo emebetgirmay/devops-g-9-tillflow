@@ -100,6 +100,8 @@ class Settings:
     adapter: str = "fake"
     fake_clock: str = "manual"
     callback_allowed_ips: tuple[str, ...] = ("127.0.0.1", "::1")
+    # Proxies we run in front of this service (API Gateway, ALB). 0 trusts the socket peer only.
+    trusted_proxy_hops: int = 0
     confirm_success_with_query: bool = True
     reconcile_sla_seconds: int = 120
     callback_deadline_seconds: int = 90
@@ -158,6 +160,7 @@ class Settings:
             adapter=adapter,
             fake_clock=fake_clock,
             callback_allowed_ips=ips,
+            trusted_proxy_hops=_int(env, "TRUSTED_PROXY_HOPS", 0),
             confirm_success_with_query=_bool(env, "CONFIRM_SUCCESS_WITH_QUERY", True),
             reconcile_sla_seconds=_int(env, "RECONCILE_SLA_SECONDS", 120),
             callback_deadline_seconds=_int(env, "CALLBACK_DEADLINE_SECONDS", 90),

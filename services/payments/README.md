@@ -95,6 +95,7 @@ sets `flags.payouts_enabled` back to 1 in the database. `PAYOUTS_ENABLED=false` 
 | `MPESA_CALLBACK_BASE_URL` | | `daraja_sandbox`: public https base; results go to `/payments/daraja/b2c-callback` |
 | `FAKE_CLOCK` | `manual` | `manual` (advance with `/_fake/advance`) or `system` |
 | `CALLBACK_ALLOWED_IPS` | `127.0.0.1,::1` | Comma-separated source allowlist |
+| `TRUSTED_PROXY_HOPS` | `0` | Proxies we run in front (API Gateway + ALB = 2). The allowlist then checks the `X-Forwarded-For` entry that many hops from the right; `0` checks the socket peer |
 | `CONFIRM_SUCCESS_WITH_QUERY` | `true` | Confirm a success callback with a status query |
 | `RECONCILE_SLA_SECONDS` | `120` | Minimum time in `UNKNOWN` before the reconcile pass queries it |
 | `CALLBACK_DEADLINE_SECONDS` | `90` | `PENDING` to `UNKNOWN` |

@@ -6,13 +6,16 @@
 #        aws secretsmanager create-secret --name devops-g9/daraja --secret-string file://daraja.json
 #      with keys consumer_key, consumer_secret, b2c_shortcode, b2c_initiator_name,
 #      b2c_security_credential (the initiator password already encrypted with the sandbox cert).
-#   2. Set payments_mpesa_adapter = "daraja_sandbox", daraja_base_url and daraja_callback_ips.
+#   2. Set payments_mpesa_adapter = "daraja_sandbox" and daraja_base_url.
+#   3. daraja_callback_ips may start empty: Payments then rejects every outside result callback but
+#      logs its source ("result from disallowed source <ip>"). Add the observed provider address in a
+#      follow-up PR; never a guessed one.
 # Only the Payments execution role can read the secret; Commission and CI never can.
 
 variable "payments_mpesa_adapter" {
   type        = string
-  description = "Payments M-Pesa adapter: fake (default) or daraja_sandbox (B2C only; STK charges are declined)"
-  default     = "fake"
+  description = "Payments M-Pesa adapter: fake or daraja_sandbox (B2C only; STK charges are declined)"
+  default     = "daraja_sandbox"
 
   validation {
     condition     = contains(["fake", "daraja_sandbox"], var.payments_mpesa_adapter)
@@ -29,12 +32,12 @@ variable "daraja_secret_name" {
 variable "daraja_base_url" {
   type        = string
   description = "Daraja sandbox base URL (https, host starting sandbox.); Payments refuses anything else"
-  default     = ""
+  default     = "https://sandbox.safaricom.co.ke"
 }
 
 variable "daraja_callback_ips" {
   type        = list(string)
-  description = "Daraja's documented result-callback source IPs, copied from the portal. Never guessed."
+  description = "Provider result-callback source IPs, observed in Payments logs or copied from Daraja docs. Never guessed. Empty rejects all outside callbacks."
   default     = []
 }
 
@@ -51,7 +54,8 @@ locals {
   payments_daraja_environment = local.payments_daraja ? [
     { name = "MPESA_BASE_URL", value = var.daraja_base_url },
     { name = "MPESA_CALLBACK_BASE_URL", value = aws_apigatewayv2_api.app.api_endpoint },
-    { name = "CALLBACK_ALLOWED_IPS", value = join(",", var.daraja_callback_ips) },
+    # Empty list: keep Payments' localhost-only default, so outside callbacks are refused and logged.
+    { name = "CALLBACK_ALLOWED_IPS", value = length(var.daraja_callback_ips) > 0 ? join(",", var.daraja_callback_ips) : "127.0.0.1,::1" },
     { name = "TRUSTED_PROXY_HOPS", value = tostring(var.payments_trusted_proxy_hops) },
   ] : []
 

@@ -15,22 +15,12 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..db import get_db
-from ..payment_outcomes import apply_outcome
+from ..payment_outcomes import ReconcileAmountMismatch, reconcile_sale
 from ..payments_client import PaymentsClient, get_payments_client
 from ..state import InvalidTransition, SaleStatus, transition
 from .catalog import get_tenant_or_404
 
 router = APIRouter(tags=["sales"])
-
-# Payments' terminal states (services/payments/core/states.py::PaymentState)
-# mapped onto POS's own sale status. CREATED/PENDING/UNKNOWN/NEEDS_REVIEW are
-# deliberately absent — none of them are a verdict, so reconcile_payment
-# leaves the sale exactly where it is rather than guessing at one.
-_PAYMENTS_TERMINAL_STATE_MAP = {
-    "SUCCEEDED": SaleStatus.PAID,
-    "DECLINED": SaleStatus.PAYMENT_FAILED,
-    "EXPIRED": SaleStatus.PAYMENT_FAILED,
-}
 
 
 def _find_sale_by_idempotency_key(db: Session, tenant_id: str, idempotency_key: str) -> models.Sale | None:
@@ -171,33 +161,21 @@ def reconcile_payment(
 ) -> schemas.PaymentReconcileOut:
     """Ask Payments how sale.payment_id actually settled and apply the
     verdict. This is the active integration path — Payments has no push
-    callback (see app/routers/internal.py), so POS is the one that polls.
-    Safe to call repeatedly, including while still pending: a non-terminal
-    Payments state is a no-op here, never a decline.
+    callback (see app/routers/internal.py), so POS is the one that polls,
+    both here (on demand) and via app/scheduler.py (on a background sweep
+    for sales nobody has explicitly reconciled yet). Safe to call
+    repeatedly, including while still pending: a non-terminal Payments
+    state is a no-op here, never a decline.
     """
     sale = _get_sale_or_404(db, tenant_id, sale_id)
     if sale.payment_id is None:
         raise HTTPException(status_code=409, detail="sale has no payment requested yet")
 
-    payment = payments_client.get_payment(sale.payment_id)
-    payments_state = payment.get("state", "")
+    try:
+        status, applied, payments_state = reconcile_sale(db, sale, payments_client)
+    except ReconcileAmountMismatch:
+        raise HTTPException(status_code=409, detail="payment amount does not match sale total") from None
 
-    target = _PAYMENTS_TERMINAL_STATE_MAP.get(payments_state)
-    if target is None:
-        return schemas.PaymentReconcileOut(
-            sale_id=sale.id, status=sale.status, applied=False, payments_state=payments_state
-        )
-
-    amount_minor = payment.get("amount_minor")
-    if amount_minor is not None and amount_minor != sale.total_minor:
-        raise HTTPException(status_code=409, detail="payment amount does not match sale total")
-
-    # Deterministic per (payment, terminal state): polling again once the
-    # outcome is already known is a no-op via event_id dedup in apply_outcome.
-    event_id = f"reconcile:{sale.payment_id}:{payments_state}"
-    status, applied = apply_outcome(
-        db, sale, event_id=event_id, payment_id=sale.payment_id, target_status=target
-    )
     return schemas.PaymentReconcileOut(
         sale_id=sale.id, status=status, applied=applied, payments_state=payments_state
     )

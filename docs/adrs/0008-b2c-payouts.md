@@ -211,7 +211,10 @@ kept for manual corrections). See the Payments README and the Commission README 
   - the asynchronous Transaction Status reconcile (the fake's status query is synchronous);
   - B2C Hakikisha, the funding alarm, and the sandbox contract test that closes open question 1;
   - a scheduler for `close.py`/`disburse.py` (ADR 0006 open question 9);
-  - k6 runs against the fake.
+  - k6 runs against the fake;
+  - the reversal-after-payout netting mechanism — the policy is decided (see Product sign-off
+    above: net against the attendant's next payout, floored at zero, never auto-clawed-back), but
+    detecting a late reversal and applying it isn't built.
 - **Differences from the wording above:** the endpoint is `/payouts`, an over-limit payout is
   rejected with 422 instead of being held in Payments, the whole-shilling rule was added, the kill
   switch answers 503 instead of queueing `CREATED` rows, and the callback audit stores a hash and
@@ -240,14 +243,34 @@ kept for manual corrections). See the Payments README and the Commission README 
 | Distributed lock for the daily run | Adds a failure mode; unique constraints and row locks already give the guarantee |
 | Dedupe on receipt number only | Absent until success; we choose the `OriginatorConversationID` before the call, and the provider rejects a repeat |
 
+## Product sign-off (G2) — open questions 3 and 4
+
+**Decided by:** Alice Moraa (`@Moraaalice`), Product + POS DRI. Reviewed against Commission's
+actual implementation (`services/commission/ledger/calc.py`, `ledger/config.py`).
+
+| Question | Decision | Reasoning |
+|---|---|---|
+| Rate | Attendant's own `commission_rate_bps` (POS, already a Product-owned field) | Nothing new to decide — this was already Product's field |
+| Rounding | **Accept as built**: floor at both the per-sale and whole-shilling step | Matches this ADR's own risk framing — can only ever underpay relative to the exact bps share, never overpay; overpaying is the failure mode we can't recover from (B2C is irreversible via API) |
+| Carry-forward below KSh 10 | **Accept as built**: accrues in `carry_forward`, clears whenever that attendant's commission plus carry crosses the minimum on a future close | The only option that doesn't fight Safaricom's own KSh 10 minimum; an attendant is deferred, never shorted |
+| Business-day cutoff | **Accept the plain-EAT-calendar-day default for G2** | No till is known to operate past midnight; a cutoff hour would add complexity with no stated requirement behind it. **Revisit if real till hours ever cross midnight.** |
+| Who bears the B2C per-payment fee | **The business absorbs it.** An attendant's payout is always their full computed commission — never reduced by a transaction fee | Simplest, and avoids an attendant seeing a variable, hard-to-explain net amount on a payout they can't audit themselves. (Not yet built — this is confirming nothing should ever subtract a fee, not new logic.) |
+| Reversal-after-payout netting policy | **Never auto-claw back a completed payout** (also not possible via the B2C API). **Net the reversed amount against that attendant's next payout, floored at zero** — never send a negative or "owed" balance | Consistent with "being late is the cheaper failure" — recovering a wrongly-paid amount is a business/manual concern (per this ADR's "no undo" consequence), not something the system should force through a future payout going negative |
+| Attendant MSISDN source and change controls | No attendant-edit endpoint exists yet in POS, so there is no change-control gap today. **When one is built, require the `OWNER` role** (payout recipient is already snapshotted at `PLANNED`, per section 2, so an in-flight payout is unaffected either way) | Matches POS's existing `OWNER`/`ATTENDANT` role split (ADR 0007) |
+| B2C Hakikisha (name verification) | **Not adopted for G2** | Needs a signed contract and Safaricom approval that don't exist for a capstone sandbox; revisit only if this becomes a real deployment |
+
+Reversal-netting is a **policy decision only** — the mechanism (detecting a late reversal and
+applying it against a future payout) is not built; that's Commission's (`@chesangJ`'s) follow-up
+implementation work, tracked as still open below.
+
 ## Open questions
 
 | # | Question | Owner |
 |---|---|---|
 | 1 | Partly closed 2026-09-21: the B2C page is reviewed (fields, caller-supplied `OriginatorConversationID`, duplicate error, result codes, limits, callback shape). Still to verify in the sandbox contract test run by the deployed adapter: the accepted length of `OriginatorConversationID`, whether decimal amounts are accepted, the time zone of `TransactionCompletedDateTime`, whether a result can follow a timeout notification, and that no documented failure code can coexist with a completed transfer | `@chesangJ` |
 | 2 | Amend [ADR 0004](0004-mpesa-adapter.md) to add the disbursement and Transaction Status methods to `MpesaPort` | `@chesangJ` |
-| 3 | Commission rules: rate, rounding, carry-forward of payouts below KSh 10, and who bears the per-payment B2C charge. A reversal that arrives after payout cannot be clawed back by API, so decide the netting policy | `@Moraaalice` |
-| 4 | Business day definition (EAT cutoff, tills open across midnight), the attendant MSISDN source and change controls, and whether to adopt B2C Hakikisha for name checks (needs a signed contract, Safaricom approval and a reciprocal C2B Hakikisha agreement) | `@Moraaalice` |
+| 3 | ~~Commission rules: rate, rounding, carry-forward of payouts below KSh 10, and who bears the per-payment B2C charge. A reversal that arrives after payout cannot be clawed back by API, so decide the netting policy~~ — **Resolved, see Product sign-off below** | `@Moraaalice` |
+| 4 | ~~Business day definition (EAT cutoff, tills open across midnight), the attendant MSISDN source and change controls, and whether to adopt B2C Hakikisha for name checks~~ — **Resolved, see Product sign-off below** | `@Moraaalice` |
 | 5 | Run schedule time so payouts can reach terminal before 06:30 EAT (EventBridge is Platform's) | `@emebetgirmay` |
 | 6 | Align the Commission SLO with payouts left `UNKNOWN` at 06:30 EAT; add runbook entries for the kill switch, a locked API user, and `NEEDS_REVIEW` | `@emebetgirmay` |
 | 7 | Funding: alarm on the B2C Utility account balance (results carry balances; a Balance Query API role exists) and how the Utility account is topped up (portal, B2B `BusinessTransferFromMMFToUtility` after whitelisting, or the B2C Account Top Up API). The alarm and top-up automation are Platform's; the adapter method is Payments' | `@emebetgirmay` |

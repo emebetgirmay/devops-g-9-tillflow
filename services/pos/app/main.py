@@ -7,6 +7,7 @@ evidence/platform-delivery/collect.sh both depend on them).
 
 from __future__ import annotations
 
+import asyncio
 import os
 import urllib.error
 import urllib.request
@@ -15,6 +16,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from . import scheduler
 from .db import init_db
 from .routers import catalog, commission, internal, sales
 
@@ -26,7 +28,10 @@ ADOT_HEALTH_URL = os.environ.get("ADOT_HEALTH_URL", "http://127.0.0.1:13133/")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    reconcile_task = asyncio.create_task(scheduler.reconcile_loop()) if scheduler.is_enabled() else None
     yield
+    if reconcile_task is not None:
+        reconcile_task.cancel()
 
 
 app = FastAPI(title="TillFlow POS API", version=COMMIT_SHA, lifespan=lifespan)

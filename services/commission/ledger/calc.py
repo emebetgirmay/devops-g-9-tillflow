@@ -1,8 +1,7 @@
 """Pure commission math: business-day bucketing, per-sale commission, and whole-shilling rounding.
 
-No I/O, no randomness, integer arithmetic only (no floats on the money path). These are the
-judgment calls ADR 0008 open question 3 and 4 leave to Product; until Product decides otherwise,
-this module picks the conservative default and documents it so it is easy to find and change:
+No I/O, no randomness, integer arithmetic only (no floats on the money path). ADR 0008 open
+questions 3 and 4 are signed off (@Moraaalice, G2) as built here:
 
 - Business day: a plain EAT (UTC+3) calendar day, no special cutoff hour.
 - Rounding: floor, at both the per-sale step and the whole-shilling step, so a rounding error can
@@ -10,6 +9,13 @@ this module picks the conservative default and documents it so it is easy to fin
   remainder is never dropped — see ``fold_carry_forward``.
 - Below the KSh 10 minimum, or when the whole-shilling floor leaves nothing at or above it, the
   commission accrues rather than attempting (and failing) a disbursement.
+- The B2C per-payment fee is absorbed by the business, not deducted from the attendant — nothing
+  in this module or ``disburse.py`` subtracts one; an attendant's payout is always their full
+  computed commission.
+- A reversal that arrives after its payout already went out (irreversible via the B2C API) is
+  never auto-clawed-back: net the reversed amount against that attendant's *next* payout, floored
+  at zero — never send an attendant a negative or "owed" balance. Not yet implemented; this is the
+  policy answer for whoever builds it.
 """
 
 from __future__ import annotations

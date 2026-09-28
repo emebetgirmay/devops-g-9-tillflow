@@ -17,9 +17,10 @@ SERVICE_DIR = Path(__file__).resolve().parent.parent
 MIN_PAYOUT_MINOR = 1_000
 PROVIDER_MAX_PAYOUT_MINOR = 25_000_000
 
-# ADR 0008 open question 4: business-day cutoff is undecided. Default is a plain EAT (UTC+3)
-# calendar day with no special cutoff hour — the conservative placeholder until Product decides
-# otherwise. A sale is attributed to the EAT calendar date its PAID transition happened on.
+# ADR 0008 open question 4: Product sign-off (@Moraaalice, G2) — plain EAT (UTC+3) calendar day,
+# no special cutoff hour. No till is known to stay open past midnight, so a cutoff hour would add
+# complexity with no stated requirement behind it. Revisit if real till hours ever cross midnight.
+# A sale is attributed to the EAT calendar date its PAID transition happened on.
 DEFAULT_BUSINESS_DAY_UTC_OFFSET_HOURS = 3
 
 

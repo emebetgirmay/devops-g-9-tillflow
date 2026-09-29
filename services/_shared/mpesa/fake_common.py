@@ -2,13 +2,35 @@
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import hmac
+import threading
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, TypeVar
 
 SIGNATURE_HEADER = "X-Fake-Signature"
 DEFAULT_SIGNING_KEY = b"fake-adapter-test-key"
+
+F = TypeVar("F", bound=Callable[..., object])
+
+
+def locked(method: F) -> F:
+    """Run a method while holding its instance's `_lock`.
+
+    The Payments server (ThreadingHTTPServer) shares one fake between every request thread. Any
+    method that reads or changes the fake's dicts, sets or sequence counter must hold the lock;
+    otherwise iterating while another thread inserts raises "dictionary changed size during
+    iteration" (the G3 k6 soak's 502s). Re-entrant, so locked methods can call each other.
+    """
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self._lock:
+            return method(self, *args, **kwargs)
+
+    return wrapper  # type: ignore[return-value]
 
 
 class Clock(Protocol):
@@ -20,6 +42,7 @@ class ManualClock:
 
     def __init__(self, start: float = 0.0) -> None:
         self._now = start
+        self._lock = threading.Lock()
 
     def now(self) -> float:
         return self._now
@@ -27,7 +50,8 @@ class ManualClock:
     def advance(self, seconds: float) -> None:
         if seconds < 0:
             raise ValueError("cannot move the clock backwards")
-        self._now += seconds
+        with self._lock:  # += is a read-modify-write; concurrent advances must not be lost
+            self._now += seconds
 
 
 @dataclass(frozen=True)

@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import threading
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
@@ -36,6 +37,7 @@ from mpesa.fake_common import (
     Clock,
     FakeAdapterConfig,
     ManualClock,
+    locked,
     sign,
 )
 from mpesa.fake_disbursement import FakeDisbursements
@@ -132,10 +134,12 @@ class FakeAdapter:
         self._delivered: set[tuple[str, int]] = set()
         self._seq = 0
         self.initiate_call_count = 0
+        self._lock = threading.RLock()  # see fake_common.locked
         self._disbursements = FakeDisbursements(self._clock, self._config)
 
     # MpesaPort -----------------------------------------------------------------------------
 
+    @locked
     def initiate_charge(self, request: ChargeRequest) -> ChargeAccepted:
         self.initiate_call_count += 1
         if request.idempotency_key in self._initiated_keys:
@@ -165,6 +169,7 @@ class FakeAdapter:
             raise OutcomeUnknownError("fake initiate timeout")
         return ChargeAccepted(ref, charge.merchant_request_id)
 
+    @locked
     def query_status(self, provider_ref: str) -> PaymentStatus:
         charge = self._charges.get(provider_ref)
         if charge is None:
@@ -213,6 +218,7 @@ class FakeAdapter:
 
     # Test and k6 driver API ----------------------------------------------------------------
 
+    @locked
     def due_callbacks(self) -> list[CallbackDelivery]:
         """Callbacks whose delivery time has been reached and not yet handed out, in order."""
         now = self._clock.now()
@@ -226,6 +232,7 @@ class FakeAdapter:
             self._delivered.add((delivery.provider_ref, seq))
         return [delivery for _, _, delivery in due]
 
+    @locked
     def deliver_result_code(
         self, provider_ref: str, raw_code: object, delay_s: float = 0.0
     ) -> CallbackDelivery:
@@ -278,6 +285,7 @@ class FakeAdapter:
             originator_conversation_id, raw_code, delay_s
         )
 
+    @locked
     def scheduled_callbacks(self, provider_ref: str) -> list[CallbackDelivery]:
         """Every callback scheduled for a reference, regardless of the clock, in order."""
         charge = self._charges.get(provider_ref)

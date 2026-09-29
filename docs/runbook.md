@@ -69,6 +69,8 @@ No healthy POS or Payments target behind the ALB for 2 minutes.
 
 Recovered: `HealthyHostCount` back to at least 1.
 
+<a id="pos-fast-burn"></a><a id="pos-slow-burn"></a>
+
 ### pos-fast-burn, pos-slow-burn
 
 POS 5xx share is spending the 99.9% budget 14.4x (fast, pages) or 6x (slow) too quickly.
@@ -76,6 +78,8 @@ POS 5xx share is spending the 99.9% budget 14.4x (fast, pages) or 6x (slow) too 
 1. Check POS `/ready` and whether Payments is healthy (a Payments outage shows up here).
 2. Look at the POS log group for the failing route.
 3. Do not replay sales by hand; clients retry with the same idempotency key.
+
+<a id="payments-fast-burn"></a><a id="payments-slow-burn"></a>
 
 ### payments-fast-burn, payments-slow-burn
 
@@ -91,6 +95,51 @@ POS or Payments CPU above 70% for 10 minutes.
 
 1. Compare with request rate: real load or a hot loop?
 2. Scale out first (desired count), then investigate; roll back only if a release caused it.
+
+### Payments app alarms (ADR 0009 section 4)
+
+These read Payments' own metrics (`GET /metrics`, scraped by ADOT) through Metrics Insights
+queries, so they see the service's view rather than the ALB's. Owner `@chesangJ` unless noted.
+
+#### payments-critical-anomaly
+
+A contradiction or constraint violation on the money path. Treat as a P0.
+
+1. Trip the payouts kill switch before anything else.
+2. Find the anomaly line in the Payments log group (`event` names the kind); inspect that row.
+3. Never re-send a payment or payout to "fix" it; resolve with provider evidence.
+
+#### payments-payouts-paused
+
+The kill switch reads 0. Payouts stop until someone re-enables them.
+
+1. Read the trip reason (the flag's note, and the Payments log around the trip time).
+2. Fix the cause (funding, credentials, a stuck result) before re-enabling by hand.
+
+#### payments-needs-review
+
+A payment or payout has sat in `NEEDS_REVIEW` for 15 minutes.
+
+1. Check the provider evidence (M-PESA Organization Portal) for that record.
+2. Resolve it by hand as the evidence says. Never auto-fail it.
+
+<a id="payments-payment-unknown-too-long"></a><a id="payments-payout-unknown-too-long"></a>
+
+#### payments-payment-unknown-too-long, payments-payout-unknown-too-long
+
+The oldest `UNKNOWN` payment or payout is older than 10 minutes.
+
+1. Run the reconcile pass (`POST /_admin/sweep` from inside the VPC).
+2. Leave it pending if the provider still has no answer. A timeout is not a decline, and a
+   payout is never resubmitted (ADR 0006, ADR 0008).
+
+#### payments-reconcile-stale
+
+No successful reconcile pass in 15 minutes. Owner `@emebetgirmay`.
+
+1. Check what calls `POST /_admin/sweep` on a schedule, and its logs.
+2. Run one pass by hand from inside the VPC; `payments_reconcile_runs_total{result="error"}`
+   rising means the pass itself is failing, so read the Payments log.
 
 ## Restore order (G4)
 

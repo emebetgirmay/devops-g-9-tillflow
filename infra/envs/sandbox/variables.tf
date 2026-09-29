@@ -95,6 +95,8 @@ variable "grafana_external_id" {
 # Scheduled reconcile pass (reconcile.tf). Set false only to stop the pass on purpose, e.g. the G3
 # Slack drill; reconcile-stale fires within 15 minutes while it is off.
 variable "reconcile_sweep_enabled" {
-  type    = bool
-  default = true
+  type = bool
+  # G3 Slack drill (ADR 0010 section 4): the sweep is stopped on purpose so reconcile-stale fires
+  # for a real reason. Revert to true right after the FIRING message is captured.
+  default = false
 }

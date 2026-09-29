@@ -10,7 +10,8 @@
 #   3. daraja_callback_ips may start empty: Payments then rejects every outside result callback but
 #      logs its source ("result from disallowed source <ip>"). Add the observed provider address in a
 #      follow-up PR; never a guessed one.
-# Only the Payments execution role can read the secret; Commission and CI never can.
+# Only the Payments execution role can read the secret; Commission and CI never can. If the
+# secret is ever recreated, update daraja_secret_arn (its ARN suffix changes).
 
 variable "payments_mpesa_adapter" {
   type        = string
@@ -23,10 +24,10 @@ variable "payments_mpesa_adapter" {
   }
 }
 
-variable "daraja_secret_name" {
+variable "daraja_secret_arn" {
   type        = string
-  description = "Secrets Manager secret holding the Daraja sandbox B2C credentials (created by hand)"
-  default     = "devops-g9/daraja"
+  description = "Full ARN of the hand-made devops-g9/daraja secret. Passed in, not looked up, so Terraform and CI never call Secrets Manager."
+  default     = "arn:aws:secretsmanager:eu-north-1:240462142849:secret:devops-g9/daraja-XozcUR"
 }
 
 variable "daraja_base_url" {
@@ -49,7 +50,7 @@ variable "payments_trusted_proxy_hops" {
 
 locals {
   payments_daraja = var.payments_mpesa_adapter == "daraja_sandbox"
-  daraja_secret   = local.payments_daraja ? data.aws_secretsmanager_secret.daraja[0].arn : ""
+  daraja_secret   = var.daraja_secret_arn
 
   payments_daraja_environment = local.payments_daraja ? [
     { name = "MPESA_BASE_URL", value = var.daraja_base_url },
@@ -68,11 +69,6 @@ locals {
       MPESA_B2C_SECURITY_CREDENTIAL = "b2c_security_credential"
     } : { name = env_name, valueFrom = "${local.daraja_secret}:${key}::" }
   ]
-}
-
-data "aws_secretsmanager_secret" "daraja" {
-  count = local.payments_daraja ? 1 : 0
-  name  = var.daraja_secret_name
 }
 
 resource "aws_iam_role_policy" "payments_exec_daraja" {

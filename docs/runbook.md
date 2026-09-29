@@ -41,6 +41,57 @@ The notifier only posts to `https://hooks.slack.com/` URLs and reads the secret 
 no deploy is needed after a change. Check: the next alarm's Lambda log shows `slack_posted`
 with `status` 200.
 
+## Alarms (G3, ADR 0010)
+
+All alarms post to Slack when they fire and when they recover. Anchors below are the `runbook`
+links in each alarm. Never clear an alarm by forcing its state.
+
+### probe-down
+
+The public `/ready` (API Gateway -> VPC link -> ALB -> POS) failed for 2 minutes, or the probe
+stopped running.
+
+1. Check `service-down` alarms. If POS is down too, work that first.
+2. If POS is healthy behind the ALB, the edge is the problem: API Gateway, the VPC link or the ALB
+   listener. Check the latest `Release` run for infra changes.
+3. If only the probe is missing data, read `/aws/lambda/devops-g9-probe` logs.
+
+Recovered: `ProbeSuccess` back to 1 for 2 minutes.
+
+### service-down
+
+No healthy POS or Payments target behind the ALB for 2 minutes.
+
+1. ECS -> `devops-g9` -> the service -> stopped tasks: read the stop reason.
+2. If a release caused it, roll back to the last good digest (the pipeline's rollback, not a
+   hand-made task definition).
+3. Payments down: POS keeps sales pending. Do not mark anything paid or failed by hand.
+
+Recovered: `HealthyHostCount` back to at least 1.
+
+### pos-fast-burn, pos-slow-burn
+
+POS 5xx share is spending the 99.9% budget 14.4x (fast, pages) or 6x (slow) too quickly.
+
+1. Check POS `/ready` and whether Payments is healthy (a Payments outage shows up here).
+2. Look at the POS log group for the failing route.
+3. Do not replay sales by hand; clients retry with the same idempotency key.
+
+### payments-fast-burn, payments-slow-burn
+
+Payments 5xx share is spending the 99.5% budget too quickly.
+
+1. Find the failing route in the Payments log group.
+2. Never resend a payment or payout to clear it; timeouts stay `UNKNOWN` and reconcile.
+3. If payouts are affected, the kill switch is the safe stop (ADR 0008).
+
+### ecs-cpu-high
+
+POS or Payments CPU above 70% for 10 minutes.
+
+1. Compare with request rate: real load or a hot loop?
+2. Scale out first (desired count), then investigate; roll back only if a release caused it.
+
 ## Restore order (G4)
 
 1. Restore DB/S3 to safe target  

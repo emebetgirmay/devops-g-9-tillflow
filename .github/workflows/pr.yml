@@ -219,3 +219,6 @@ jobs:
       - name: Slack notifier unittest
         working-directory: infra/envs/sandbox/lambda/slack_notifier
         run: python3 -m unittest -v
+      - name: Edge probe unittest
+        working-directory: infra/envs/sandbox/lambda/probe
+        run: python3 -m unittest -v

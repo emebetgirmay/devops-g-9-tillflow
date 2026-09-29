@@ -74,8 +74,20 @@ variable "github_repo_id" {
   default = "1362917698"
 }
 
-# Grafana Cloud stack URL for alert links (ADR 0010). Empty until the stack exists.
+# Grafana Cloud stack (ADR 0010). The URL goes into alert links. The account ID and external ID
+# are what the stack's CloudWatch data source shows under "Grafana Assume Role"; neither is a
+# secret, they only say which stack may assume devops-g9-grafana-read.
 variable "grafana_url" {
   type    = string
-  default = ""
+  default = "https://honestmesa567.grafana.net"
+}
+
+variable "grafana_cloud_aws_account_id" {
+  type    = string
+  default = "008923505280"
+}
+
+variable "grafana_external_id" {
+  type    = string
+  default = "1848856"
 }

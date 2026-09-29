@@ -98,3 +98,20 @@ variable "reconcile_sweep_enabled" {
   type    = bool
   default = true
 }
+
+# k6 load test task (k6.tf). Pinned by digest: no floating tags (production readiness).
+variable "k6_image" {
+  type    = string
+  default = "grafana/k6:0.54.0@sha256:1f40432b1cbe7234e977f96c362c9bc550a2d2b583d014dd8669fe40d3e9e755"
+}
+
+variable "k6_soak_duration" {
+  type    = string
+  default = "15m"
+}
+
+# Must outlast the soak, which starts 60 s in (capacity.js).
+variable "k6_driver_duration" {
+  type    = string
+  default = "17m"
+}

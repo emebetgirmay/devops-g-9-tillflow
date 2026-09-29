@@ -12,6 +12,7 @@ import json
 import re
 import sys
 import time
+import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -96,13 +97,29 @@ class App:
         lower = {k.lower(): v for k, v in headers.items()}
         with tracing.trace_context(lower.get("traceparent")) as trace_id:
             with metrics.Timer() as timer:
-                remote_addr = self._source(lower, remote_addr)
-                if method == "GET":
-                    reply = self._get(path)
-                elif method == "POST":
-                    reply = self._post(path, lower, headers, body, remote_addr)
-                else:
-                    reply = Reply(405, {"error": "method_not_allowed"})
+                try:
+                    remote_addr = self._source(lower, remote_addr)
+                    if method == "GET":
+                        reply = self._get(path)
+                    elif method == "POST":
+                        reply = self._post(path, lower, headers, body, remote_addr)
+                    else:
+                        reply = Reply(405, {"error": "method_not_allowed"})
+                except Exception as exc:  # noqa: BLE001 - last line of defence, see below
+                    # An exception escaping here used to kill the handler thread with no reply:
+                    # the ALB answered 502, and nothing reached the 5xx metric, the request log
+                    # or the burn alarms (G3 k6 soak, 110 silent 502s). Answer a counted, logged
+                    # 500 instead. Money stays safe: every write is idempotent, so a caller's
+                    # retry with the same Idempotency-Key replays rather than repeats.
+                    jsonlog.log_line(
+                        level="ERROR",
+                        service="payments",
+                        event="unhandled_error",
+                        trace_id=trace_id,
+                        result=f"{method} {route}: {type(exc).__name__}",
+                    )
+                    traceback.print_exc(file=sys.stderr)
+                    reply = Reply(500, {"error": "internal_error", "trace_id": trace_id})
             if route not in _EXCLUDED_ROUTES:
                 status_class = f"{reply.status // 100}xx"
                 metrics.http_requests_total.inc(route, status_class)

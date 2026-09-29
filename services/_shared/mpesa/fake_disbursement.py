@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import threading
 from collections.abc import Mapping
 from enum import Enum
 
@@ -32,6 +33,7 @@ from mpesa.fake_common import (
     CallbackDelivery,
     Clock,
     FakeAdapterConfig,
+    locked,
     sign,
 )
 from mpesa.models import (
@@ -118,9 +120,11 @@ class FakeDisbursements:
         self._delivered: set[tuple[str, int]] = set()
         self._seq = 0
         self.disburse_call_count = 0
+        self._lock = threading.RLock()  # see fake_common.locked
 
     # DisbursementPort ----------------------------------------------------------------------
 
+    @locked
     def disburse(self, request: DisbursementRequest) -> DisbursementAccepted:
         self.disburse_call_count += 1
         oid = request.originator_conversation_id
@@ -143,6 +147,7 @@ class FakeDisbursements:
             raise DuplicateOriginatorConversationError(f"duplicate originator id {oid}")
         return DisbursementAccepted(oid, item.conversation_id)
 
+    @locked
     def query_disbursement_status(self, originator_conversation_id: str) -> DisbursementStatus:
         item = self._items.get(originator_conversation_id)
         if item is None:
@@ -162,6 +167,7 @@ class FakeDisbursements:
 
     # Test and k6 driver API ----------------------------------------------------------------
 
+    @locked
     def due_results(self) -> list[CallbackDelivery]:
         """Results whose delivery time has been reached and not yet handed out, in order."""
         now = self._clock.now()
@@ -175,12 +181,14 @@ class FakeDisbursements:
             self._delivered.add((delivery.provider_ref, seq))
         return [delivery for _, _, delivery in due]
 
+    @locked
     def scheduled_results(self, originator_conversation_id: str) -> list[CallbackDelivery]:
         item = self._items.get(originator_conversation_id)
         if item is None:
             raise UnknownReferenceError(originator_conversation_id)
         return [d for _, _, d in sorted(item.deliveries, key=lambda entry: entry[:2])]
 
+    @locked
     def deliver_result_code(
         self, originator_conversation_id: str, raw_code: object, delay_s: float = 0.0
     ) -> CallbackDelivery:

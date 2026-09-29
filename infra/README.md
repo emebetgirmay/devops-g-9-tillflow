@@ -60,11 +60,12 @@ Then: GHA `terraform plan` on PR + evidence pack.
    result callback is then refused with 403 and logged as `result from disallowed source <ip>`.
    Add the observed provider address in a follow-up PR, never a guessed one. The release pipeline
    then deploys a task with those settings.
-3. **Before trusting the allowlist**, check `payments_trusted_proxy_hops` (default 2: API Gateway
-   then the ALB each append to `X-Forwarded-For`). From a laptop, POST `{}` to
-   `<api endpoint>/payments/daraja/b2c-callback`: it must answer 403 `source_not_allowed`, and the
-   Payments log line `result from disallowed source <ip>` must show your public IP. A `10.x`
-   address means the hop count is wrong; fix it before sending a payout.
+3. **Before trusting the allowlist**, check the source header. API Gateway overwrites
+   `x-tillflow-source-ip` with the caller's address (HTTP APIs reserve `X-Forwarded-For`, so it
+   cannot be used). From a laptop, POST `{}` to `<api endpoint>/payments/daraja/b2c-callback` with
+   a fake `x-tillflow-source-ip: 198.51.100.7`: it must answer 403 `source_not_allowed`, and the
+   Payments log line `result from disallowed source <ip>` must show your real public IP. Only the
+   internal ALB can bypass the edge, so a caller inside the VPC could still set the header.
 
 While it is on, STK charges through Payments are declined at initiation (the real adapter's STK
 path is not built), so POS's sale flow stops. Switch back to `fake` after the B2C contract test.

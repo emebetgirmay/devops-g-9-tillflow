@@ -66,15 +66,12 @@ class App:
         return Reply(405, {"error": "method_not_allowed"})
 
     def _source(self, lower: dict[str, str], peer: str) -> str:
-        """The caller's address for the callback allowlist. Behind N proxies we run, it is the
-        entry N hops from the right of X-Forwarded-For (each proxy appends the address it saw),
-        so anything a caller prepends is ignored. Too few entries means we cannot tell: ""."""
-        hops = self.settings.trusted_proxy_hops
-        if hops == 0:
-            return peer
-        chain = [a.strip() for a in lower.get("x-forwarded-for", "").split(",") if a.strip()]
-        chain.append(peer)
-        return chain[-(hops + 1)] if len(chain) > hops else ""
+        """The caller's address for the callback allowlist. Behind API Gateway the socket peer is
+        the ALB, and HTTP APIs reserve X-Forwarded-For, so the edge overwrites our own header
+        with $context.identity.sourceIp; whatever a caller sent in it is replaced. A missing
+        header means we cannot tell: "" (never allowlisted)."""
+        name = self.settings.callback_source_header
+        return lower.get(name, "").strip() if name else peer
 
     def _get(self, path: str) -> Reply:
         if path == "/health":

@@ -42,22 +42,18 @@ variable "daraja_callback_ips" {
   default     = []
 }
 
-variable "payments_trusted_proxy_hops" {
-  type        = number
-  description = "Proxies in front of Payments that append X-Forwarded-For (API Gateway, then the ALB). Verify live: see README."
-  default     = 2
-}
-
 locals {
-  payments_daraja = var.payments_mpesa_adapter == "daraja_sandbox"
-  daraja_secret   = var.daraja_secret_arn
+  source_ip_header = "x-tillflow-source-ip"
+  payments_daraja  = var.payments_mpesa_adapter == "daraja_sandbox"
+  daraja_secret    = var.daraja_secret_arn
 
   payments_daraja_environment = local.payments_daraja ? [
     { name = "MPESA_BASE_URL", value = var.daraja_base_url },
     { name = "MPESA_CALLBACK_BASE_URL", value = aws_apigatewayv2_api.app.api_endpoint },
     # Empty list: keep Payments' localhost-only default, so outside callbacks are refused and logged.
     { name = "CALLBACK_ALLOWED_IPS", value = length(var.daraja_callback_ips) > 0 ? join(",", var.daraja_callback_ips) : "127.0.0.1,::1" },
-    { name = "TRUSTED_PROXY_HOPS", value = tostring(var.payments_trusted_proxy_hops) },
+    # api_gateway.tf overwrites this header with the caller's address on every request.
+    { name = "CALLBACK_SOURCE_HEADER", value = local.source_ip_header },
   ] : []
 
   payments_daraja_secrets = [

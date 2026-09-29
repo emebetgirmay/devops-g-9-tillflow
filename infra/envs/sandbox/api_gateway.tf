@@ -42,6 +42,12 @@ resource "aws_apigatewayv2_integration" "alb" {
   connection_id      = aws_apigatewayv2_vpc_link.app.id
 
   timeout_milliseconds = 29000
+
+  # HTTP APIs reserve X-Forwarded-For, so hand the caller's address to the services in a header
+  # of our own. overwrite replaces anything the caller sent in it (Payments' callback allowlist).
+  request_parameters = {
+    "overwrite:header.${local.source_ip_header}" = "$context.identity.sourceIp"
+  }
 }
 
 resource "aws_apigatewayv2_route" "proxy" {

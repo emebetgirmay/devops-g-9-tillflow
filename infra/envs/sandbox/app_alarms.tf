@@ -75,7 +75,8 @@ locals {
       owner      = "@chesangJ"
     }
     "reconcile-stale" = {
-      query      = "SELECT SUM(payments_reconcile_runs_total) FROM TillFlow WHERE result = 'ok'"
+      # `result` is a Metrics Insights reserved word, so the label name is double-quoted.
+      query      = "SELECT SUM(payments_reconcile_runs_total) FROM TillFlow WHERE \"result\" = 'ok'"
       comparison = "LessThanThreshold"
       threshold  = 1
       period     = 300

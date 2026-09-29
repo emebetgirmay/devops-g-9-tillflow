@@ -91,3 +91,10 @@ variable "grafana_external_id" {
   type    = string
   default = "1848856"
 }
+
+# Scheduled reconcile pass (reconcile.tf). Set false only to stop the pass on purpose, e.g. the G3
+# Slack drill; reconcile-stale fires within 15 minutes while it is off.
+variable "reconcile_sweep_enabled" {
+  type    = bool
+  default = true
+}

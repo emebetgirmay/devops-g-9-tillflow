@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from .. import models, schemas
+from .. import metrics, models, schemas
 from ..db import get_db
 from ..payment_outcomes import ReconcileAmountMismatch, reconcile_sale
 from ..payments_client import PaymentsClient, get_payments_client
@@ -25,6 +25,16 @@ router = APIRouter(tags=["sales"])
 
 def _find_sale_by_idempotency_key(db: Session, tenant_id: str, idempotency_key: str) -> models.Sale | None:
     return db.query(models.Sale).filter_by(tenant_id=tenant_id, idempotency_key=idempotency_key).first()
+
+
+def _payload_matches_existing(
+    sale: models.Sale, till_id: str, attendant_id: str, line_items: list[schemas.SaleLineItemIn]
+) -> bool:
+    if sale.till_id != till_id or sale.attendant_id != attendant_id:
+        return False
+    existing = sorted((li.product_id, li.quantity) for li in sale.line_items)
+    incoming = sorted((li.product_id, li.quantity) for li in line_items)
+    return existing == incoming
 
 
 def _get_sale_or_404(db: Session, tenant_id: str, sale_id: str) -> models.Sale:
@@ -45,16 +55,25 @@ def create_sale(
 
     existing = _find_sale_by_idempotency_key(db, tenant_id, idempotency_key)
     if existing is not None:
+        if not _payload_matches_existing(existing, body.till_id, body.attendant_id, body.line_items):
+            metrics.record_sale_create("conflict")
+            raise HTTPException(
+                status_code=409, detail="Idempotency-Key reused with a different sale payload"
+            )
+        metrics.record_sale_create("replayed")
         return existing
 
     till = db.get(models.Till, body.till_id)
     if till is None or till.tenant_id != tenant_id:
+        metrics.record_sale_create("invalid")
         raise HTTPException(status_code=400, detail="till does not belong to tenant")
 
     attendant = db.get(models.Attendant, body.attendant_id)
     if attendant is None or attendant.tenant_id != tenant_id:
+        metrics.record_sale_create("invalid")
         raise HTTPException(status_code=400, detail="attendant does not belong to tenant")
     if not attendant.active:
+        metrics.record_sale_create("invalid")
         raise HTTPException(status_code=400, detail="attendant is not active")
 
     line_items: list[models.SaleLineItem] = []
@@ -63,12 +82,15 @@ def create_sale(
     for item in body.line_items:
         product = db.get(models.Product, item.product_id)
         if product is None or product.tenant_id != tenant_id:
+            metrics.record_sale_create("invalid")
             raise HTTPException(status_code=400, detail=f"product {item.product_id} does not belong to tenant")
         if not product.active:
+            metrics.record_sale_create("invalid")
             raise HTTPException(status_code=400, detail=f"product {item.product_id} is not active")
         if currency is None:
             currency = product.currency
         elif currency != product.currency:
+            metrics.record_sale_create("invalid")
             raise HTTPException(status_code=400, detail="mixed currencies in one sale are not supported")
 
         line_total = product.price_minor * item.quantity
@@ -97,15 +119,23 @@ def create_sale(
     try:
         db.commit()
     except IntegrityError:
-        # Lost a race against a concurrent identical retry (same tenant +
-        # Idempotency-Key) — the unique constraint caught it; return the
-        # sale the winner created instead of a duplicate.
+        # Lost a race against a concurrent retry (same tenant +
+        # Idempotency-Key) — the unique constraint caught it before our own
+        # lookup did. Same rule as above: same payload is a replay, a
+        # different one is a conflict, never silently returned.
         db.rollback()
         winner = _find_sale_by_idempotency_key(db, tenant_id, idempotency_key)
         if winner is None:
             raise
+        if not _payload_matches_existing(winner, body.till_id, body.attendant_id, body.line_items):
+            metrics.record_sale_create("conflict")
+            raise HTTPException(
+                status_code=409, detail="Idempotency-Key reused with a different sale payload"
+            ) from None
+        metrics.record_sale_create("replayed")
         return winner
     db.refresh(sale)
+    metrics.record_sale_create("created")
     return sale
 
 

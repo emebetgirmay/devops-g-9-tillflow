@@ -26,7 +26,7 @@ def test_repeated_create_with_same_idempotency_key_returns_same_sale(
     assert first.json()["total_minor"] == second.json()["total_minor"]
 
 
-def test_retry_with_different_payload_but_same_key_still_returns_original(
+def test_retry_with_different_payload_but_same_key_is_a_conflict(
     client: TestClient, tenant_id: str, till_id: str, attendant_id: str, product_id: str
 ) -> None:
     key = str(uuid.uuid4())
@@ -41,9 +41,11 @@ def test_retry_with_different_payload_but_same_key_still_returns_original(
     )
     assert first.status_code == 201
 
-    # A client that retries after a dropped response but accidentally
-    # changes the quantity must not create a second sale or silently apply
-    # the new quantity — idempotency wins.
+    # A client that reuses the same Idempotency-Key with a genuinely
+    # different payload (quantity 99 instead of 1) must never be silently
+    # given the original sale back as if it were a normal replay — that
+    # would hide the mismatch from the caller. It's a 409, and no second
+    # sale is created either.
     retry = client.post(
         f"/tenants/{tenant_id}/sales",
         headers={"Idempotency-Key": key},
@@ -53,9 +55,10 @@ def test_retry_with_different_payload_but_same_key_still_returns_original(
             "line_items": [{"product_id": product_id, "quantity": 99}],
         },
     )
-    assert retry.status_code == 201
-    assert retry.json()["id"] == first.json()["id"]
-    assert retry.json()["total_minor"] == first.json()["total_minor"]
+    assert retry.status_code == 409
+
+    unchanged = client.get(f"/tenants/{tenant_id}/sales/{first.json()['id']}")
+    assert unchanged.json()["total_minor"] == first.json()["total_minor"]
 
 
 def test_same_idempotency_key_is_scoped_per_tenant(

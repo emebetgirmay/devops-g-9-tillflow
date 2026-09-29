@@ -9,14 +9,15 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 import urllib.error
 import urllib.request
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
-from . import scheduler
+from . import metrics, scheduler
 from .db import init_db
 from .routers import catalog, commission, internal, sales
 
@@ -35,6 +36,28 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="TillFlow POS API", version=COMMIT_SHA, lifespan=lifespan)
+
+
+@app.middleware("http")
+async def record_http_metrics(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration = time.perf_counter() - start
+    # request.scope["route"] is set by Starlette's router once a match is
+    # found, and always carries the route *template* (e.g.
+    # "/tenants/{tenant_id}/sales"), never the resolved path — exactly the
+    # label ADR 0010 requires. An unmatched path (404, or someone probing
+    # arbitrary URLs) has no route; bucket those under a fixed label rather
+    # than the raw path, which would otherwise be unbounded cardinality.
+    route = request.scope.get("route")
+    route_path = route.path if route is not None else "unmatched"
+    metrics.record_request(route_path, response.status_code, duration)
+    return response
+
+
+@app.get("/metrics", response_model=None)
+def metrics_endpoint() -> Response:
+    return Response(content=metrics.render_latest(), media_type=metrics.METRICS_CONTENT_TYPE)
 
 
 def _adot_healthy() -> bool:

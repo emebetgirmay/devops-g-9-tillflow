@@ -8,3 +8,6 @@ htmlcov/
 
 # Local SQLite dev DB
 *.db
+
+# Lambda zips built by Terraform (archive_file)
+infra/envs/sandbox/.build/

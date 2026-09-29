@@ -206,3 +206,16 @@ jobs:
             "aquasec/trivy:${TRIVY_VERSION}" \
             image --severity HIGH,CRITICAL --exit-code 1 \
             --ignore-unfixed local/commission:pr
+
+  reliability-tests:
+    name: Alerting Lambda unit tests
+    runs-on: ubuntu-latest
+    needs: [gitleaks]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Slack notifier unittest
+        working-directory: infra/envs/sandbox/lambda/slack_notifier
+        run: python3 -m unittest -v

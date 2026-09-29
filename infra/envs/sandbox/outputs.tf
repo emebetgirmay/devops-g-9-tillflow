@@ -81,3 +81,11 @@ output "pos_task_definition_arn" {
 output "payments_task_definition_arn" {
   value = aws_ecs_task_definition.payments.arn
 }
+
+output "alerts_topic_arn" {
+  value = aws_sns_topic.alerts.arn
+}
+
+output "slack_secret_name" {
+  value = aws_secretsmanager_secret.slack.name
+}

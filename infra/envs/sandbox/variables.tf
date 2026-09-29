@@ -73,3 +73,9 @@ variable "github_repo_id" {
   type    = string
   default = "1362917698"
 }
+
+# Grafana Cloud stack URL for alert links (ADR 0010). Empty until the stack exists.
+variable "grafana_url" {
+  type    = string
+  default = ""
+}

@@ -94,9 +94,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: terraform-plan-${{ github.sha }}
+          # .build/ holds the Lambda zips archive_file wrote at plan time; the apply job needs them.
           path: |
             infra/envs/sandbox/plan.bin
             infra/envs/sandbox/plan.txt
+            infra/envs/sandbox/.build/
+          include-hidden-files: true
           retention-days: 14
 
   apply:

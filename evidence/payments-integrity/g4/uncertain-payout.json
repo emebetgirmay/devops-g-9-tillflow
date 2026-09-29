@@ -1,0 +1,131 @@
+{
+  "drill": "uncertain-payout",
+  "run": "20260929T171111",
+  "target": "https://ewi66kqbp8.execute-api.eu-north-1.amazonaws.com",
+  "wall_total_s": 12.239,
+  "provider_total_s": 230.0,
+  "checks": {
+    "timeout_is_unknown_not_failed": true,
+    "same_key_returns_original": true,
+    "second_key_cannot_pay_again": true,
+    "reconcile_resolves_to_succeeded": true,
+    "exactly_one_ledger_entry": true
+  },
+  "passed": true,
+  "steps": [
+    {
+      "step": "create: accepted, result never comes",
+      "http": 201,
+      "wall_s": 1.437,
+      "provider_s": 0.0,
+      "body": {
+        "disbursement_id": "dis_3e18e1e8ce62434aa46d1526e06a37f3",
+        "conversation_id": "AG_0d0c4e7018c77b93",
+        "originator_conversation_id": "RGRS42ZL2A72DVXGISDQ",
+        "state": "PENDING",
+        "failure_reason": null
+      },
+      "replayed": null
+    },
+    {
+      "step": "no result for 100s: sweep",
+      "http": 200,
+      "wall_s": 3.624,
+      "provider_s": 100.0,
+      "body": {
+        "payments": {
+          "created_to_unknown": 0,
+          "pending_to_unknown": 0,
+          "reconciled": 0,
+          "checked": 0
+        },
+        "payouts": {
+          "created_to_unknown": 0,
+          "pending_to_unknown": 1,
+          "reconciled": 0,
+          "checked": 0
+        }
+      }
+    },
+    {
+      "step": "state after sweep",
+      "http": 200,
+      "wall_s": 5.083,
+      "provider_s": 100.0,
+      "body": {
+        "disbursement_id": "dis_3e18e1e8ce62434aa46d1526e06a37f3",
+        "conversation_id": "AG_0d0c4e7018c77b93",
+        "originator_conversation_id": "RGRS42ZL2A72DVXGISDQ",
+        "state": "UNKNOWN",
+        "failure_reason": null,
+        "tenant_id": "g4-drill",
+        "attendant_id": "att-g4",
+        "payout_period": "g4-20260929T171111-tmo",
+        "amount_minor": 500000,
+        "msisdn": "2540****107",
+        "receipt": null,
+        "ledger_entries": 0
+      }
+    },
+    {
+      "step": "Commission reruns with the same key",
+      "http": 200,
+      "wall_s": 6.564,
+      "provider_s": 100.0,
+      "body": {
+        "conversation_id": "AG_0d0c4e7018c77b93",
+        "disbursement_id": "dis_3e18e1e8ce62434aa46d1526e06a37f3",
+        "failure_reason": null,
+        "originator_conversation_id": "RGRS42ZL2A72DVXGISDQ",
+        "state": "PENDING"
+      },
+      "replayed": "true"
+    },
+    {
+      "step": "a second key for the same payout",
+      "http": 409,
+      "wall_s": 7.966,
+      "provider_s": 100.0,
+      "body": {
+        "error": "payout_already_requested",
+        "disbursement_id": "dis_3e18e1e8ce62434aa46d1526e06a37f3"
+      },
+      "replayed": null
+    },
+    {
+      "step": "reconcile by OriginatorConversationID",
+      "http": 200,
+      "wall_s": 10.074,
+      "provider_s": 230.0,
+      "body": {
+        "disbursement_id": "dis_3e18e1e8ce62434aa46d1526e06a37f3",
+        "conversation_id": "AG_0d0c4e7018c77b93",
+        "originator_conversation_id": "RGRS42ZL2A72DVXGISDQ",
+        "state": "SUCCEEDED",
+        "failure_reason": null,
+        "reconciled": true,
+        "result": "applied"
+      }
+    },
+    {
+      "step": "final state",
+      "http": 200,
+      "wall_s": 11.532,
+      "provider_s": 230.0,
+      "body": {
+        "disbursement_id": "dis_3e18e1e8ce62434aa46d1526e06a37f3",
+        "conversation_id": "AG_0d0c4e7018c77b93",
+        "originator_conversation_id": "RGRS42ZL2A72DVXGISDQ",
+        "state": "SUCCEEDED",
+        "failure_reason": null,
+        "tenant_id": "g4-drill",
+        "attendant_id": "att-g4",
+        "payout_period": "g4-20260929T171111-tmo",
+        "amount_minor": 500000,
+        "msisdn": "2540****107",
+        "receipt": "FAKE5BB25840",
+        "ledger_entries": 1
+      }
+    }
+  ]
+}

@@ -51,6 +51,12 @@ PAYMENTS_URL=https://<api endpoint> python3 evidence/payments-integrity/g4/drill
 
 Each step records `wall_s` (real time the drill took) and `provider_s` (the service's manual
 provider clock, advanced past the 90 s callback deadline and 120 s reconcile SLA without waiting).
+Deployed run (2026-09-29, `checks.json`): 3/3 drills, 22/22 checks. Wall totals 17.3 s, 12.2 s and
+101.6 s; the service answered each request in about 0.5 s, and the spikes are the drill machine's
+network (single TCP connects of about 19 s, measured with `curl -w %{time_connect}`), so read
+`wall_s` as an upper bound. `provider_s` is 230 s for both uncertain drills: 100 s past the callback
+deadline, then 130 s past the reconcile SLA.
+
 A trace explains a duplicate on its own: every delivery logs `{"event": "callback", "result":
 "replay"}` under the delivery's `trace_id`, and anomalies carry the same `trace_id`
 (`services/payments/tests/test_trace_evidence.py`). Look one up with:

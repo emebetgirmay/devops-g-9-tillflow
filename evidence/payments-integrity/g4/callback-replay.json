@@ -1,0 +1,352 @@
+{
+  "drill": "callback-replay",
+  "run": "20260929T171111",
+  "target": "https://ewi66kqbp8.execute-api.eu-north-1.amazonaws.com",
+  "wall_total_s": 101.635,
+  "provider_total_s": 94.0,
+  "checks": {
+    "stk_duplicates_applied_once": true,
+    "stk_duplicate_one_ledger_entry": true,
+    "stk_one_legal_transition": true,
+    "stk_late_failure_cannot_undo_success": true,
+    "stk_failure_then_success_one_transition": true,
+    "stk_late_success_never_auto_credited": true,
+    "b2c_duplicates_applied_once": true,
+    "b2c_duplicate_one_ledger_entry": true,
+    "b2c_one_legal_transition": true,
+    "b2c_late_failure_cannot_undo_success": true
+  },
+  "passed": true,
+  "trace_ids": {
+    "stk_duplicate": "72ee0f30042de907b2b06a0de2874b12",
+    "stk_success_then_failure": "0598f9287d399a3f497339728658a157",
+    "stk_failure_then_success": "7da07ac6f4218006702015145d0f64a5",
+    "b2c_duplicate": "7199fed6153fe6fe5e16699033cb0825",
+    "b2c_success_then_failure": "7a5af29957276c4fedd5d1b6085bc900"
+  },
+  "steps": [
+    {
+      "step": "create: provider will send the same callback 3 times",
+      "http": 201,
+      "wall_s": 20.187,
+      "provider_s": 0.0,
+      "body": {
+        "payment_id": "pay_306f551247ab4239ad6a916bee5947cc",
+        "checkout_request_id": "fake-co-753aa404706cdef6",
+        "state": "PENDING",
+        "decline_reason": null
+      },
+      "replayed": null
+    },
+    {
+      "step": "deliver the 3 identical callbacks",
+      "http": 200,
+      "wall_s": 41.143,
+      "provider_s": 2.0,
+      "body": {
+        "delivered": [
+          {
+            "kind": "stk",
+            "ref": "fake-co-0e0449e5d8140631",
+            "http": 200,
+            "ResultCode": 0,
+            "ResultDesc": "Accepted",
+            "status": "unmatched"
+          },
+          {
+            "kind": "stk",
+            "ref": "fake-co-753aa404706cdef6",
+            "http": 200,
+            "ResultCode": 0,
+            "ResultDesc": "Accepted",
+            "status": "applied"
+          },
+          {
+            "kind": "stk",
+            "ref": "fake-co-753aa404706cdef6",
+            "http": 200,
+            "ResultCode": 0,
+            "ResultDesc": "Accepted",
+            "status": "replay"
+          },
+          {
+            "kind": "stk",
+            "ref": "fake-co-753aa404706cdef6",
+            "http": 200,
+            "ResultCode": 0,
+            "ResultDesc": "Accepted",
+            "status": "replay"
+          }
+        ]
+      },
+      "trace_id": "72ee0f30042de907b2b06a0de2874b12"
+    },
+    {
+      "step": "state after duplicates",
+      "http": 200,
+      "wall_s": 42.653,
+      "provider_s": 2.0,
+      "body": {
+        "payment_id": "pay_306f551247ab4239ad6a916bee5947cc",
+        "checkout_request_id": "fake-co-753aa404706cdef6",
+        "state": "SUCCEEDED",
+        "decline_reason": null,
+        "tenant_id": "g4-drill",
+        "sale_id": null,
+        "amount_minor": 150000,
+        "currency": "KES",
+        "msisdn": "2540****009",
+        "receipt": "FAKECA8E37B4",
+        "ledger_entries": 1
+      }
+    },
+    {
+      "step": "create: success arrives, then a contradicting failure",
+      "http": 201,
+      "wall_s": 44.104,
+      "provider_s": 2.0,
+      "body": {
+        "payment_id": "pay_97c468dc9bfc4ca1b642e23e734cb4d8",
+        "checkout_request_id": "fake-co-df1b1951169b360e",
+        "state": "PENDING",
+        "decline_reason": null
+      },
+      "replayed": null
+    },
+    {
+      "step": "deliver success, then failure",
+      "http": 200,
+      "wall_s": 46.294,
+      "provider_s": 32.0,
+      "body": {
+        "delivered": [
+          {
+            "kind": "stk",
+            "ref": "fake-co-df1b1951169b360e",
+            "http": 200,
+            "ResultCode": 0,
+            "ResultDesc": "Accepted",
+            "status": "applied"
+          },
+          {
+            "kind": "stk",
+            "ref": "fake-co-df1b1951169b360e",
+            "http": 200,
+            "ResultCode": 0,
+            "ResultDesc": "Accepted",
+            "status": "illegal_transition_logged"
+          }
+        ]
+      },
+      "trace_id": "0598f9287d399a3f497339728658a157"
+    },
+    {
+      "step": "state after reorder",
+      "http": 200,
+      "wall_s": 47.763,
+      "provider_s": 32.0,
+      "body": {
+        "payment_id": "pay_97c468dc9bfc4ca1b642e23e734cb4d8",
+        "checkout_request_id": "fake-co-df1b1951169b360e",
+        "state": "SUCCEEDED",
+        "decline_reason": null,
+        "tenant_id": "g4-drill",
+        "sale_id": null,
+        "amount_minor": 150000,
+        "currency": "KES",
+        "msisdn": "2540****010",
+        "receipt": "FAKE0543B207",
+        "ledger_entries": 1
+      }
+    },
+    {
+      "step": "create: failure arrives, then a contradicting success",
+      "http": 201,
+      "wall_s": 49.276,
+      "provider_s": 32.0,
+      "body": {
+        "payment_id": "pay_a427232c6ef44b62af133120e73d7a3c",
+        "checkout_request_id": "fake-co-8f2bfc1a4e97c636",
+        "state": "PENDING",
+        "decline_reason": null
+      },
+      "replayed": null
+    },
+    {
+      "step": "deliver failure, then success",
+      "http": 200,
+      "wall_s": 70.342,
+      "provider_s": 62.0,
+      "body": {
+        "delivered": [
+          {
+            "kind": "stk",
+            "ref": "fake-co-8f2bfc1a4e97c636",
+            "http": 200,
+            "ResultCode": 0,
+            "ResultDesc": "Accepted",
+            "status": "applied"
+          },
+          {
+            "kind": "stk",
+            "ref": "fake-co-8f2bfc1a4e97c636",
+            "http": 200,
+            "ResultCode": 0,
+            "ResultDesc": "Accepted",
+            "status": "illegal_transition_logged"
+          }
+        ]
+      },
+      "trace_id": "7da07ac6f4218006702015145d0f64a5"
+    },
+    {
+      "step": "state after reorder",
+      "http": 200,
+      "wall_s": 90.599,
+      "provider_s": 62.0,
+      "body": {
+        "payment_id": "pay_a427232c6ef44b62af133120e73d7a3c",
+        "checkout_request_id": "fake-co-8f2bfc1a4e97c636",
+        "state": "DECLINED",
+        "decline_reason": "USER_CANCELLED",
+        "tenant_id": "g4-drill",
+        "sale_id": null,
+        "amount_minor": 150000,
+        "currency": "KES",
+        "msisdn": "2540****011",
+        "receipt": null,
+        "ledger_entries": 0
+      }
+    },
+    {
+      "step": "create payout: provider will send the same result 3 times",
+      "http": 201,
+      "wall_s": 92.057,
+      "provider_s": 62.0,
+      "body": {
+        "disbursement_id": "dis_906b546c8cf745f6bbfa847099f322a3",
+        "conversation_id": "AG_09a0b3dd22c0ca2a",
+        "originator_conversation_id": "57PFDGTLCHUR3SVHFCEQ",
+        "state": "PENDING",
+        "failure_reason": null
+      },
+      "replayed": null
+    },
+    {
+      "step": "deliver the 3 identical B2C results",
+      "http": 200,
+      "wall_s": 94.26,
+      "provider_s": 64.0,
+      "body": {
+        "delivered": [
+          {
+            "kind": "b2c",
+            "ref": "57PFDGTLCHUR3SVHFCEQ",
+            "http": 200,
+            "ResultCode": 0,
+            "ResultDesc": "Accepted",
+            "status": "applied"
+          },
+          {
+            "kind": "b2c",
+            "ref": "57PFDGTLCHUR3SVHFCEQ",
+            "http": 200,
+            "ResultCode": 0,
+            "ResultDesc": "Accepted",
+            "status": "replay"
+          },
+          {
+            "kind": "b2c",
+            "ref": "57PFDGTLCHUR3SVHFCEQ",
+            "http": 200,
+            "ResultCode": 0,
+            "ResultDesc": "Accepted",
+            "status": "replay"
+          }
+        ]
+      },
+      "trace_id": "7199fed6153fe6fe5e16699033cb0825"
+    },
+    {
+      "step": "payout state after duplicates",
+      "http": 200,
+      "wall_s": 95.735,
+      "provider_s": 64.0,
+      "body": {
+        "disbursement_id": "dis_906b546c8cf745f6bbfa847099f322a3",
+        "conversation_id": "AG_09a0b3dd22c0ca2a",
+        "originator_conversation_id": "57PFDGTLCHUR3SVHFCEQ",
+        "state": "SUCCEEDED",
+        "failure_reason": null,
+        "tenant_id": "g4-drill",
+        "attendant_id": "att-g4",
+        "payout_period": "g4-20260929T171111-dup",
+        "amount_minor": 500000,
+        "msisdn": "2540****109",
+        "receipt": "FAKEC61F3AA3",
+        "ledger_entries": 1
+      }
+    },
+    {
+      "step": "create payout: success result, then a contradicting failure",
+      "http": 201,
+      "wall_s": 97.219,
+      "provider_s": 64.0,
+      "body": {
+        "disbursement_id": "dis_504e3ca07ab548cc90496cecc73222ff",
+        "conversation_id": "AG_84b4713d727d4469",
+        "originator_conversation_id": "WTU45EJ2VNBUPO6K4IIQ",
+        "state": "PENDING",
+        "failure_reason": null
+      },
+      "replayed": null
+    },
+    {
+      "step": "deliver B2C success, then failure",
+      "http": 200,
+      "wall_s": 99.493,
+      "provider_s": 94.0,
+      "body": {
+        "delivered": [
+          {
+            "kind": "b2c",
+            "ref": "WTU45EJ2VNBUPO6K4IIQ",
+            "http": 200,
+            "ResultCode": 0,
+            "ResultDesc": "Accepted",
+            "status": "applied"
+          },
+          {
+            "kind": "b2c",
+            "ref": "WTU45EJ2VNBUPO6K4IIQ",
+            "http": 200,
+            "ResultCode": 0,
+            "ResultDesc": "Accepted",
+            "status": "illegal_transition_logged"
+          }
+        ]
+      },
+      "trace_id": "7a5af29957276c4fedd5d1b6085bc900"
+    },
+    {
+      "step": "payout state after reorder",
+      "http": 200,
+      "wall_s": 100.932,
+      "provider_s": 94.0,
+      "body": {
+        "disbursement_id": "dis_504e3ca07ab548cc90496cecc73222ff",
+        "conversation_id": "AG_84b4713d727d4469",
+        "originator_conversation_id": "WTU45EJ2VNBUPO6K4IIQ",
+        "state": "SUCCEEDED",
+        "failure_reason": null,
+        "tenant_id": "g4-drill",
+        "attendant_id": "att-g4",
+        "payout_period": "g4-20260929T171111-sf",
+        "amount_minor": 500000,
+        "msisdn": "2540****110",
+        "receipt": "FAKEAC511BE0",
+        "ledger_entries": 1
+      }
+    }
+  ]
+}

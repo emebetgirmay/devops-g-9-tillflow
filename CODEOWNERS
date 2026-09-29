@@ -29,6 +29,7 @@
 /docs/slo-error-budgets.md @emebetgirmay
 /docs/runbook.md @emebetgirmay
 /evidence/reliability-ops/ @emebetgirmay
+/docs/adrs/0010-reliability-observability.md @emebetgirmay
 
 # Product tenancy ADR — Alice Moraa
 /docs/adrs/0007-multi-tenancy.md @Moraaalice

@@ -48,7 +48,11 @@ resource "aws_cloudwatch_log_group" "adot_metrics" {
   }
 }
 
-# Minimal ADOT config: OTLP receivers + health_check extension (P0-2).
+# ADOT config shared by every sidecar: OTLP receivers, a Prometheus scrape of the app's own
+# GET /metrics on 127.0.0.1 (ADR 0009 section 1, ADR 0010 R-5), and the health_check extension
+# (P0-2). Each sidecar scrapes only its own task, so one config serves POS and Payments.
+# Metric labels become EMF dimensions as-is (NoDimensionRollup): services keep them bounded
+# and ID-free (ADR 0010 section 2), so no rollup copies are needed.
 resource "aws_ssm_parameter" "adot_config" {
   name        = "/${var.name_prefix}/adot/config"
   description = "ADOT collector config for ECS sidecars"
@@ -63,6 +67,14 @@ resource "aws_ssm_parameter" "adot_config" {
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: app
+              scrape_interval: 60s
+              metrics_path: /metrics
+              static_configs:
+                - targets: ["127.0.0.1:${var.pos_container_port}"]
     processors:
       batch:
         timeout: 5s
@@ -73,6 +85,7 @@ resource "aws_ssm_parameter" "adot_config" {
         region: ${var.aws_region}
         namespace: TillFlow
         log_group_name: /${var.name_prefix}/adot/metrics
+        dimension_rollup_option: NoDimensionRollup
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
@@ -85,7 +98,7 @@ resource "aws_ssm_parameter" "adot_config" {
           processors: [batch]
           exporters: [awsxray]
         metrics:
-          receivers: [otlp]
+          receivers: [otlp, prometheus]
           processors: [batch]
           exporters: [awsemf]
   EOT
@@ -93,6 +106,13 @@ resource "aws_ssm_parameter" "adot_config" {
   tags = {
     Name    = "/${var.name_prefix}/adot/config"
     service = "platform"
+  }
+
+  lifecycle {
+    precondition {
+      condition     = var.pos_container_port == var.payments_container_port
+      error_message = "The shared ADOT scrape targets one port; give POS and Payments the same container port or split the config."
+    }
   }
 }
 

@@ -211,3 +211,27 @@ resource "aws_lb_listener_rule" "payments" {
     }
   }
 }
+
+# /metrics stays off the public path (ADR 0009 question 3, ADR 0010). The ALB's default action
+# forwards everything else to POS, so without this POS's /metrics was public. The ADOT sidecar
+# scrapes 127.0.0.1 inside the task and never passes through the ALB.
+resource "aws_lb_listener_rule" "block_metrics" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 5
+
+  action {
+    type = "fixed-response"
+
+    fixed_response {
+      content_type = "application/json"
+      message_body = "{\"error\":\"not_found\"}"
+      status_code  = "404"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/metrics", "/metrics/*"]
+    }
+  }
+}

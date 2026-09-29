@@ -289,10 +289,13 @@ resource "aws_ecs_task_definition" "payments" {
   family                   = "${var.name_prefix}-payments"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = "256"
-  memory                   = "512"
-  execution_role_arn       = aws_iam_role.payments_exec.arn
-  task_role_arn            = aws_iam_role.payments_task.arn
+  # 0.5 vCPU (G3 k6): at 0.25 vCPU Payments ran at 85-100% CPU under the soak, p95 swung
+  # 229-546 ms around the 500 ms target and payments-cpu-high fired. Fargate needs >= 1 GB
+  # memory at 0.5 vCPU.
+  cpu                = "512"
+  memory             = "1024"
+  execution_role_arn = aws_iam_role.payments_exec.arn
+  task_role_arn      = aws_iam_role.payments_task.arn
 
   volume {
     name = "tmp"

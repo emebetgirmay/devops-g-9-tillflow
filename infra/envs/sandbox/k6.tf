@@ -80,24 +80,22 @@ resource "aws_ecs_task_definition" "k6" {
   memory                   = "1024"
   execution_role_arn       = aws_iam_role.k6_exec.arn
 
-  volume {
-    name = "tmp"
-  }
-
   container_definitions = jsonencode([
     {
-      name                   = "k6"
-      image                  = var.k6_image
-      essential              = true
-      readonlyRootFilesystem = true
+      name      = "k6"
+      image     = var.k6_image
+      essential = true
+      # Fargate's scratch volumes are root-owned and this image runs as k6 (uid 12345), so the
+      # script and summary go in the k6 user's own home directory instead of a /tmp volume.
+      readonlyRootFilesystem = false
       entryPoint             = ["sh", "-c"]
       command = [join(" ", [
-        "printf '%s' \"$K6_SCRIPT\" > /tmp/capacity.js &&",
-        "k6 run --no-color --summary-export=/tmp/summary.json",
+        "printf '%s' \"$K6_SCRIPT\" > /home/k6/capacity.js &&",
+        "k6 run --no-color --summary-export=/home/k6/summary.json",
         "-e PAYMENTS_URL=\"$PAYMENTS_URL\" -e SOAK_DURATION=\"$SOAK_DURATION\"",
         "-e DRIVER_DURATION=\"$DRIVER_DURATION\" -e ADVANCE_SECONDS=\"$ADVANCE_SECONDS\"",
-        "/tmp/capacity.js; rc=$?;",
-        "echo K6_SUMMARY_BEGIN; cat /tmp/summary.json; echo; echo K6_SUMMARY_END;",
+        "/home/k6/capacity.js; rc=$?;",
+        "echo K6_SUMMARY_BEGIN; cat /home/k6/summary.json; echo; echo K6_SUMMARY_END;",
         "echo K6_EXIT_CODE=$rc; exit $rc",
       ])]
       environment = [
@@ -106,9 +104,6 @@ resource "aws_ecs_task_definition" "k6" {
         { name = "SOAK_DURATION", value = var.k6_soak_duration },
         { name = "DRIVER_DURATION", value = var.k6_driver_duration },
         { name = "ADVANCE_SECONDS", value = "5" },
-      ]
-      mountPoints = [
-        { sourceVolume = "tmp", containerPath = "/tmp", readOnly = false },
       ]
       logConfiguration = {
         logDriver = "awslogs"

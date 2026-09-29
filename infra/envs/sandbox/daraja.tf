@@ -39,7 +39,9 @@ variable "daraja_base_url" {
 variable "daraja_callback_ips" {
   type        = list(string)
   description = "Provider result-callback source IPs, observed in Payments logs or copied from Daraja docs. Never guessed. Empty rejects all outside callbacks."
-  default     = []
+  # Observed 2026-09-29 as the source of the sandbox B2C result for evidence/daraja-b2c-contract run 1.
+  # Daraja may send from other addresses too; add each one only after it shows up in the log.
+  default = ["196.201.212.69"]
 }
 
 locals {

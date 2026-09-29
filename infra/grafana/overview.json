@@ -483,11 +483,125 @@
     },
     {
       "id": 6,
+      "type": "timeseries",
+      "title": "ALB-generated 5xx (not in the services' own 5xx counts)",
+      "description": "The load balancer answering for a target that dropped the connection or timed out. Alarmed by alb-5xx-fast-burn / slow-burn. The G3 k6 soak's 110 x 502 showed up only here.",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "e502",
+          "id": "e502",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${datasource}"
+          },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "eu-north-1",
+          "namespace": "AWS/ApplicationELB",
+          "metricName": "HTTPCode_ELB_502_Count",
+          "dimensions": {
+            "LoadBalancer": "$lb"
+          },
+          "matchExact": true,
+          "statistic": "Sum",
+          "period": "300",
+          "expression": "",
+          "label": "502",
+          "hide": false
+        },
+        {
+          "refId": "e503",
+          "id": "e503",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${datasource}"
+          },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "eu-north-1",
+          "namespace": "AWS/ApplicationELB",
+          "metricName": "HTTPCode_ELB_503_Count",
+          "dimensions": {
+            "LoadBalancer": "$lb"
+          },
+          "matchExact": true,
+          "statistic": "Sum",
+          "period": "300",
+          "expression": "",
+          "label": "503",
+          "hide": false
+        },
+        {
+          "refId": "e504",
+          "id": "e504",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${datasource}"
+          },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "eu-north-1",
+          "namespace": "AWS/ApplicationELB",
+          "metricName": "HTTPCode_ELB_504_Count",
+          "dimensions": {
+            "LoadBalancer": "$lb"
+          },
+          "matchExact": true,
+          "statistic": "Sum",
+          "period": "300",
+          "expression": "",
+          "label": "504",
+          "hide": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": true,
+            "showPoints": "never",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "noValue": "0 (none)"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 7,
       "type": "row",
       "title": "POS SLO: target 99.9%, 28-day error budget 0.1% (ALB 5xx, interim SLI)",
       "gridPos": {
         "x": 0,
-        "y": 5,
+        "y": 10,
         "w": 24,
         "h": 1
       },
@@ -495,7 +609,7 @@
       "panels": []
     },
     {
-      "id": 7,
+      "id": 8,
       "type": "stat",
       "title": "Availability 5m",
       "description": "1 - 5xx / requests at the ALB over the last 5m. Target 99.9%.",
@@ -505,7 +619,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 6,
+        "y": 11,
         "w": 3,
         "h": 4
       },
@@ -619,7 +733,7 @@
       "hideTimeOverride": true
     },
     {
-      "id": 8,
+      "id": 9,
       "type": "stat",
       "title": "Availability 1h",
       "description": "1 - 5xx / requests at the ALB over the last 1h. Target 99.9%.",
@@ -629,7 +743,7 @@
       },
       "gridPos": {
         "x": 3,
-        "y": 6,
+        "y": 11,
         "w": 3,
         "h": 4
       },
@@ -743,7 +857,7 @@
       "hideTimeOverride": true
     },
     {
-      "id": 9,
+      "id": 10,
       "type": "stat",
       "title": "Availability 28d",
       "description": "1 - 5xx / requests at the ALB over the last 28d. Target 99.9%.",
@@ -753,7 +867,7 @@
       },
       "gridPos": {
         "x": 6,
-        "y": 6,
+        "y": 11,
         "w": 3,
         "h": 4
       },
@@ -867,7 +981,7 @@
       "hideTimeOverride": true
     },
     {
-      "id": 10,
+      "id": 11,
       "type": "stat",
       "title": "Budget left 28d",
       "description": "1 - (errors / requests) / (1 - target). Freeze risky deploys at 0 (SLO doc budget policy).",
@@ -877,7 +991,7 @@
       },
       "gridPos": {
         "x": 9,
-        "y": 6,
+        "y": 11,
         "w": 4,
         "h": 4
       },
@@ -991,7 +1105,7 @@
       "hideTimeOverride": true
     },
     {
-      "id": 11,
+      "id": 12,
       "type": "timeseries",
       "title": "POS burn rate (x budget)",
       "description": "Orange line: slow-burn alarm (6x over 30 min). Red: fast-burn alarm (14.4x over 5 min).",
@@ -1001,7 +1115,7 @@
       },
       "gridPos": {
         "x": 13,
-        "y": 6,
+        "y": 11,
         "w": 11,
         "h": 4
       },
@@ -1117,12 +1231,12 @@
       }
     },
     {
-      "id": 12,
+      "id": 13,
       "type": "row",
       "title": "Payments SLO: target 99.5%, 28-day error budget 0.5% (ALB 5xx, interim SLI)",
       "gridPos": {
         "x": 0,
-        "y": 10,
+        "y": 15,
         "w": 24,
         "h": 1
       },
@@ -1130,7 +1244,7 @@
       "panels": []
     },
     {
-      "id": 13,
+      "id": 14,
       "type": "stat",
       "title": "Availability 5m",
       "description": "1 - 5xx / requests at the ALB over the last 5m. Target 99.5%.",
@@ -1140,7 +1254,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 11,
+        "y": 16,
         "w": 3,
         "h": 4
       },
@@ -1254,7 +1368,7 @@
       "hideTimeOverride": true
     },
     {
-      "id": 14,
+      "id": 15,
       "type": "stat",
       "title": "Availability 1h",
       "description": "1 - 5xx / requests at the ALB over the last 1h. Target 99.5%.",
@@ -1264,7 +1378,7 @@
       },
       "gridPos": {
         "x": 3,
-        "y": 11,
+        "y": 16,
         "w": 3,
         "h": 4
       },
@@ -1378,7 +1492,7 @@
       "hideTimeOverride": true
     },
     {
-      "id": 15,
+      "id": 16,
       "type": "stat",
       "title": "Availability 28d",
       "description": "1 - 5xx / requests at the ALB over the last 28d. Target 99.5%.",
@@ -1388,7 +1502,7 @@
       },
       "gridPos": {
         "x": 6,
-        "y": 11,
+        "y": 16,
         "w": 3,
         "h": 4
       },
@@ -1502,7 +1616,7 @@
       "hideTimeOverride": true
     },
     {
-      "id": 16,
+      "id": 17,
       "type": "stat",
       "title": "Budget left 28d",
       "description": "1 - (errors / requests) / (1 - target). Freeze risky deploys at 0 (SLO doc budget policy).",
@@ -1512,7 +1626,7 @@
       },
       "gridPos": {
         "x": 9,
-        "y": 11,
+        "y": 16,
         "w": 4,
         "h": 4
       },
@@ -1626,7 +1740,7 @@
       "hideTimeOverride": true
     },
     {
-      "id": 17,
+      "id": 18,
       "type": "timeseries",
       "title": "Payments burn rate (x budget)",
       "description": "Orange line: slow-burn alarm (6x over 30 min). Red: fast-burn alarm (14.4x over 5 min).",
@@ -1636,7 +1750,7 @@
       },
       "gridPos": {
         "x": 13,
-        "y": 11,
+        "y": 16,
         "w": 11,
         "h": 4
       },
@@ -1752,12 +1866,12 @@
       }
     },
     {
-      "id": 18,
+      "id": 19,
       "type": "row",
       "title": "Business signals",
       "gridPos": {
         "x": 0,
-        "y": 15,
+        "y": 20,
         "w": 24,
         "h": 1
       },
@@ -1765,7 +1879,7 @@
       "panels": []
     },
     {
-      "id": 19,
+      "id": 20,
       "type": "timeseries",
       "title": "Sales paid (per 5 min)",
       "description": "",
@@ -1775,7 +1889,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 16,
+        "y": 21,
         "w": 8,
         "h": 8
       },
@@ -1822,7 +1936,7 @@
       }
     },
     {
-      "id": 20,
+      "id": 21,
       "type": "timeseries",
       "title": "Payments created, by result",
       "description": "",
@@ -1832,7 +1946,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 16,
+        "y": 21,
         "w": 8,
         "h": 8
       },
@@ -1883,7 +1997,7 @@
       }
     },
     {
-      "id": 21,
+      "id": 22,
       "type": "timeseries",
       "title": "Critical anomalies (any is a P0)",
       "description": "",
@@ -1893,7 +2007,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 16,
+        "y": 21,
         "w": 8,
         "h": 8
       },

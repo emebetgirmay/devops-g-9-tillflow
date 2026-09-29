@@ -45,6 +45,9 @@ jobs:
               - 'services/pos/**'
               - 'services/_shared/**'
               - '.github/workflows/release.yml'
+              # Same as Payments: a Terraform-only task definition change (e.g. the ADOT
+              # config) only goes live through this deploy.
+              - 'infra/envs/sandbox/ecs.tf'
             payments:
               - 'services/payments/**'
               - 'services/_shared/**'

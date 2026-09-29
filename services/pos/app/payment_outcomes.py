@@ -15,7 +15,7 @@ from __future__ import annotations
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from . import models
+from . import metrics, models
 from .payments_client import PaymentsClient
 from .state import InvalidTransition, SaleStatus, transition
 
@@ -51,6 +51,7 @@ def apply_outcome(
     """
     already_seen = db.query(models.PaymentEvent).filter_by(event_id=event_id).first()
     if already_seen is not None:
+        metrics.record_payment_event("replay")
         return sale.status, False
 
     def record() -> None:
@@ -69,6 +70,7 @@ def apply_outcome(
     except InvalidTransition:
         record()
         db.commit()
+        metrics.record_payment_event("rejected")
         return sale.status, False
 
     sale.status = new_status.value
@@ -78,9 +80,13 @@ def apply_outcome(
     except IntegrityError:
         db.rollback()
         db.refresh(sale)
+        metrics.record_payment_event("replay")
         return sale.status, False
 
     db.refresh(sale)
+    metrics.record_payment_event("applied")
+    if new_status is SaleStatus.PAID:
+        metrics.record_sale_paid()
     return sale.status, True
 
 
@@ -106,6 +112,7 @@ def reconcile_sale(
 
     amount_minor = payment.get("amount_minor")
     if amount_minor is not None and amount_minor != sale.total_minor:
+        metrics.record_payment_event("rejected")
         raise ReconcileAmountMismatch(
             f"payment {sale.payment_id} amount {amount_minor} != sale total {sale.total_minor}"
         )

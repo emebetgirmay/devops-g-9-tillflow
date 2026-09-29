@@ -8,10 +8,21 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app import metrics
 from app.db import get_db
 from app.main import app
 from app.models import Base
 from app.payments_client import get_payments_client
+
+
+@pytest.fixture(autouse=True)
+def _reset_metrics():
+    """Metric objects are module-level globals (shared across the whole
+    pytest process) — reset before every test so tests can assert exact
+    counter values without interference from tests that ran earlier.
+    """
+    metrics.reset_for_tests()
+    yield
 
 
 class FakePaymentsClient:

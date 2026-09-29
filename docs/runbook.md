@@ -96,6 +96,21 @@ POS or Payments CPU above 70% for 10 minutes.
 1. Compare with request rate: real load or a hot loop?
 2. Scale out first (desired count), then investigate; roll back only if a release caused it.
 
+<a id="alb-5xx-fast-burn"></a><a id="alb-5xx-slow-burn"></a>
+
+### alb-5xx-fast-burn, alb-5xx-slow-burn
+
+The load balancer itself is answering 5xx (usually 502) because a target gave no usable
+response: it dropped the connection, or crashed mid-request. These never appear in the
+services' own 5xx counts, so the per-service burn alarms stay green. Found by the G3 k6 soak:
+110 x 502 from an unhandled `RuntimeError` in Payments (fixed; see `k6-analysis.md`).
+
+1. Find the minutes in the Grafana overview panel "ALB-generated 5xx".
+2. Search both services' log groups for `Traceback` in those minutes; the traceback names the
+   code path. `unhandled_error` lines (Payments) carry the trace id.
+3. Check `service-down` and ECS stopped tasks: a task being replaced also produces 502s.
+4. Do not restart services blind; an idempotent client retry is already safe.
+
 ### Payments app alarms (ADR 0009 section 4)
 
 These read Payments' own metrics (`GET /metrics`, scraped by ADOT) through Metrics Insights

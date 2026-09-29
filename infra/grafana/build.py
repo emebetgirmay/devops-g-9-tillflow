@@ -336,6 +336,24 @@ def overview():
         )
     )
 
+    p.append(
+        series(
+            lay,
+            "ALB-generated 5xx (not in the services' own 5xx counts)",
+            [
+                metric("e502", "AWS/ApplicationELB", "HTTPCode_ELB_502_Count", {"LoadBalancer": "$lb"}, "Sum", 300, label="502"),
+                metric("e503", "AWS/ApplicationELB", "HTTPCode_ELB_503_Count", {"LoadBalancer": "$lb"}, "Sum", 300, label="503"),
+                metric("e504", "AWS/ApplicationELB", "HTTPCode_ELB_504_Count", {"LoadBalancer": "$lb"}, "Sum", 300, label="504"),
+            ],
+            w=24,
+            h=5,
+            stack=True,
+            no_value="0 (none)",
+            desc="The load balancer answering for a target that dropped the connection or timed out. "
+            "Alarmed by alb-5xx-fast-burn / slow-burn. The G3 k6 soak's 110 x 502 showed up only here.",
+        )
+    )
+
     for svc, s in SERVICES.items():
         slack = round(1 - s["slo"], 6)
         p.append(

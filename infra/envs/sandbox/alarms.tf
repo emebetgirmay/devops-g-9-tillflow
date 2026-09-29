@@ -360,3 +360,65 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
 
   tags = { service = each.key }
 }
+
+# --- 5xx the ALB generates itself ------------------------------------------------------------
+# HTTPCode_ELB_5XX_Count is what the load balancer answers when a target gives no usable
+# response (a dropped connection, a timeout): the G3 k6 soak's 110 x 502 were all of this kind,
+# and the per-service burn alarms above never saw them, because they count what the targets
+# returned (HTTPCode_Target_5XX_Count). AWS reports ELB-generated codes per load balancer only,
+# so this pair covers both services at once with the stricter SLO (POS, 99.9%).
+
+resource "aws_cloudwatch_metric_alarm" "alb_5xx_burn" {
+  for_each = local.burn_windows
+
+  alarm_name          = "${var.name_prefix}-alb-5xx-${each.key}-burn"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  threshold           = each.value.factor * (1 - local.slo_services.pos.slo)
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+
+  metric_query {
+    id          = "error_rate"
+    expression  = "IF(requests > 0, FILL(errors, 0) / requests, 0)"
+    label       = "ALB-generated 5xx share"
+    return_data = true
+  }
+
+  metric_query {
+    id = "errors"
+    metric {
+      metric_name = "HTTPCode_ELB_5XX_Count"
+      namespace   = "AWS/ApplicationELB"
+      period      = each.value.period
+      stat        = "Sum"
+      dimensions  = { LoadBalancer = aws_lb.main.arn_suffix }
+    }
+  }
+
+  metric_query {
+    id = "requests"
+    metric {
+      metric_name = "RequestCount"
+      namespace   = "AWS/ApplicationELB"
+      period      = each.value.period
+      stat        = "Sum"
+      dimensions  = { LoadBalancer = aws_lb.main.arn_suffix }
+    }
+  }
+
+  alarm_description = jsonencode({
+    environment       = var.environment
+    service           = "edge"
+    symptom           = "ALB-generated 5xx ${each.key} burn: above ${format("%.2f", each.value.factor * (1 - local.slo_services.pos.slo) * 100)}% of requests (${each.value.severity})"
+    slo_impact        = "POS and Payments availability; these errors never reach the services' own 5xx counts"
+    observed          = "HTTPCode_ELB_5XX_Count / RequestCount for the whole ALB over ${each.value.period / 60} min"
+    grafana_panel     = local.grafana_dashboard
+    runbook           = "${local.runbook_url}#alb-5xx-${each.key}-burn"
+    owner             = "@emebetgirmay"
+    first_safe_action = "Find which target dropped the connection: search the service logs for Traceback in the same minutes; do not restart blind"
+  })
+
+  tags = { service = "platform" }
+}

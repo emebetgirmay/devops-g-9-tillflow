@@ -24,6 +24,7 @@ http.setResponseCallback(http.expectedStatuses(200, 201, 409));
 const BASE = __ENV.PAYMENTS_URL || 'http://127.0.0.1:8080';
 const SOAK_DURATION = __ENV.SOAK_DURATION || '20s';
 const DRIVER_DURATION = __ENV.DRIVER_DURATION || '90s';
+const ADVANCE_SECONDS = Number(__ENV.ADVANCE_SECONDS || 0);
 
 function idKey(prefix) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -128,6 +129,15 @@ function createPayout() {
 }
 
 export function driveFakeAdapter() {
+  // The deployed sandbox runs the FakeAdapter on a manual clock (FAKE_CLOCK=manual), so callbacks
+  // only fall due when something advances it. ADVANCE_SECONDS does that from the driver; unset
+  // (the default) leaves a local FAKE_CLOCK=system run exactly as before. A system-clock server
+  // answers 409 clock_is_not_manual, which is an expected status here.
+  if (ADVANCE_SECONDS > 0) {
+    http.post(`${BASE}/_fake/advance`, JSON.stringify({ seconds: ADVANCE_SECONDS }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
   http.post(`${BASE}/_fake/deliver-callbacks`, '{}', {
     headers: { 'Content-Type': 'application/json' },
   });

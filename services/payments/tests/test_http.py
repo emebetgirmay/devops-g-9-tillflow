@@ -181,46 +181,41 @@ class BlockedSourceTest(ServerCase):
         self.assertEqual((status, body["error"]), (403, "source_not_allowed"))
 
 
-class TrustedProxyTest(unittest.TestCase):
-    """Behind API Gateway and the ALB the socket peer is the ALB; the allowlist must see the
-    address the outermost proxy we run recorded, and never one the caller wrote itself."""
+class CallbackSourceHeaderTest(unittest.TestCase):
+    """Behind API Gateway the socket peer is the ALB; the allowlist must see the address the edge
+    wrote into our header, and fall back to nothing when that header is absent."""
 
-    def make_app(self, hops: int) -> App:
+    def make_app(self, header: str) -> App:
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         settings = replace(
             Settings(),
             db_path=str(Path(tmp.name) / "p.db"),
             callback_allowed_ips=("198.51.100.7",),
-            trusted_proxy_hops=hops,
+            callback_source_header=header,
         )
         clock = ManualClock(1_000_000.0)
         return App(settings, clock=clock, adapter=FakeAdapter(clock=clock))
 
-    def blocked(self, app: App, xff: str | None, peer: str = "10.0.1.5") -> bool:
+    def blocked(self, app: App, headers: dict, peer: str = "10.0.1.5") -> bool:
         """True if the source check refused it (the fake's signature check may refuse later)."""
-        headers = {} if xff is None else {"X-Forwarded-For": xff}
         reply = app.dispatch("POST", "/payments/daraja/b2c-callback", headers, b"{}", peer)
         return reply.body.get("error") == "source_not_allowed"
 
-    def test_two_hops_reads_the_address_api_gateway_recorded(self) -> None:
-        app = self.make_app(2)
-        # API Gateway appended the provider's address, the ALB appended the VPC link's.
-        self.assertFalse(self.blocked(app, "198.51.100.7, 10.0.2.9"))
+    def test_the_edge_header_decides(self) -> None:
+        app = self.make_app("x-tillflow-source-ip")
+        self.assertFalse(self.blocked(app, {"X-Tillflow-Source-Ip": "198.51.100.7"}))
+        self.assertTrue(self.blocked(app, {"X-Tillflow-Source-Ip": "203.0.113.9"}))
 
-    def test_a_prepended_allowlisted_address_is_ignored(self) -> None:
-        app = self.make_app(2)
-        self.assertTrue(self.blocked(app, "198.51.100.7, 203.0.113.9, 10.0.2.9"))
+    def test_x_forwarded_for_and_a_missing_header_are_not_trusted(self) -> None:
+        app = self.make_app("x-tillflow-source-ip")
+        self.assertTrue(self.blocked(app, {"X-Forwarded-For": "198.51.100.7"}))
+        self.assertTrue(self.blocked(app, {}, peer="198.51.100.7"))
 
-    def test_too_few_hops_or_no_header_is_rejected(self) -> None:
-        app = self.make_app(2)
-        self.assertTrue(self.blocked(app, None))
-        self.assertTrue(self.blocked(app, "10.0.2.9"))
-
-    def test_zero_hops_ignores_the_header(self) -> None:
-        app = self.make_app(0)
-        self.assertTrue(self.blocked(app, "198.51.100.7"))
-        self.assertFalse(self.blocked(app, "whatever", peer="198.51.100.7"))
+    def test_without_a_header_setting_the_socket_peer_decides(self) -> None:
+        app = self.make_app("")
+        self.assertTrue(self.blocked(app, {"X-Tillflow-Source-Ip": "198.51.100.7"}))
+        self.assertFalse(self.blocked(app, {}, peer="198.51.100.7"))
 
 
 class StartupRefusalTest(unittest.TestCase):

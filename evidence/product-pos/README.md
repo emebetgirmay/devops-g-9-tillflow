@@ -17,8 +17,12 @@ DRI: Alice Moraa (`@Moraaalice`)
   (incl. concurrent-retry race), replayed/reordered payment-callback safety
   (`test_payment_events.py` — one legal transition, one ledger effect), amount-mismatch
   rejection. `pytest --cov=app` at 93% line coverage (floor is 70%).
-- [ ] End-to-end sale demo against deployed sandbox (Sale -> STK callback -> paid), once
-  Payments lands and Platform wires `DATABASE_URL`/`PAYMENTS_BASE_URL`.
+- [x] End-to-end sale demo against deployed sandbox (Sale -> STK callback -> paid). Run for real
+  against the live API Gateway URL on 2026-09-29: `sale-demo-create.json` (sale created,
+  `READY_FOR_PAYMENT`) -> `sale-demo-payment-request.json` (STK requested) ->
+  `sale-demo-fake-deliver.json` (Payments' deterministic fake STK callback, standing in for
+  Daraja) -> `sale-demo-reconcile-1.json` (`PAID` on the first poll) -> `sale-demo-final.json`.
+  `sale-demo-reconcile-replay.json` proves a repeat reconcile is a no-op (`applied: false`).
 
 ### Reproduction
 
@@ -28,7 +32,17 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/pytest --cov=app --cov-report=term-missing
 ```
 
-Manual smoke (see `services/pos/README.md` for the full endpoint list):
+**End-to-end sale demo against the deployed sandbox** —
+`evidence/product-pos/demo-sale-to-paid.sh`. Creates a tenant/sale, requests payment, drives
+Payments' fake STK callback, and loops `payment-reconcile` until `PAID` (or fails loudly after 5
+tries) — saving every response as `sale-demo-*.json` in this directory:
+
+```bash
+aws sso login --profile g9   # or: aws login --profile g9
+AWS_PROFILE=g9 ./evidence/product-pos/demo-sale-to-paid.sh
+```
+
+Manual smoke, local only (see `services/pos/README.md` for the full endpoint list):
 
 ```bash
 .venv/bin/uvicorn app.main:app --port 8080 &

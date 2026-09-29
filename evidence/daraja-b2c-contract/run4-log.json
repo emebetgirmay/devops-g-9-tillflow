@@ -1,0 +1,22 @@
+[
+  {
+    "time": 1790676682517,
+    "message": "10.9.129.45 - \"POST /payouts HTTP/1.1\" 201 -"
+  },
+  {
+    "time": 1790676757019,
+    "message": "result from disallowed source 196.201.212.138"
+  },
+  {
+    "time": 1790676757019,
+    "message": "10.9.157.46 - \"POST /payments/daraja/b2c-callback HTTP/1.1\" 403 -"
+  },
+  {
+    "time": 1790676875990,
+    "message": "result from disallowed source 196.201.212.138"
+  },
+  {
+    "time": 1790676875990,
+    "message": "10.9.157.46 - \"POST /payments/daraja/b2c-callback HTTP/1.1\" 403 -"
+  }
+]

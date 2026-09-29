@@ -1,0 +1,14 @@
+[
+  {
+    "time": 1790673581942,
+    "message": "10.9.129.45 - \"POST /payouts HTTP/1.1\" 201 -"
+  },
+  {
+    "time": 1790673665907,
+    "message": "{\"detail\": \"payouts kill switch tripped: CONFIGURATION\", \"event\": \"anomaly\", \"kind\": \"payouts_paused\", \"level\": \"ERROR\", \"record_id\": \"dis_be63f81e47324028aeacb7dc4daeeba1\", \"record_type\": \"disbursement\", \"severity\": \"high\"}"
+  },
+  {
+    "time": 1790673665911,
+    "message": "10.9.129.45 - \"POST /payments/daraja/b2c-callback HTTP/1.1\" 200 -"
+  }
+]

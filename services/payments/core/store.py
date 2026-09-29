@@ -17,6 +17,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from core import jsonlog, metrics, tracing
 from core.states import check_transition
 
 SCHEMA = """
@@ -291,6 +292,16 @@ class Store:
         )
         if cursor.rowcount != 1:
             raise StaleStateError(f"{table} {record_id} is no longer {current.value}")
+        metrics.state_transitions_total.inc(kind, current.value, target.value)
+        jsonlog.log_line(
+            level="INFO",
+            service="payments",
+            event="state_transition",
+            trace_id=tracing.current_trace_id(),
+            record_kind=kind,
+            record_id=record_id,
+            state=target.value,
+        )
 
     @staticmethod
     def ledger(
@@ -369,6 +380,7 @@ class Store:
             "detail": detail,
         }
         print(json.dumps(line, sort_keys=True), file=sys.stderr, flush=True)
+        metrics.anomalies_total.inc(kind, severity)
 
     @staticmethod
     def get_flag(conn: sqlite3.Connection, name: str, default: bool) -> bool:

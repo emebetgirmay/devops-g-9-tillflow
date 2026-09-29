@@ -108,6 +108,38 @@ Dashboards and Slack rules (Platform), Product's sale-side signals, the real Dar
 - **Question 3.** `/metrics` is not added to the API Gateway or the ALB listener rules. `/_admin/*` and `/_fake/*` are operator and test paths: the G2 listener currently forwards them, and G3-7 removes that public route. Release smoke and evidence collection move to an in-VPC call.
 - **Question 4.** Closed in G2. Payments has `aws_cloudwatch_log_group.payments` and `aws_cloudwatch_log_group.adot_payments` (14-day retention) and `aws_ecs_service.payments`.
 
+## Implementation status
+
+**Built and tested — G3-1, G3-2, G3-3, G3-4.** See
+[`docs/g3-payments-walkthrough.md`](../g3-payments-walkthrough.md) for a narrated explanation of
+each piece (read that before defending this area live).
+
+- **G3-1** (`core/metrics.py`): the full `payments_*` catalogue from section 2, stdlib-only (no
+  metrics client library — this service has zero third-party dependencies by design). Route
+  labels are templates, never a resolved path; no tenant/msisdn/record id is ever a label
+  (`tests/test_metrics.py::NoIdsInLabelsTest` proves it directly). The four database-derived
+  gauges are computed fresh per scrape, not accumulated in process. Wired into `app.py` (the
+  `/metrics` route and the HTTP RED wrapper around `dispatch()`) and `core/store.py`
+  (`state_transitions_total`/`anomalies_total` at the single choke points that already existed for
+  transitions and anomalies).
+- **G3-2** (`core/jsonlog.py`, `core/tracing.py`): one JSON line per request and per state change,
+  both carrying `trace_id`. A `contextvars.ContextVar` (not a plain global — this is a threaded
+  server) carries the id from an incoming W3C `traceparent` header down to `Store.transition()`
+  without threading a parameter through every function in between. Commission's
+  `ledger/tracing.py` generates one trace id per `close.py`/`disburse.py`/`worker.py` run and
+  sends it as `traceparent` on every call to Payments.
+- **G3-3** (`app.py::_invariants`, gated like `/_fake/*` to fake-adapter builds only): the four
+  counts from section 6 — credits equal succeeded payments, no provider ref with more than one
+  ledger entry, no payout key with more than one live disbursement, no payment declined by a
+  timeout.
+- **G3-4** (`k6/capacity.js`, `k6/correctness.js`): both scripts were run against a real instance
+  of this service and verified passing (100% checks, 0% `http_req_failed` after fixing k6's
+  default failure classification to not flag intended 409 idempotency conflicts as errors — see
+  the walkthrough) before being committed. Capacity numbers are explicitly not sizing evidence on
+  SQLite (section 6's own caveat) — G3-5 (re-run on Postgres) is blocked on RDS and not built.
+- **Not built:** everything in ADR 0010 that's Emebet's — the actual ADOT Prometheus scrape
+  (G3-7), Grafana panels, Slack alerts, the probe Lambda.
+
 ## Open questions
 
 | # | Question | Owner |

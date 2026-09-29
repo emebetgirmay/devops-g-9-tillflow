@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import sys
 
+from ledger import tracing
 from ledger.config import ConfigError, Settings
 from ledger.disburse import reconcile_requested_payouts, send_due_payouts
 from ledger.store import Store
@@ -22,6 +23,9 @@ def main() -> int:
     except ConfigError as exc:
         print(f"disburse: {exc}", file=sys.stderr)
         return 2
+
+    trace_id = tracing.start_new_run()
+    print(json.dumps({"event": "disburse_run_started", "trace_id": trace_id}), file=sys.stderr)
 
     store = Store(settings.db_path)
     sent = send_due_payouts(store, settings)

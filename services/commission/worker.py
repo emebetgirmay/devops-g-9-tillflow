@@ -28,6 +28,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from ledger import tracing
 from ledger.common import classify_payout_response, idempotency_key_for
 
 REQUIRED_COLUMNS = ("tenant_id", "attendant_id", "payout_period", "msisdn", "amount")
@@ -95,7 +96,11 @@ def post_payout(base_url: str, key: str, body: dict) -> tuple[int, dict]:
         base_url.rstrip("/") + "/payouts",
         data=json.dumps(body).encode("utf-8"),
         method="POST",
-        headers={"Content-Type": "application/json", "Idempotency-Key": key},
+        headers={
+            "Content-Type": "application/json",
+            "Idempotency-Key": key,
+            "traceparent": tracing.traceparent_header(),
+        },
     )
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
@@ -154,6 +159,7 @@ def exit_code(summary: dict) -> int:
 
 
 def main() -> int:
+    tracing.start_new_run()
     path = os.environ.get("COMMISSION_INPUT", "")
     base_url = os.environ.get("PAYMENTS_URL", "http://127.0.0.1:8080")
     if not path:

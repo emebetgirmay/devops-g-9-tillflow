@@ -13,6 +13,7 @@ import _bootstrap  # noqa: F401
 from mpesa import FakeAdapter, ManualClock
 
 from app import App
+from core import metrics
 from core.config import Settings
 
 KEY = "idem-key-0000000001"
@@ -49,6 +50,10 @@ class ServiceTestCase(unittest.TestCase):
     settings_overrides: ClassVar[dict] = {}
 
     def setUp(self) -> None:
+        # Metrics are module-level globals (core/metrics.py), so counts persist across the
+        # whole test process unless cleared — same reason services/pos/tests/conftest.py
+        # resets its own metrics before every test.
+        metrics.reset_for_tests()
         self._dir = tempfile.TemporaryDirectory()
         self.addCleanup(self._dir.cleanup)
         settings = replace(
@@ -92,3 +97,8 @@ class ServiceTestCase(unittest.TestCase):
 
     def count(self, table: str, where: str = "1=1", params=()) -> int:
         return self.rows(f"SELECT COUNT(*) AS n FROM {table} WHERE {where}", params)[0]["n"]
+
+    def metrics_text(self) -> str:
+        reply = self.call("GET", "/metrics")
+        assert isinstance(reply.body, (bytes, bytearray)), "GET /metrics must return raw text"
+        return reply.body.decode("utf-8")

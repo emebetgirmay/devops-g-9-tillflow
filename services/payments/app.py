@@ -21,6 +21,7 @@ if _SHARED.is_dir():  # repo layout; in the image the mpesa package sits next to
 
 from mpesa import FakeAdapter, ManualClock
 
+from core import jsonlog, metrics, tracing
 from core.common import Reply
 from core.config import ConfigError, Settings, SystemClock
 from core.daraja_sandbox import DarajaSandboxAdapter
@@ -30,6 +31,40 @@ from core.store import Store
 
 MAX_BODY_BYTES = 64 * 1024
 ID_PATH = r"([A-Za-z0-9_.:-]{1,80})"
+
+# RED metrics (ADR 0009 section 2) label every request by its route *template*
+# (e.g. "/payments/{id}"), never the resolved path — a raw path would make
+# payments_http_requests_total grow one time series per payment_id ever
+# created, which is exactly the unbounded-cardinality mistake the ADR warns
+# about. This list has to be kept in the same shape as the routing in _get/
+# _post below; there's no framework here to derive it automatically.
+_EXCLUDED_ROUTES = frozenset({"/health", "/ready", "/version", "/metrics"})
+_ROUTE_PATTERNS: tuple[tuple[str, re.Pattern], ...] = (
+    ("/payments/{id}/reconcile", re.compile(rf"^/payments/{ID_PATH}/reconcile$")),
+    ("/payouts/{id}/reconcile", re.compile(rf"^/payouts/{ID_PATH}/reconcile$")),
+    ("/payments/{id}", re.compile(rf"^/payments/{ID_PATH}$")),
+    ("/payouts/{id}", re.compile(rf"^/payouts/{ID_PATH}$")),
+    ("/payments", re.compile(r"^/payments$")),
+    ("/payouts", re.compile(r"^/payouts$")),
+    ("/payments/daraja/callback", re.compile(r"^/payments/daraja/callback$")),
+    ("/payments/daraja/b2c-callback", re.compile(r"^/payments/daraja/b2c-callback$")),
+    ("/_admin/sweep", re.compile(r"^/_admin/sweep$")),
+    ("/_admin/invariants", re.compile(r"^/_admin/invariants$")),
+    ("/_fake/advance", re.compile(r"^/_fake/advance$")),
+    ("/_fake/deliver-callbacks", re.compile(r"^/_fake/deliver-callbacks$")),
+    ("/_fake/script-result-code", re.compile(r"^/_fake/script-result-code$")),
+    ("/health", re.compile(r"^/health$")),
+    ("/ready", re.compile(r"^/ready$")),
+    ("/version", re.compile(r"^/version$")),
+    ("/metrics", re.compile(r"^/metrics$")),
+)
+
+
+def _route_label(path: str) -> str:
+    for label, pattern in _ROUTE_PATTERNS:
+        if pattern.fullmatch(path):
+            return label
+    return "unmatched"
 
 
 class App:
@@ -57,13 +92,30 @@ class App:
         self, method: str, path: str, headers: dict[str, str], body: bytes, remote_addr: str
     ) -> Reply:
         path = path.split("?", 1)[0].rstrip("/") or "/"
+        route = _route_label(path)
         lower = {k.lower(): v for k, v in headers.items()}
-        remote_addr = self._source(lower, remote_addr)
-        if method == "GET":
-            return self._get(path)
-        if method == "POST":
-            return self._post(path, lower, headers, body, remote_addr)
-        return Reply(405, {"error": "method_not_allowed"})
+        with tracing.trace_context(lower.get("traceparent")) as trace_id:
+            with metrics.Timer() as timer:
+                remote_addr = self._source(lower, remote_addr)
+                if method == "GET":
+                    reply = self._get(path)
+                elif method == "POST":
+                    reply = self._post(path, lower, headers, body, remote_addr)
+                else:
+                    reply = Reply(405, {"error": "method_not_allowed"})
+            if route not in _EXCLUDED_ROUTES:
+                status_class = f"{reply.status // 100}xx"
+                metrics.http_requests_total.inc(route, status_class)
+                metrics.http_request_duration_seconds.observe(timer.elapsed, route)
+            reply.headers.setdefault("X-Trace-Id", trace_id)
+            jsonlog.log_line(
+                level="INFO",
+                service="payments",
+                event="request",
+                trace_id=trace_id,
+                result=f"{method} {route} -> {reply.status}",
+            )
+        return reply
 
     def _source(self, lower: dict[str, str], peer: str) -> str:
         """The caller's address for the callback allowlist. Behind API Gateway the socket peer is
@@ -91,6 +143,17 @@ class App:
                     "image_digest": self.settings.image_digest,
                 },
             )
+        if path == "/metrics":
+            # Not meant to be internet-reachable (ADR 0009 open question 3) — kept off the
+            # public API Gateway/ALB routes; that's Platform's routing, not this app's job to
+            # enforce. Scraped by the ADOT sidecar at 127.0.0.1:<port>/metrics.
+            with self.store.connection() as conn:
+                payload = metrics.render(
+                    conn, now=self.clock.now(), payouts_enabled_default=self.settings.payouts_enabled
+                )
+            return Reply(200, payload, {"Content-Type": metrics.CONTENT_TYPE})
+        if path == "/_admin/invariants":
+            return self._invariants()
         match = re.fullmatch(rf"/payments/{ID_PATH}", path)
         if match:
             return self.payments.get_payment(match.group(1))
@@ -98,6 +161,51 @@ class App:
         if match:
             return self.payouts.get_payout(match.group(1))
         return Reply(404, {"error": "not_found"})
+
+    def _invariants(self) -> Reply:
+        """ADR 0009 section 6 / G3-3: the counts k6's soak run asserts stay
+        at zero throughout. Fake-adapter builds only — this is a test/k6
+        harness endpoint, not a production API, so it's gated exactly like
+        /_fake/* below rather than always being reachable."""
+        if not isinstance(self.adapter, FakeAdapter):
+            return Reply(404, {"error": "not_found"})
+        with self.store.connection() as conn:
+            succeeded_payments = conn.execute(
+                "SELECT COUNT(*) AS n FROM payments WHERE state = 'SUCCEEDED'"
+            ).fetchone()["n"]
+            payment_credits = conn.execute(
+                "SELECT COUNT(*) AS n FROM ledger_entries WHERE entry_type = 'PAYMENT_CREDIT'"
+            ).fetchone()["n"]
+            duplicate_ledger_entries = conn.execute(
+                "SELECT COUNT(*) AS n FROM ("
+                " SELECT 1 FROM ledger_entries GROUP BY provider, provider_ref, entry_type"
+                " HAVING COUNT(*) > 1)"
+            ).fetchone()["n"]
+            payout_keys_with_multiple_live_disbursements = conn.execute(
+                "SELECT COUNT(*) AS n FROM ("
+                " SELECT 1 FROM disbursements WHERE state <> 'FAILED' GROUP BY payout_key"
+                " HAVING COUNT(*) > 1)"
+            ).fetchone()["n"]
+            # REJECTED_AT_INITIATION only happens synchronously, at creation, on the
+            # branch _finish_create takes when the adapter definitively declines —
+            # unknown_since is only ever set on the other branch (an initiate timeout).
+            # They're mutually exclusive by construction; a payment with both means
+            # that guarantee broke.
+            payments_declined_by_a_timeout = conn.execute(
+                "SELECT COUNT(*) AS n FROM payments"
+                " WHERE decline_reason = 'REJECTED_AT_INITIATION' AND unknown_since IS NOT NULL"
+            ).fetchone()["n"]
+        return Reply(
+            200,
+            {
+                "credits_equal_succeeded_payments": succeeded_payments == payment_credits,
+                "succeeded_payments": succeeded_payments,
+                "payment_credits": payment_credits,
+                "duplicate_ledger_entries": duplicate_ledger_entries,
+                "payout_keys_with_multiple_live_disbursements": payout_keys_with_multiple_live_disbursements,
+                "payments_declined_by_a_timeout": payments_declined_by_a_timeout,
+            },
+        )
 
     def _post(
         self, path: str, lower: dict[str, str], headers: dict[str, str], body: bytes, remote: str
@@ -107,7 +215,7 @@ class App:
         if path == "/payments/daraja/b2c-callback":
             return self.payouts.handle_result(headers, body, remote)
         if path == "/_admin/sweep":
-            return Reply(200, {"payments": self.payments.sweep(), "payouts": self.payouts.sweep()})
+            return Reply(200, self.run_reconcile_pass())
         if path.startswith("/_fake/"):
             return self._fake(path, body)
         match = re.fullmatch(rf"/payments/{ID_PATH}/reconcile", path)
@@ -126,6 +234,22 @@ class App:
                 return self.payments.create_payment(key, payload)
             return self.payouts.create_payout(key, payload)
         return Reply(404, {"error": "not_found"})
+
+    def run_reconcile_pass(self) -> dict:
+        """One reconcile pass: both services' sweep(). The single choke point both
+        POST /_admin/sweep and reconcile.py's run_in_process go through, so
+        payments_reconcile_runs_total and payments_reconcile_last_success_timestamp_seconds
+        mean the same thing no matter which path triggered the pass."""
+        try:
+            result = {"payments": self.payments.sweep(), "payouts": self.payouts.sweep()}
+        except Exception:
+            metrics.reconcile_runs_total.inc("error")
+            raise
+        metrics.reconcile_runs_total.inc("ok")
+        with self.store.tx() as conn:
+            now = self.clock.now()
+            self.store.set_flag(conn, "reconcile_last_success", True, "sweep completed", now)
+        return result
 
     # Fake-adapter driver (test and k6 only; this build has no other adapter) ---------------
 
@@ -204,9 +328,15 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
             self._send(reply)
 
         def _send(self, reply: Reply) -> None:
-            payload = json.dumps(reply.body).encode("utf-8")
+            # Every Reply.body is a JSON dict except GET /metrics, which is raw
+            # Prometheus text — see core/common.py's Reply docstring.
+            if isinstance(reply.body, (bytes, bytearray)):
+                payload = bytes(reply.body)
+            else:
+                payload = json.dumps(reply.body).encode("utf-8")
             self.send_response(reply.status)
-            self.send_header("Content-Type", "application/json")
+            if "Content-Type" not in reply.headers:
+                self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
             for name, value in reply.headers.items():
                 self.send_header(name, value)

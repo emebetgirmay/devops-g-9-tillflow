@@ -18,10 +18,14 @@ TEXT_RE = re.compile(r"^[A-Za-z0-9_.:@-]{1,64}$")
 
 @dataclass
 class Reply:
-    """An HTTP-level answer, kept independent of the server so it is easy to test."""
+    """An HTTP-level answer, kept independent of the server so it is easy to test.
+
+    ``body`` is a dict everywhere except GET /metrics, which returns raw
+    Prometheus text (bytes) instead of JSON — see app.py's ``_send``, which
+    switches on the type."""
 
     status: int
-    body: dict[str, Any]
+    body: dict[str, Any] | bytes
     headers: dict[str, str] = field(default_factory=dict)
 
 

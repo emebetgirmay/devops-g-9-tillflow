@@ -30,6 +30,7 @@ from mpesa import (
 from mpesa.fake_common import Clock
 from mpesa.models import IDEMPOTENCY_KEY_RE, MSISDN_RE
 
+from core import metrics
 from core.common import (
     PROVIDER,
     TEXT_RE,
@@ -91,6 +92,7 @@ class PaymentService:
 
     def create_payment(self, idem_key: str | None, payload: object) -> Reply:
         if idem_key is None or not IDEMPOTENCY_KEY_RE.match(idem_key):
+            metrics.create_results_total.inc("payment", "invalid", "")
             return Reply(
                 400,
                 {
@@ -100,6 +102,7 @@ class PaymentService:
             )
         req, error = parse_payment_request(payload)
         if error:
+            metrics.create_results_total.inc("payment", "invalid", "")
             return Reply(400, {"error": "invalid_request", "detail": error})
 
         tenant_id = req["tenant_id"]
@@ -119,13 +122,16 @@ class PaymentService:
                 row = self.store.idem_lookup(conn, tenant_id, OPERATION, idem_key)
                 verdict = self.store.idem_classify(row, fp)
                 if verdict == "mismatch":
+                    metrics.create_results_total.inc("payment", "mismatch", "")
                     return Reply(409, {"error": "idempotency_key_payload_mismatch"})
                 if verdict == "replay":
                     assert row is not None
+                    metrics.create_results_total.inc("payment", "replayed", "")
                     return Reply(
                         200, json.loads(row["response_body"]), {"Idempotent-Replayed": "true"}
                     )
                 if verdict == "in_flight":
+                    metrics.create_results_total.inc("payment", "in_flight", "")
                     return Reply(409, {"error": "idempotency_in_flight"}, {"Retry-After": "1"})
                 self.store.idem_begin(
                     conn,
@@ -157,6 +163,7 @@ class PaymentService:
                     ),
                 )
         except sqlite3.IntegrityError:
+            metrics.create_results_total.inc("payment", "conflict", "")
             return Reply(409, {"error": "sale_already_has_live_payment"})
 
         charge = ChargeRequest(
@@ -169,14 +176,20 @@ class PaymentService:
         )
         accepted = None
         declined: ChargeDeclinedError | None = None
-        try:
-            accepted = self.adapter.initiate_charge(charge)
-        except ChargeDeclinedError as exc:
-            declined = exc
-        except Exception as exc:  # noqa: BLE001 (deliberate: any failure means outcome unknown)
-            # Timeout, transport failure or anything unexpected: a charge may exist. Never treat
-            # as a decline and never retry the initiate call (ADR 0006 section 3).
-            print(f"initiate outcome unknown for {payment_id}: {exc!r}", file=sys.stderr)
+        with metrics.Timer() as timer:
+            try:
+                accepted = self.adapter.initiate_charge(charge)
+                adapter_result = "ok"
+            except ChargeDeclinedError as exc:
+                declined = exc
+                adapter_result = "declined"
+            except Exception as exc:  # noqa: BLE001 (deliberate: any failure means outcome unknown)
+                # Timeout, transport failure or anything unexpected: a charge may exist. Never
+                # treat as a decline and never retry the initiate call (ADR 0006 section 3).
+                print(f"initiate outcome unknown for {payment_id}: {exc!r}", file=sys.stderr)
+                adapter_result = "unknown"
+        metrics.adapter_calls_total.inc("initiate", adapter_result)
+        metrics.adapter_call_duration_seconds.observe(timer.elapsed, "initiate")
 
         return self._finish_create(payment_id, tenant_id, idem_key, accepted, declined)
 
@@ -245,6 +258,7 @@ class PaymentService:
                 )
             body = self._public(conn, payment_id)
             self.store.idem_complete(conn, tenant_id, OPERATION, idem_key, 201, body, payment_id)
+        metrics.create_results_total.inc("payment", "created", body["state"])
         return Reply(201, body)
 
     # Read ----------------------------------------------------------------------------------
@@ -292,10 +306,12 @@ class PaymentService:
     def handle_callback(self, headers: dict[str, str], body: bytes, remote_addr: str) -> Reply:
         if remote_addr not in self.settings.callback_allowed_ips:
             print(f"callback from disallowed source {remote_addr}", file=sys.stderr)
+            metrics.callbacks_total.inc("stk", "source_rejected")
             return Reply(403, {"error": "source_not_allowed"})
         try:
             event = self.adapter.parse_callback(headers, body)
         except CallbackAuthenticityError:
+            metrics.callbacks_total.inc("stk", "auth_rejected")
             return Reply(403, {"error": "callback_not_authentic"})
         except CallbackMalformedError as exc:
             with self.store.tx() as conn:
@@ -307,6 +323,7 @@ class PaymentService:
                     record_type="payment",
                     detail=str(exc),
                 )
+            metrics.callbacks_total.inc("stk", "malformed")
             return Reply(400, {"error": "callback_malformed"})
 
         with self.store.connection() as conn:
@@ -338,14 +355,25 @@ class PaymentService:
                     detail=str(exc),
                 )
             result = "conflict"
+        # ADR 0009's callback-result catalogue lists the common cases; _apply_outcome can also
+        # produce "noop" or "to_unknown" in edge cases it doesn't enumerate. Recording the real
+        # value either way beats forcing it into the nearest listed bucket.
+        metrics.callbacks_total.inc("stk", result)
         return Reply(200, {**ACK, "status": result})
 
     def _confirm_success(self, provider_ref: str) -> str:
         """Confirm a success callback with a status query. Returns 'confirmed', 'contradicted'
         or 'inconclusive'."""
-        try:
-            status = self.adapter.query_status(provider_ref)
-        except (OutcomeUnknownError, UnknownReferenceError):
+        with metrics.Timer() as timer:
+            try:
+                status = self.adapter.query_status(provider_ref)
+                adapter_result = "ok"
+            except (OutcomeUnknownError, UnknownReferenceError):
+                adapter_result = "unknown"
+                status = None
+        metrics.adapter_calls_total.inc("query", adapter_result)
+        metrics.adapter_call_duration_seconds.observe(timer.elapsed, "query")
+        if status is None:
             return "inconclusive"
         if status.outcome is Outcome.SUCCEEDED:
             return "confirmed"
@@ -564,6 +592,9 @@ class PaymentService:
             self._event(conn, payment, "payment.declined", now)
         else:
             self._event(conn, payment, "payment.expired", now)
+        metrics.resolution_seconds.observe(
+            max(0.0, now - payment["created_at"]), "payment", target.value.lower()
+        )
         return "applied"
 
     # Reconciliation ------------------------------------------------------------------------
@@ -586,12 +617,20 @@ class PaymentService:
             )
         if row["provider_ref"] is None:
             return self._inconclusive(row["payment_id"], "no_provider_reference")
-        try:
-            status = self.adapter.query_status(row["provider_ref"])
-        except OutcomeUnknownError:
-            return self._inconclusive(row["payment_id"], "query_timeout")
-        except UnknownReferenceError:
-            return self._inconclusive(row["payment_id"], "provider_does_not_know_reference")
+        status = None
+        inconclusive_reason: str | None = None
+        with metrics.Timer() as timer:
+            try:
+                status = self.adapter.query_status(row["provider_ref"])
+            except OutcomeUnknownError:
+                inconclusive_reason = "query_timeout"
+            except UnknownReferenceError:
+                inconclusive_reason = "provider_does_not_know_reference"
+        metrics.adapter_calls_total.inc("query", "unknown" if inconclusive_reason else "ok")
+        metrics.adapter_call_duration_seconds.observe(timer.elapsed, "query")
+        if inconclusive_reason is not None:
+            return self._inconclusive(row["payment_id"], inconclusive_reason)
+        assert status is not None
         if status.outcome is Outcome.UNKNOWN:
             return self._inconclusive(row["payment_id"], "still_unknown")
         with self.store.tx() as conn:

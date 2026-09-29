@@ -31,7 +31,7 @@ from core.config import ConfigError, Settings
 
 def run_in_process(settings: Settings) -> dict:
     app = App(settings)
-    return {"payments": app.payments.sweep(), "payouts": app.payouts.sweep()}
+    return app.run_reconcile_pass()
 
 
 def run_via_service(url: str) -> dict:

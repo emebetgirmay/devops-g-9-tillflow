@@ -39,7 +39,9 @@ Rules come from [ADR 0004](../../docs/adrs/0004-mpesa-adapter.md) (boundary),
 | `POST /payments/daraja/b2c-callback` | B2C result callback. |
 | `POST /payouts/{id}/reconcile` | Query the provider for a payout stuck in `UNKNOWN` or `NEEDS_REVIEW`. |
 | `POST /_admin/sweep` | Run the reconcile pass (also `python3 reconcile.py`). |
+| `GET /_admin/invariants` | Fake-adapter builds only (`404` otherwise) — the counts a k6 run asserts stay at zero throughout (ADR 0009 section 6 / `G3-3`). |
 | `POST /_fake/advance`, `/_fake/deliver-callbacks`, `/_fake/script-result-code` | Drive the FakeAdapter for tests and k6. `404` under the sandbox adapter. |
+| `GET /metrics` | Prometheus text, scraped by the ADOT sidecar — not meant to be internet-reachable (see Observability below). |
 
 ### Idempotency contract
 
@@ -81,6 +83,29 @@ A `CONFIGURATION` failure (codes 21, 2001, 2028, 8006) or insufficient funds set
 `payouts_enabled` flag off, so `POST /payouts` answers **503** `payouts_disabled` until an operator
 sets `flags.payouts_enabled` back to 1 in the database. `PAYOUTS_ENABLED=false` starts it off.
 
+## Observability (ADR 0009, G3)
+
+Three pieces, all stdlib-only (no metrics/tracing client library — see the no-outbound-client
+guard below):
+
+- **`GET /metrics`** (`core/metrics.py`) — the full `payments_*` catalogue from ADR 0009 section
+  2: HTTP RED (`payments_http_requests_total`/`_duration_seconds`, route *templates* only — never
+  a raw path with an id in it), create outcomes, every state transition, callback outcomes,
+  adapter call health/latency, reconcile run outcomes, and anomalies. Four of the metrics
+  (`payments_records`, `payments_oldest_age_seconds`, `payments_reconcile_last_success_timestamp_seconds`,
+  `payments_payouts_enabled`) are **not** in-process counters at all — they're computed fresh from
+  the database on every scrape, so they're correct immediately after a restart and identical
+  across tasks (aggregate with `max` in Grafana, never `sum`). No tenant, msisdn, payment or
+  disbursement id is ever a label — that's an unbounded-cardinality mistake waiting to happen;
+  those stay in logs only.
+- **Structured JSON logs + trace propagation** (`core/jsonlog.py`, `core/tracing.py`) — one line
+  per request and one per state change, both carrying `trace_id`. A trace id comes from an
+  incoming W3C `traceparent` header (Commission's `ledger/tracing.py` sends one) or is generated
+  fresh, and is echoed back as `X-Trace-Id`, so one Commission disburse run can be followed
+  through into Payments' own log lines. Distinct from `Store.anomaly()`'s existing stderr lines,
+  which are unchanged.
+- **`GET /_admin/invariants`** and **`k6/`** — see the endpoints table and "Run and test" below.
+
 ## Configuration
 
 | Variable | Default | Meaning |
@@ -114,3 +139,27 @@ docker build -f services/payments/Dockerfile -t local/payments:pr .   # from the
 ```
 
 Evidence for the invariants: `evidence/payments-integrity/collect.sh`.
+
+### k6 (ADR 0009 section 6, `G3-4`)
+
+Against the FakeAdapter only — never the sandbox adapter. Run the server with `FAKE_CLOCK=system`
+(real elapsed time, so timeouts genuinely elapse instead of needing manual `/_fake/advance`
+calls):
+
+```bash
+FAKE_CLOCK=system python3 app.py &
+PAYMENTS_URL=http://127.0.0.1:8080 k6 run k6/capacity.js      # smoke/stepped/spike/soak envelope
+PAYMENTS_URL=http://127.0.0.1:8080 k6 run k6/correctness.js   # replay/duplicate/timeout/kill-switch
+```
+
+`k6/capacity.js` defaults its soak stage to 20s so the script itself iterates fast; the real
+evidence run is `SOAK_DURATION=15m k6 run k6/capacity.js` (ADR 0009 section 6's "at least 15
+minutes"). `k6/correctness.js` needs a short `RECONCILE_SLA_SECONDS`/`CALLBACK_DEADLINE_SECONDS`
+(e.g. `5`) on the server for its timeout-then-late-success case to actually resolve within the
+script's ~35 s run — production keeps its real defaults; this is a k6-harness-only override.
+Both scripts end by asserting `GET /_admin/invariants` never went bad, which is the real
+pass/fail signal, not just individual response codes.
+
+**Capacity caveat (ADR 0009 section 6):** SQLite serialises writers, so these numbers prove
+correctness under concurrency, not capacity — real sizing evidence needs the Postgres backend
+(blocked on RDS, ADR 0002).

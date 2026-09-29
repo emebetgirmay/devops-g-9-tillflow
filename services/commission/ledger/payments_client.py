@@ -10,6 +10,8 @@ import json
 import urllib.error
 import urllib.request
 
+from ledger import tracing
+
 
 class PaymentsError(Exception):
     """Payments could not be reached, or answered with something unusable."""
@@ -22,7 +24,11 @@ def create_payout(
         f"{base_url.rstrip('/')}/payouts",
         data=json.dumps(body).encode("utf-8"),
         method="POST",
-        headers={"Content-Type": "application/json", "Idempotency-Key": idempotency_key},
+        headers={
+            "Content-Type": "application/json",
+            "Idempotency-Key": idempotency_key,
+            "traceparent": tracing.traceparent_header(),
+        },
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -41,7 +47,9 @@ def get_payout(base_url: str, disbursement_id: str, timeout: float = 30.0) -> di
     adapter -- use ``reconcile_payout`` for that. Kept for callers that only want a status
     display and should not trigger work."""
     request = urllib.request.Request(
-        f"{base_url.rstrip('/')}/payouts/{disbursement_id}", method="GET"
+        f"{base_url.rstrip('/')}/payouts/{disbursement_id}",
+        method="GET",
+        headers={"traceparent": tracing.traceparent_header()},
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -66,7 +74,10 @@ def reconcile_payout(base_url: str, disbursement_id: str, timeout: float = 30.0)
     that -- Payments' scheduled sweep is what promotes PENDING to UNKNOWN). The response always
     includes the current ``state``, whether or not anything changed."""
     request = urllib.request.Request(
-        f"{base_url.rstrip('/')}/payouts/{disbursement_id}/reconcile", data=b"", method="POST"
+        f"{base_url.rstrip('/')}/payouts/{disbursement_id}/reconcile",
+        data=b"",
+        method="POST",
+        headers={"traceparent": tracing.traceparent_header()},
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:

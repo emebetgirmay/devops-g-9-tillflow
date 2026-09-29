@@ -39,6 +39,7 @@ from mpesa.models import (
     MSISDN_RE,
 )
 
+from core import metrics
 from core.common import (
     PROVIDER,
     TEXT_RE,
@@ -113,6 +114,7 @@ class PayoutService:
 
     def create_payout(self, idem_key: str | None, payload: object) -> Reply:
         if idem_key is None or not IDEMPOTENCY_KEY_RE.match(idem_key):
+            metrics.create_results_total.inc("payout", "invalid", "")
             return Reply(
                 400,
                 {
@@ -122,6 +124,7 @@ class PayoutService:
             )
         req, error = parse_payout_request(payload)
         if error:
+            metrics.create_results_total.inc("payout", "invalid", "")
             return Reply(400, {"error": "invalid_request", "detail": error})
         tenant_id = req["tenant_id"]
         payout_key = derive_payout_key(tenant_id, req["attendant_id"], req["payout_period"])
@@ -138,10 +141,12 @@ class PayoutService:
 
         limit = self._limit_error(req["amount_minor"])
         if limit:
+            metrics.create_results_total.inc("payout", "limit", "")
             return Reply(422, {"error": limit})
         with self.store.connection() as conn:
             enabled = self.store.get_flag(conn, FLAG_PAYOUTS_ENABLED, self.settings.payouts_enabled)
         if not enabled:
+            metrics.create_results_total.inc("payout", "disabled", "")
             return Reply(503, {"error": "payouts_disabled"})
 
         disbursement_id = "dis_" + uuid.uuid4().hex
@@ -186,6 +191,7 @@ class PayoutService:
                     ),
                 )
         except sqlite3.IntegrityError:
+            metrics.create_results_total.inc("payout", "conflict", "")
             with self.store.connection() as conn:
                 existing = conn.execute(
                     "SELECT disbursement_id FROM disbursements WHERE payout_key = ? AND state <> 'FAILED'",
@@ -209,14 +215,20 @@ class PayoutService:
         )
         accepted = None
         rejected: DisbursementRejectedError | None = None
-        try:
-            accepted = self.adapter.disburse(request)
-        except DisbursementRejectedError as exc:
-            rejected = exc
-        except Exception as exc:  # noqa: BLE001 (deliberate: any failure means outcome unknown)
-            # Timeout, a duplicate-originator answer, or anything unexpected: money may have
-            # moved. UNKNOWN, reconcile by our id, never resubmit.
-            print(f"disburse outcome unknown for {disbursement_id}: {exc!r}", file=sys.stderr)
+        with metrics.Timer() as timer:
+            try:
+                accepted = self.adapter.disburse(request)
+                adapter_result = "ok"
+            except DisbursementRejectedError as exc:
+                rejected = exc
+                adapter_result = "declined"
+            except Exception as exc:  # noqa: BLE001 (deliberate: any failure means outcome unknown)
+                # Timeout, a duplicate-originator answer, or anything unexpected: money may have
+                # moved. UNKNOWN, reconcile by our id, never resubmit.
+                print(f"disburse outcome unknown for {disbursement_id}: {exc!r}", file=sys.stderr)
+                adapter_result = "unknown"
+        metrics.adapter_calls_total.inc("disburse", adapter_result)
+        metrics.adapter_call_duration_seconds.observe(timer.elapsed, "disburse")
         return self._finish_create(disbursement_id, tenant_id, idem_key, accepted, rejected)
 
     def _limit_error(self, amount_minor: int) -> str | None:
@@ -232,11 +244,14 @@ class PayoutService:
     def _idem_reply(row: sqlite3.Row | None, fp: str) -> Reply | None:
         verdict = Store.idem_classify(row, fp)
         if verdict == "mismatch":
+            metrics.create_results_total.inc("payout", "mismatch", "")
             return Reply(409, {"error": "idempotency_key_payload_mismatch"})
         if verdict == "replay":
             assert row is not None
+            metrics.create_results_total.inc("payout", "replayed", "")
             return Reply(200, json.loads(row["response_body"]), {"Idempotent-Replayed": "true"})
         if verdict == "in_flight":
+            metrics.create_results_total.inc("payout", "in_flight", "")
             return Reply(409, {"error": "idempotency_in_flight"}, {"Retry-After": "1"})
         return None
 
@@ -282,6 +297,7 @@ class PayoutService:
             self.store.idem_complete(
                 conn, tenant_id, OPERATION, idem_key, 201, body, disbursement_id
             )
+        metrics.create_results_total.inc("payout", "created", body["state"])
         return Reply(201, body)
 
     # Read ----------------------------------------------------------------------------------
@@ -335,10 +351,12 @@ class PayoutService:
     def handle_result(self, headers: dict[str, str], body: bytes, remote_addr: str) -> Reply:
         if remote_addr not in self.settings.callback_allowed_ips:
             print(f"result from disallowed source {remote_addr}", file=sys.stderr)
+            metrics.callbacks_total.inc("b2c", "source_rejected")
             return Reply(403, {"error": "source_not_allowed"})
         try:
             event = self.adapter.parse_disbursement_result(headers, body)
         except CallbackAuthenticityError:
+            metrics.callbacks_total.inc("b2c", "auth_rejected")
             return Reply(403, {"error": "callback_not_authentic"})
         except CallbackMalformedError as exc:
             with self.store.tx() as conn:
@@ -350,6 +368,7 @@ class PayoutService:
                     record_type="disbursement",
                     detail=str(exc),
                 )
+            metrics.callbacks_total.inc("b2c", "malformed")
             return Reply(400, {"error": "callback_malformed"})
         try:
             with self.store.tx() as conn:
@@ -366,6 +385,7 @@ class PayoutService:
                     detail=str(exc),
                 )
             result = "conflict"
+        metrics.callbacks_total.inc("b2c", result)
         return Reply(200, {**ACK, "status": result})
 
     def _apply_result(self, conn: sqlite3.Connection, event: Any) -> str:
@@ -553,6 +573,9 @@ class PayoutService:
                 self._move(conn, row, S.SUCCEEDED, receipt=receipt, raw_code=raw_code)
             else:
                 self._fail(conn, row, reason or FailureReason.REJECTED_AT_INITIATION, raw_code)
+                metrics.resolution_seconds.observe(
+                    max(0.0, now - row["created_at"]), "disbursement", target.value.lower()
+                )
                 return "applied"
         except IllegalTransition:
             self.store.anomaly(
@@ -580,6 +603,9 @@ class PayoutService:
             now=now,
         )
         self._event(conn, row, "payout.succeeded")
+        metrics.resolution_seconds.observe(
+            max(0.0, now - row["created_at"]), "disbursement", target.value.lower()
+        )
         return "applied"
 
     # Reconciliation ------------------------------------------------------------------------
@@ -600,12 +626,20 @@ class PayoutService:
                     "reason": "not_unknown",
                 },
             )
-        try:
-            status = self.adapter.query_disbursement_status(row["originator_conversation_id"])
-        except OutcomeUnknownError:
-            return self._inconclusive(row["disbursement_id"], "query_timeout")
-        except UnknownReferenceError:
-            return self._inconclusive(row["disbursement_id"], "provider_does_not_know_id")
+        status = None
+        inconclusive_reason: str | None = None
+        with metrics.Timer() as timer:
+            try:
+                status = self.adapter.query_disbursement_status(row["originator_conversation_id"])
+            except OutcomeUnknownError:
+                inconclusive_reason = "query_timeout"
+            except UnknownReferenceError:
+                inconclusive_reason = "provider_does_not_know_id"
+        metrics.adapter_calls_total.inc("disburse_query", "unknown" if inconclusive_reason else "ok")
+        metrics.adapter_call_duration_seconds.observe(timer.elapsed, "disburse_query")
+        if inconclusive_reason is not None:
+            return self._inconclusive(row["disbursement_id"], inconclusive_reason)
+        assert status is not None
         if status.outcome is Outcome.UNKNOWN:
             return self._inconclusive(row["disbursement_id"], "still_unknown")
         with self.store.tx() as conn:

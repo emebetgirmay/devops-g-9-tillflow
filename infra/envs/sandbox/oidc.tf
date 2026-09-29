@@ -142,13 +142,6 @@ resource "aws_iam_role_policy" "ci_deploy" {
         Resource = "*"
       },
       {
-        # daraja.tf looks the secret up by name. Metadata only: CI must never read the value (ADR 0004).
-        Sid      = "DescribeDarajaSecret"
-        Effect   = "Allow"
-        Action   = ["secretsmanager:DescribeSecret"]
-        Resource = "arn:aws:secretsmanager:${var.aws_region}:${local.account_id}:secret:${var.daraja_secret_name}-*"
-      },
-      {
         Sid    = "PassNamespacedRoles"
         Effect = "Allow"
         Action = ["iam:PassRole"]

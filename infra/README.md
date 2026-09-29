@@ -55,9 +55,11 @@ Then: GHA `terraform plan` on PR + evidence pack.
 1. Create `devops-g9/daraja` in Secrets Manager by hand (keys: `consumer_key`, `consumer_secret`,
    `b2c_shortcode`, `b2c_initiator_name`, `b2c_security_credential`). The value never goes through
    Terraform, git or CI; only the Payments execution role can read it.
-2. In a reviewed PR set `payments_mpesa_adapter = "daraja_sandbox"`, `daraja_base_url` and
-   `daraja_callback_ips` (Daraja's documented result IPs, copied from the portal). The gated apply
-   refuses if either is missing. The release pipeline then deploys a task with those settings.
+2. In a reviewed PR set `payments_mpesa_adapter = "daraja_sandbox"` and `daraja_base_url` (the
+   gated apply refuses a non-sandbox host). `daraja_callback_ips` may start empty: every outside
+   result callback is then refused with 403 and logged as `result from disallowed source <ip>`.
+   Add the observed provider address in a follow-up PR, never a guessed one. The release pipeline
+   then deploys a task with those settings.
 3. **Before trusting the allowlist**, check `payments_trusted_proxy_hops` (default 2: API Gateway
    then the ALB each append to `X-Forwarded-For`). From a laptop, POST `{}` to
    `<api endpoint>/payments/daraja/b2c-callback`: it must answer 403 `source_not_allowed`, and the

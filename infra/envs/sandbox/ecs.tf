@@ -364,8 +364,8 @@ resource "aws_ecs_task_definition" "payments" {
 
   lifecycle {
     precondition {
-      condition     = !local.payments_daraja || (startswith(var.daraja_base_url, "https://sandbox.") && length(var.daraja_callback_ips) > 0)
-      error_message = "daraja_sandbox needs daraja_base_url (https://sandbox....) and daraja_callback_ips from the Daraja portal."
+      condition     = !local.payments_daraja || startswith(var.daraja_base_url, "https://sandbox.")
+      error_message = "daraja_sandbox needs daraja_base_url on an https sandbox. host."
     }
   }
 

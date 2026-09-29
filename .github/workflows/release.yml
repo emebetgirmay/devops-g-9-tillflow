@@ -49,6 +49,10 @@ jobs:
               - 'services/payments/**'
               - 'services/_shared/**'
               - '.github/workflows/release.yml'
+              # The service ignores Terraform's task definition, so a change to it only goes
+              # live through this deploy (which clones Terraform's revision).
+              - 'infra/envs/sandbox/ecs.tf'
+              - 'infra/envs/sandbox/daraja.tf'
       - id: out
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then

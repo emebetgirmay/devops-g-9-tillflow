@@ -118,6 +118,27 @@ jobs:
       - name: docker build
         run: docker build -t local/pos:pr services/pos
 
+      # Start the image the way ECS does (same OTEL_* variables as ecs.tf) and require /ready.
+      # Unit tests never start the app like this, so a dependency that breaks start-up only
+      # showed up as a failed deploy and rollback (FastAPI 0.142.0, G3).
+      - name: Start-up smoke (ECS environment)
+        run: |
+          set -euo pipefail
+          docker run -d --name pos-smoke -p 18080:8080 \
+            -e OTEL_SERVICE_NAME=pos \
+            -e OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318 \
+            -e ADOT_HEALTH_URL=http://127.0.0.1:13133/ \
+            -e DATABASE_URL=sqlite:////tmp/pos.db \
+            local/pos:pr
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:18080/health >/dev/null; then
+              echo "POS started"; docker rm -f pos-smoke >/dev/null; exit 0
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' pos-smoke)" != "true" ]; then break; fi
+            sleep 1
+          done
+          echo "POS did not start with the ECS environment:"; docker logs pos-smoke; exit 1
+
       - name: Trivy image scan
         env:
           TRIVY_VERSION: "0.56.2"

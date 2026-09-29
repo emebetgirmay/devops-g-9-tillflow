@@ -30,7 +30,7 @@ from mpesa import (
 from mpesa.fake_common import Clock
 from mpesa.models import IDEMPOTENCY_KEY_RE, MSISDN_RE
 
-from core import metrics
+from core import jsonlog, metrics, tracing
 from core.common import (
     PROVIDER,
     TEXT_RE,
@@ -359,6 +359,17 @@ class PaymentService:
         # produce "noop" or "to_unknown" in edge cases it doesn't enumerate. Recording the real
         # value either way beats forcing it into the nearest listed bucket.
         metrics.callbacks_total.inc("stk", result)
+        # One line per delivery with its verdict, so a trace shows a duplicate as "replay" (and a
+        # reordered one as "illegal_transition_logged") instead of only by a missing transition.
+        jsonlog.log_line(
+            level="INFO",
+            service="payments",
+            event="callback",
+            trace_id=tracing.current_trace_id(),
+            record_kind="stk_callback",
+            record_id=event.provider_ref,
+            result=result,
+        )
         return Reply(200, {**ACK, "status": result})
 
     def _confirm_success(self, provider_ref: str) -> str:

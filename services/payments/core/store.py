@@ -378,6 +378,8 @@ class Store:
             "record_type": record_type,
             "record_id": record_id,
             "detail": detail,
+            # Ties the anomaly to the request that caused it (a replayed or reordered callback).
+            "trace_id": tracing.current_trace_id(),
         }
         print(json.dumps(line, sort_keys=True), file=sys.stderr, flush=True)
         metrics.anomalies_total.inc(kind, severity)

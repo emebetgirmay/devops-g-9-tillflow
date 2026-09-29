@@ -39,7 +39,7 @@ from mpesa.models import (
     MSISDN_RE,
 )
 
-from core import metrics
+from core import jsonlog, metrics, tracing
 from core.common import (
     PROVIDER,
     TEXT_RE,
@@ -386,6 +386,17 @@ class PayoutService:
                 )
             result = "conflict"
         metrics.callbacks_total.inc("b2c", result)
+        # One line per delivery with its verdict, so a trace shows a duplicate as "replay" (and a
+        # reordered one as "illegal_transition_logged") instead of only by a missing transition.
+        jsonlog.log_line(
+            level="INFO",
+            service="payments",
+            event="callback",
+            trace_id=tracing.current_trace_id(),
+            record_kind="b2c_result",
+            record_id=event.originator_conversation_id,
+            result=result,
+        )
         return Reply(200, {**ACK, "status": result})
 
     def _apply_result(self, conn: sqlite3.Connection, event: Any) -> str:

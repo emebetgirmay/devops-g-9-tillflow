@@ -34,5 +34,30 @@ The test suites that prove the same properties run without a server:
 (cd services/commission && python3 -m unittest discover -s tests)
 ```
 
+## G4 — failure drills, executed and timed
+
+`g4/drills.py` (stdlib only) runs the brief's Payments drills against a running service on the
+FakeAdapter; `/_fake/*` answers 404 under the Daraja adapter, so it cannot touch Safaricom.
+
+```bash
+PAYMENTS_URL=https://<api endpoint> python3 evidence/payments-integrity/g4/drills.py
+```
+
+| Drill | Forced failure | Must hold |
+|---|---|---|
+| `uncertain-payment` | STK callback never arrives (254000000007); the initiate call itself times out (254000000012) | Sweep moves it to `UNKNOWN`, never `DECLINED`; same-key retries while pending, while `UNKNOWN` and after recovery return the original (the fake refuses a second initiate for a key); reconcile by status query ends `SUCCEEDED` with one ledger entry |
+| `uncertain-payout` | B2C result never arrives (254000000107) | `UNKNOWN`, never `FAILED`; Commission's same-key rerun returns the original, a second key gets `409 payout_already_requested`; reconcile ends `SUCCEEDED`, one ledger entry |
+| `callback-replay` | Same callback 3x (254000000009, 254000000109); success then failure (254000000010, 254000000110); failure then success (254000000011) | Verdicts `applied, replay, replay` and `applied, illegal_transition_logged`; one ledger effect; a terminal state never flips; each delivery ran under its own trace id (`trace_ids` in `checks.json`) |
+
+Each step records `wall_s` (real time the drill took) and `provider_s` (the service's manual
+provider clock, advanced past the 90 s callback deadline and 120 s reconcile SLA without waiting).
+A trace explains a duplicate on its own: every delivery logs `{"event": "callback", "result":
+"replay"}` under the delivery's `trace_id`, and anomalies carry the same `trace_id`
+(`services/payments/tests/test_trace_evidence.py`). Look one up with:
+
+```bash
+aws logs filter-log-events --log-group-name /devops-g9/payments --filter-pattern '"<trace_id>"'
+```
+
 ## Later
 - Traces, k6 results against the fake adapter, sandbox contract proof run by the deployed adapter

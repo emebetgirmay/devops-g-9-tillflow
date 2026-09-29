@@ -16,7 +16,9 @@
 variable "payments_mpesa_adapter" {
   type        = string
   description = "Payments M-Pesa adapter: fake or daraja_sandbox (B2C only; STK charges are declined)"
-  default     = "daraja_sandbox"
+  # Back to fake after the B2C contract test (evidence/daraja-b2c-contract): POS's STK flow and
+  # the G4 drills (evidence/payments-integrity/g4) need the FakeAdapter.
+  default = "fake"
 
   validation {
     condition     = contains(["fake", "daraja_sandbox"], var.payments_mpesa_adapter)

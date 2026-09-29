@@ -54,7 +54,11 @@ def fake_payments_client() -> FakePaymentsClient:
 
 
 @pytest.fixture()
-def client(fake_payments_client: FakePaymentsClient) -> TestClient:
+def session_factory() -> sessionmaker:
+    """The exact sessionmaker the `client` fixture's DB override uses —
+    exposed separately so a test can also drive app.scheduler.run_once
+    against the same in-memory database the API calls populated.
+    """
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -62,10 +66,13 @@ def client(fake_payments_client: FakePaymentsClient) -> TestClient:
         future=True,
     )
     Base.metadata.create_all(bind=engine)
-    TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+    return sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
+
+@pytest.fixture()
+def client(fake_payments_client: FakePaymentsClient, session_factory: sessionmaker) -> TestClient:
     def override_get_db():
-        db = TestingSessionLocal()
+        db = session_factory()
         try:
             yield db
         finally:

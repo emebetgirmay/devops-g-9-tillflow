@@ -89,3 +89,7 @@ output "alerts_topic_arn" {
 output "slack_secret_name" {
   value = aws_secretsmanager_secret.slack.name
 }
+
+output "grafana_read_role_arn" {
+  value = aws_iam_role.grafana_read.arn
+}

@@ -222,3 +222,6 @@ jobs:
       - name: Edge probe unittest
         working-directory: infra/envs/sandbox/lambda/probe
         run: python3 -m unittest -v
+      - name: Reconcile sweep unittest
+        working-directory: infra/envs/sandbox/lambda/reconcile_sweep
+        run: python3 -m unittest -v

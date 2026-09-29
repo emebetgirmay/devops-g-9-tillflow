@@ -142,6 +142,97 @@ resource "aws_iam_role_policy" "ci_deploy" {
         Resource = "*"
       },
       {
+        # G3 Slack path (ADR 0010): alarms -> SNS -> Lambda. Own names only.
+        Sid    = "ReliabilityAlerting"
+        Effect = "Allow"
+        Action = ["sns:*", "lambda:*"]
+        Resource = [
+          "arn:aws:sns:${var.aws_region}:${local.account_id}:${var.name_prefix}-*",
+          "arn:aws:lambda:${var.aws_region}:${local.account_id}:function:${var.name_prefix}-*"
+        ]
+      },
+      {
+        # Probe and Commission schedules (ADR 0010, G2 Commission).
+        Sid      = "OwnSchedules"
+        Effect   = "Allow"
+        Action   = ["scheduler:*"]
+        Resource = "arn:aws:scheduler:${var.aws_region}:${local.account_id}:schedule/*/${var.name_prefix}-*"
+      },
+      {
+        # Slack webhook secret: CI creates and describes it, never reads or writes the value.
+        Sid    = "ManageOwnSecretsMetadata"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:CreateSecret",
+          "secretsmanager:DeleteSecret",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:UpdateSecret",
+          "secretsmanager:TagResource",
+          "secretsmanager:UntagResource",
+          "secretsmanager:GetResourcePolicy"
+        ]
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${local.account_id}:secret:${var.name_prefix}/*"
+      },
+      {
+        # KMS key for the SNS topic. Keys cannot be named up front, so scope by the group tag.
+        Sid      = "CreateKeys"
+        Effect   = "Allow"
+        Action   = ["kms:CreateKey", "kms:ListAliases"]
+        Resource = "*"
+      },
+      {
+        Sid      = "TagNewKeysAndFileSystems"
+        Effect   = "Allow"
+        Action   = ["kms:TagResource", "elasticfilesystem:CreateFileSystem", "elasticfilesystem:TagResource"]
+        Resource = "*"
+        Condition = {
+          StringEquals = { "aws:RequestTag/group" = var.name_prefix }
+        }
+      },
+      {
+        Sid    = "ManageOwnKeys"
+        Effect = "Allow"
+        Action = [
+          "kms:DescribeKey",
+          "kms:GetKeyPolicy",
+          "kms:PutKeyPolicy",
+          "kms:GetKeyRotationStatus",
+          "kms:EnableKeyRotation",
+          "kms:ListResourceTags",
+          "kms:TagResource",
+          "kms:UntagResource",
+          "kms:ScheduleKeyDeletion",
+          "kms:CreateAlias",
+          "kms:DeleteAlias"
+        ]
+        Resource = "arn:aws:kms:${var.aws_region}:${local.account_id}:key/*"
+        Condition = {
+          StringEquals = { "aws:ResourceTag/group" = var.name_prefix }
+        }
+      },
+      {
+        Sid      = "ManageOwnKeyAliases"
+        Effect   = "Allow"
+        Action   = ["kms:CreateAlias", "kms:DeleteAlias"]
+        Resource = "arn:aws:kms:${var.aws_region}:${local.account_id}:alias/${var.name_prefix}-*"
+      },
+      {
+        # Commission ledger on EFS (G2). Describe is account-wide; changes need the group tag.
+        Sid      = "DescribeFileSystems"
+        Effect   = "Allow"
+        Action   = ["elasticfilesystem:Describe*", "elasticfilesystem:ListTagsForResource"]
+        Resource = "*"
+      },
+      {
+        Sid      = "ManageOwnFileSystems"
+        Effect   = "Allow"
+        Action   = ["elasticfilesystem:*"]
+        Resource = "*"
+        Condition = {
+          StringEquals = { "aws:ResourceTag/group" = var.name_prefix }
+        }
+      },
+      {
         Sid    = "PassNamespacedRoles"
         Effect = "Allow"
         Action = ["iam:PassRole"]
@@ -159,7 +250,8 @@ resource "aws_iam_role_policy" "ci_deploy" {
             "iam:AWSServiceName" = [
               "ecs.amazonaws.com",
               "ecs.application-autoscaling.amazonaws.com",
-              "elasticloadbalancing.amazonaws.com"
+              "elasticloadbalancing.amazonaws.com",
+              "elasticfilesystem.amazonaws.com"
             ]
           }
         }

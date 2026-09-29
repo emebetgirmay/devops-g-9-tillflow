@@ -1,0 +1,58 @@
+{
+  "run": "20260929T171111",
+  "target": "https://ewi66kqbp8.execute-api.eu-north-1.amazonaws.com",
+  "drills": {
+    "uncertain-payment": {
+      "passed": true,
+      "wall_total_s": 17.297,
+      "provider_total_s": 230.0,
+      "checks": {
+        "retry_while_pending_returns_original": true,
+        "timeout_is_unknown_not_declined": true,
+        "retry_while_unknown_returns_original": true,
+        "reconcile_resolves_to_succeeded": true,
+        "exactly_one_ledger_entry": true,
+        "retry_after_recovery_changes_nothing": true,
+        "initiate_timeout_is_unknown": true,
+        "no_second_initiate_on_retry": true
+      }
+    },
+    "uncertain-payout": {
+      "passed": true,
+      "wall_total_s": 12.239,
+      "provider_total_s": 230.0,
+      "checks": {
+        "timeout_is_unknown_not_failed": true,
+        "same_key_returns_original": true,
+        "second_key_cannot_pay_again": true,
+        "reconcile_resolves_to_succeeded": true,
+        "exactly_one_ledger_entry": true
+      }
+    },
+    "callback-replay": {
+      "passed": true,
+      "wall_total_s": 101.635,
+      "provider_total_s": 94.0,
+      "checks": {
+        "stk_duplicates_applied_once": true,
+        "stk_duplicate_one_ledger_entry": true,
+        "stk_one_legal_transition": true,
+        "stk_late_failure_cannot_undo_success": true,
+        "stk_failure_then_success_one_transition": true,
+        "stk_late_success_never_auto_credited": true,
+        "b2c_duplicates_applied_once": true,
+        "b2c_duplicate_one_ledger_entry": true,
+        "b2c_one_legal_transition": true,
+        "b2c_late_failure_cannot_undo_success": true
+      }
+    }
+  },
+  "trace_ids": {
+    "stk_duplicate": "72ee0f30042de907b2b06a0de2874b12",
+    "stk_success_then_failure": "0598f9287d399a3f497339728658a157",
+    "stk_failure_then_success": "7da07ac6f4218006702015145d0f64a5",
+    "b2c_duplicate": "7199fed6153fe6fe5e16699033cb0825",
+    "b2c_success_then_failure": "7a5af29957276c4fedd5d1b6085bc900"
+  },
+  "all_passed": true
+}

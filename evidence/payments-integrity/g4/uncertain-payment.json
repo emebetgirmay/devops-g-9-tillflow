@@ -1,0 +1,170 @@
+{
+  "drill": "uncertain-payment",
+  "run": "20260929T171111",
+  "target": "https://ewi66kqbp8.execute-api.eu-north-1.amazonaws.com",
+  "wall_total_s": 17.297,
+  "provider_total_s": 230.0,
+  "checks": {
+    "retry_while_pending_returns_original": true,
+    "timeout_is_unknown_not_declined": true,
+    "retry_while_unknown_returns_original": true,
+    "reconcile_resolves_to_succeeded": true,
+    "exactly_one_ledger_entry": true,
+    "retry_after_recovery_changes_nothing": true,
+    "initiate_timeout_is_unknown": true,
+    "no_second_initiate_on_retry": true
+  },
+  "passed": true,
+  "steps": [
+    {
+      "step": "create: provider accepts, callback never comes",
+      "http": 201,
+      "wall_s": 1.48,
+      "provider_s": 0.0,
+      "body": {
+        "payment_id": "pay_fb8215393a404f8fba2b7646ad52055f",
+        "checkout_request_id": "fake-co-29296267340bf3f2",
+        "state": "PENDING",
+        "decline_reason": null
+      },
+      "replayed": null
+    },
+    {
+      "step": "client retries with the same key while pending",
+      "http": 200,
+      "wall_s": 2.949,
+      "provider_s": 0.0,
+      "body": {
+        "checkout_request_id": "fake-co-29296267340bf3f2",
+        "decline_reason": null,
+        "payment_id": "pay_fb8215393a404f8fba2b7646ad52055f",
+        "state": "PENDING"
+      },
+      "replayed": "true"
+    },
+    {
+      "step": "no callback for 100s: sweep",
+      "http": 200,
+      "wall_s": 5.132,
+      "provider_s": 100.0,
+      "body": {
+        "payments": {
+          "created_to_unknown": 0,
+          "pending_to_unknown": 1,
+          "reconciled": 0,
+          "checked": 0
+        },
+        "payouts": {
+          "created_to_unknown": 0,
+          "pending_to_unknown": 0,
+          "reconciled": 0,
+          "checked": 0
+        }
+      }
+    },
+    {
+      "step": "state after sweep",
+      "http": 200,
+      "wall_s": 6.586,
+      "provider_s": 100.0,
+      "body": {
+        "payment_id": "pay_fb8215393a404f8fba2b7646ad52055f",
+        "checkout_request_id": "fake-co-29296267340bf3f2",
+        "state": "UNKNOWN",
+        "decline_reason": null,
+        "tenant_id": "g4-drill",
+        "sale_id": null,
+        "amount_minor": 150000,
+        "currency": "KES",
+        "msisdn": "2540****007",
+        "receipt": null,
+        "ledger_entries": 0
+      }
+    },
+    {
+      "step": "client retries with the same key while UNKNOWN",
+      "http": 200,
+      "wall_s": 8.012,
+      "provider_s": 100.0,
+      "body": {
+        "checkout_request_id": "fake-co-29296267340bf3f2",
+        "decline_reason": null,
+        "payment_id": "pay_fb8215393a404f8fba2b7646ad52055f",
+        "state": "PENDING"
+      },
+      "replayed": "true"
+    },
+    {
+      "step": "reconcile by status query",
+      "http": 200,
+      "wall_s": 10.104,
+      "provider_s": 230.0,
+      "body": {
+        "payment_id": "pay_fb8215393a404f8fba2b7646ad52055f",
+        "checkout_request_id": "fake-co-29296267340bf3f2",
+        "state": "SUCCEEDED",
+        "decline_reason": null,
+        "reconciled": true,
+        "result": "applied"
+      }
+    },
+    {
+      "step": "final state",
+      "http": 200,
+      "wall_s": 11.524,
+      "provider_s": 230.0,
+      "body": {
+        "payment_id": "pay_fb8215393a404f8fba2b7646ad52055f",
+        "checkout_request_id": "fake-co-29296267340bf3f2",
+        "state": "SUCCEEDED",
+        "decline_reason": null,
+        "tenant_id": "g4-drill",
+        "sale_id": null,
+        "amount_minor": 150000,
+        "currency": "KES",
+        "msisdn": "2540****007",
+        "receipt": "FAKE17715C61",
+        "ledger_entries": 1
+      }
+    },
+    {
+      "step": "client retries with the same key after recovery",
+      "http": 200,
+      "wall_s": 12.919,
+      "provider_s": 230.0,
+      "body": {
+        "checkout_request_id": "fake-co-29296267340bf3f2",
+        "decline_reason": null,
+        "payment_id": "pay_fb8215393a404f8fba2b7646ad52055f",
+        "state": "PENDING"
+      },
+      "replayed": "true"
+    },
+    {
+      "step": "create: the initiate call itself times out",
+      "http": 201,
+      "wall_s": 15.096,
+      "provider_s": 230.0,
+      "body": {
+        "payment_id": "pay_dfacda41209f4be0b022991deed612fe",
+        "checkout_request_id": null,
+        "state": "UNKNOWN",
+        "decline_reason": null
+      },
+      "replayed": null
+    },
+    {
+      "step": "client retries the timed-out initiate with the same key",
+      "http": 200,
+      "wall_s": 16.593,
+      "provider_s": 230.0,
+      "body": {
+        "checkout_request_id": null,
+        "decline_reason": null,
+        "payment_id": "pay_dfacda41209f4be0b022991deed612fe",
+        "state": "UNKNOWN"
+      },
+      "replayed": "true"
+    }
+  ]
+}

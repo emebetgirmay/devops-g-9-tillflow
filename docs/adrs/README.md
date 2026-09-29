@@ -20,7 +20,7 @@ index mirrors the files.
 | [0007](0007-multi-tenancy.md) | Multi-tenancy isolation | `@Moraaalice` | Accepted |
 | [0008](0008-b2c-payouts.md) | B2C commission payouts | `@chesangJ` | Accepted (G2) |
 | [0009](0009-payments-observability.md) | Payments observability for G3 | `@chesangJ` | Proposed (G3 draft) |
-| [0010](0010-reliability-observability.md) | Reliability and observability for G3 | `@emebetgirmay` | Proposed (G3 draft) |
+| [0010](0010-reliability-observability.md) | Reliability and observability for G3 | `@emebetgirmay` | Accepted (G3) |
 
 ## Reading order for the money path
 

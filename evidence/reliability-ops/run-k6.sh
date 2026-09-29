@@ -38,16 +38,27 @@ subnets=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=devops-g9-pri
 sg=$(aws ec2 describe-security-groups --filters Name=group-name,Values=devops-g9-k6 \
   --query 'SecurityGroups[0].GroupId' --output text)
 
-started=$(date -u +%FT%TZ)
-task=$(aws ecs run-task --cluster "$CLUSTER" --launch-type FARGATE --task-definition devops-g9-k6 \
-  --network-configuration "awsvpcConfiguration={subnets=[$subnets],securityGroups=[$sg],assignPublicIp=DISABLED}" \
-  --started-by g3-k6 --query 'tasks[0].taskArn' --output text)
-echo "started $task at $started (Payments adapter: $running_adapter)"
-echo "watch it live in Grafana: TillFlow Payments / TillFlow overview"
+# K6_TASK=<task ARN> collects a run that is already going (e.g. after this script lost its
+# connection) instead of starting a second one.
+if [[ -n "${K6_TASK:-}" ]]; then
+  task="$K6_TASK"
+  started=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$task" \
+    --query 'tasks[0].createdAt' --output text)
+  echo "collecting existing $task (created $started)"
+else
+  started=$(date -u +%FT%TZ)
+  task=$(aws ecs run-task --cluster "$CLUSTER" --launch-type FARGATE --task-definition devops-g9-k6 \
+    --network-configuration "awsvpcConfiguration={subnets=[$subnets],securityGroups=[$sg],assignPublicIp=DISABLED}" \
+    --started-by g3-k6 --query 'tasks[0].taskArn' --output text)
+  echo "started $task at $started (Payments adapter: $running_adapter)"
+  echo "watch it live in Grafana: TillFlow Payments / TillFlow overview"
+  echo "if this terminal loses its connection, the run continues; collect it with: K6_TASK=$task $0"
+fi
 
 while :; do
+  # A laptop network blip must not abandon a 17-minute run: retry instead of exiting.
   status=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$task" \
-    --query 'tasks[0].lastStatus' --output text)
+    --query 'tasks[0].lastStatus' --output text 2>/dev/null) || status="(no answer, retrying)"
   echo "$(date -u +%T) $status"
   [[ "$status" == "STOPPED" ]] && break
   sleep 60

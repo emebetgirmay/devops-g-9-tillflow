@@ -1,0 +1,9 @@
+{
+  "task": "arn:aws:ecs:eu-north-1:240462142849:task/devops-g9/ce9c000956f24377bf692c1f1357a160",
+  "started_utc": "2026-09-29T20:58:03Z",
+  "stopped_utc": "2026-09-29T21:16:32Z",
+  "k6_exit_code": "99",
+  "stopped_reason": "Essential container in task exited",
+  "payments_adapter": "fake",
+  "note": "k6 exit 99 means a threshold was crossed; see k6-g3-summary.json"
+}

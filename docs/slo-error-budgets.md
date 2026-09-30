@@ -9,7 +9,7 @@ Budget = eligible events × (1 − target). Invalid requests and genuine busines
 
 | Service | Primary SLI | Starter target | 28-day error budget |
 |---|---|---|---|
-| **Web** | Eligible page/API-shell loads succeed | ≥ 99.9%; p95 < 500 ms | 0.1% ≈ 40m 19s |
+| **Web** | Eligible page/API-shell loads succeed | ≥ 99.9%; p95 < 500 ms (**not measured: `services/web` is a placeholder, no web UI exists yet**) | 0.1% ≈ 40m 19s |
 | **POS API** | Valid sale writes accepted **exactly once** | ≥ 99.9%; p95 < 400 ms | 0.1% ≈ 40m 19s |
 | **Payments API** | Valid STK/B2C accepted + callbacks processed within 60s | ≥ 99.5% | 0.5% ≈ 3h 21m 36s |
 | **Commission** | Eligible payouts reach terminal state by **06:30 EAT** | ≥ 99.0%; duplicate disbursement = **0** | 1% events / 0.28 late runs |

@@ -40,13 +40,13 @@ lists the commits. PRs, with the account that authored the commits:
 
 ## 3. Tests
 
-277 tests, no network. They run on SQLite with the standard library only, and again on
+278 tests, no network. They run on SQLite with the standard library only, and again on
 PostgreSQL 16 in CI (`postgres-tests`), each test in its own schema:
 
 | Suite | Tests | Covers |
 |---|---|---|
 | `services/_shared/tests` | 60 | The port contract and every FakeAdapter scenario (STK and B2C), its thread safety, and a guard that nothing in `_shared` imports an HTTP client or carries a Safaricom URL or secret |
-| `services/payments/tests` | 160 | `test_payments.py` (40) and `test_payouts.py` (34): idempotency, the state machines, replay and reorder, timeouts, reconcile, limits, kill switch. `test_daraja_sandbox.py` (18): the real adapter over a recorded transport. `test_two_tasks.py` (two services racing on one database), `test_restore_reconcile.py`, `test_invariants.py`, `test_metrics.py`, `test_trace_evidence.py`, `test_otlp.py`, `test_public_edge.py`, `test_unhandled_errors.py`, `test_http.py`, `test_config.py`, and the no-outbound guard |
+| `services/payments/tests` | 161 | `test_payments.py` (40) and `test_payouts.py` (34): idempotency, the state machines, replay and reorder, timeouts, reconcile, limits, kill switch. `test_daraja_sandbox.py` (18): the real adapter over a recorded transport. `test_two_tasks.py` (two services racing on one database), `test_restore_reconcile.py`, `test_invariants.py`, `test_metrics.py`, `test_trace_evidence.py`, `test_otlp.py`, `test_public_edge.py`, `test_unhandled_errors.py`, `test_http.py`, `test_config.py`, and the no-outbound guard |
 | `services/commission/tests` | 57 | Commission maths and carry-forward, the daily close, disburse and reconcile against the real Payments service in process, a guard that Commission never imports M-Pesa code, and `test_end_to_end.py`: real POS + Commission + Payments over HTTP, run twice |
 
 ## 4. Runtime proof
@@ -144,9 +144,9 @@ Every command below was run on 2026-09-30 from a fresh clone of `main` and passe
 Python 3.12, no credentials, nothing reaches Safaricom.
 
 ```bash
-# Tests (277). Commission's two end-to-end tests need POS's packages; without them they skip.
+# Tests (278). Commission's two end-to-end tests need POS's packages; without them they skip.
 (cd services/_shared    && python3 -m unittest discover -s tests -t .)   # 60
-(cd services/payments   && python3 -m unittest discover -s tests)        # 160
+(cd services/payments   && python3 -m unittest discover -s tests)        # 161
 python3 -m venv .venv && .venv/bin/pip install -r services/pos/requirements.txt
 (cd services/commission && ../../.venv/bin/python -m unittest discover -s tests)   # 57
 

@@ -11,7 +11,7 @@
 | ✅ | Naming `devops-g9-*` and required tags on every resource | `evidence/platform-delivery/tag-audit.txt`: 42 resources, all required tags present (G1 audit; re-run at G5 for the G3 resources) |
 | ✅ | No `latest` tags: SHA build, push by immutable digest, deploy by digest | `.github/workflows/release.yml`; ECR repositories are `IMMUTABLE` (`infra/envs/sandbox/ecr.tf`) |
 | ✅ | Secret scan, IaC scan, image scan; HIGH/CRITICAL fails the build | gitleaks, Trivy config and Trivy image in `pr.yml` and `release.yml` (`--severity HIGH,CRITICAL --exit-code 1`); accepted risks listed with owner and expiry in `.trivyignore` |
-| ❌ | SBOM per image | Not generated yet. Plan: Trivy (already pinned in CI) writes a CycloneDX SBOM for each image and the release keeps it as an artifact |
+| ✅ | SBOM per image | `release.yml` "SBOM (CycloneDX)": the pinned Trivy writes a CycloneDX SBOM of each released image; kept 90 days as the `sbom-pos-<sha>` / `sbom-payments-<sha>` artifacts of the Release run |
 | ✅ | Gated apply of the reviewed plan | `release.yml`: plan artifact, `sandbox` environment approval, apply of that exact plan |
 | ✅ | Post-deploy smoke and automatic rollback | `release.yml` "Wait stable + mandatory smoke" then "Rollback previous task definition". **Exercised for real on 2026-09-29:** a POS build crashed at start-up and was rolled back to revision 24 with no outage ([scar log](scar-log.md)) |
 | ✅ | Start-up check in CI with the production environment | `pr.yml` "Start-up smoke (ECS environment)" for POS (#54) |

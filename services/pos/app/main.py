@@ -8,6 +8,7 @@ evidence/platform-delivery/collect.sh both depend on them).
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import time
 import urllib.error
@@ -17,7 +18,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
-from . import metrics, scheduler
+from . import metrics, scheduler, tracing
 from .db import init_db
 from .routers import catalog, commission, internal, sales
 
@@ -38,8 +39,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="TillFlow POS API", version=COMMIT_SHA, lifespan=lifespan)
 
 
+# Probes and the scrape run every few seconds; logging them would bury the real requests.
+_UNLOGGED_ROUTES = {"/health", "/ready", "/metrics"}
+
+
 @app.middleware("http")
 async def record_http_metrics(request: Request, call_next):
+    trace_id = tracing.start(request.headers.get("traceparent"))
     start = time.perf_counter()
     response = await call_next(request)
     duration = time.perf_counter() - start
@@ -52,6 +58,19 @@ async def record_http_metrics(request: Request, call_next):
     route = request.scope.get("route")
     route_path = route.path if route is not None else "unmatched"
     metrics.record_request(route_path, response.status_code, duration)
+    response.headers["X-Trace-Id"] = trace_id
+    if route_path not in _UNLOGGED_ROUTES:
+        # Same shape as Payments' request line (ADR 0009 section 5): the route template, never
+        # the resolved path, and no body, phone number or tenant data.
+        line = {
+            "ts": time.time(),
+            "level": "INFO",
+            "service": "pos",
+            "event": "request",
+            "trace_id": trace_id,
+            "result": f"{request.method} {route_path} -> {response.status_code}",
+        }
+        print(json.dumps(line, sort_keys=True), flush=True)
     return response
 
 

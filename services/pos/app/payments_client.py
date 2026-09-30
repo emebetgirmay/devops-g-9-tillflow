@@ -19,6 +19,8 @@ import os
 
 import httpx
 
+from . import tracing
+
 
 class PaymentsClient:
     def __init__(self, base_url: str | None = None, timeout: float = 5.0) -> None:
@@ -48,16 +50,22 @@ class PaymentsClient:
             resp = client.post(
                 f"{self.base_url}/payments",
                 json=payload,
-                headers={"Idempotency-Key": idempotency_key},
+                headers={"Idempotency-Key": idempotency_key, **_trace_headers()},
             )
             resp.raise_for_status()
             return resp.json()
 
     def get_payment(self, payment_id: str) -> dict:
         with httpx.Client(timeout=self.timeout) as client:
-            resp = client.get(f"{self.base_url}/payments/{payment_id}")
+            resp = client.get(f"{self.base_url}/payments/{payment_id}", headers=_trace_headers())
             resp.raise_for_status()
             return resp.json()
+
+
+def _trace_headers() -> dict[str, str]:
+    """The request's trace id, so Payments logs this call under the sale's trace."""
+    header = tracing.traceparent()
+    return {"traceparent": header} if header else {}
 
 
 def get_payments_client() -> PaymentsClient:

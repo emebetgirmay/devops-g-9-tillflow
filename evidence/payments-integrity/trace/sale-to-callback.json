@@ -1,0 +1,95 @@
+{
+  "trace_id": "096b1f060a6aada7fe89171eee6f2432",
+  "checks": {
+    "pos_logged_the_sale": true,
+    "pos_logged_the_payment_request": true,
+    "payments_created_under_the_sale_trace": true,
+    "callback_transition_points_back_at_the_sale_trace": true,
+    "sale_ended_paid": true
+  },
+  "all_passed": true,
+  "events": [
+    {
+      "ts": 1790772760.4610827,
+      "service": "pos",
+      "event": "request",
+      "result": "POST /tenants -> 201",
+      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+    },
+    {
+      "ts": 1790772760.4921577,
+      "service": "pos",
+      "event": "request",
+      "result": "POST /tenants/{tenant_id}/tills -> 201",
+      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+    },
+    {
+      "ts": 1790772760.526011,
+      "service": "pos",
+      "event": "request",
+      "result": "POST /tenants/{tenant_id}/attendants -> 201",
+      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+    },
+    {
+      "ts": 1790772760.5693228,
+      "service": "pos",
+      "event": "request",
+      "result": "POST /tenants/{tenant_id}/products -> 201",
+      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+    },
+    {
+      "ts": 1790772760.6075928,
+      "service": "pos",
+      "event": "request",
+      "result": "POST /tenants/{tenant_id}/sales -> 201",
+      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+    },
+    {
+      "ts": 1790772760.6993213,
+      "service": "payments",
+      "event": "state_transition",
+      "record_kind": "payment",
+      "record_id": "pay_90ead037b7fb4f8db8334a979ae85ae4",
+      "state": "PENDING",
+      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+    },
+    {
+      "ts": 1790772760.7103333,
+      "service": "payments",
+      "event": "request",
+      "result": "POST /payments -> 201",
+      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+    },
+    {
+      "ts": 1790772760.718607,
+      "service": "pos",
+      "event": "request",
+      "result": "POST /tenants/{tenant_id}/sales/{sale_id}/payment-request -> 200",
+      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+    },
+    {
+      "ts": 1790772760.7363667,
+      "service": "payments",
+      "event": "state_transition",
+      "record_kind": "payment",
+      "record_id": "pay_90ead037b7fb4f8db8334a979ae85ae4",
+      "state": "SUCCEEDED",
+      "trace_id": "a5b20545ccb26ddd613c1b46b1012660",
+      "origin_trace_id": "096b1f060a6aada7fe89171eee6f2432"
+    },
+    {
+      "ts": 1790772760.7946923,
+      "service": "payments",
+      "event": "request",
+      "result": "GET /payments/{id} -> 200",
+      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+    },
+    {
+      "ts": 1790772760.8047018,
+      "service": "pos",
+      "event": "request",
+      "result": "POST /tenants/{tenant_id}/sales/{sale_id}/payment-reconcile -> 200",
+      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+    }
+  ]
+}

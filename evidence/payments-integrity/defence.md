@@ -48,8 +48,8 @@ evidence index is [`README.md`](README.md); the G3 code is explained in
 ## What I would say is not done
 
 The list in [`README.md`](README.md#6-not-claimed): no `SUCCEEDED` payout from the real sandbox
-yet, no restore because there is no database to restore, Commission not deployed, no single trace
-from sale to callback, and the raw Daraja code is not exposed.
+yet, no restore because there is no database to restore, Commission not deployed, and tracing is
+trace ids in logs, not span waterfalls.
 
 The weakest point, said plainly: every guarantee above holds while the database survives. On this
 build a redeploy replaces the task and its SQLite file, so idempotency records, the payout keys and

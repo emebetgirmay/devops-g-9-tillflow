@@ -146,6 +146,11 @@ each piece (read that before defending this area live).
   (`applied`, `replay`, `illegal_transition_logged`, `unmatched`) as a `callback` line under the
   request's `trace_id`, and anomaly lines carry the `trace_id`, so one trace explains a duplicate
   (`tests/test_trace_evidence.py`). This extends section 5; it changes no metric.
+- **Added for G5 (sale-to-callback trace):** POS adopts or starts a `traceparent`, logs a
+  `request` line with `trace_id` and passes it to Payments; Payments stores the creating trace id
+  on each payment and payout and logs it as `origin_trace_id` on any later transition (callback,
+  sweep, reconcile); callback lines carry the provider's raw `code`; `close.py` sends a run trace
+  id to POS. Proof: `evidence/payments-integrity/trace/`.
 - **Not built:** G3-5 (Postgres backend and capacity re-run, blocked on RDS); the second half of
   G3-7, taking `/_admin/*` and `/_fake/*` off the public listener (they are still forwarded by
   the ALB rule); two section 4 alarms, callback rejections above baseline and provider-unknown

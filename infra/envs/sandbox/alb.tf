@@ -89,6 +89,15 @@ resource "aws_security_group" "pos" {
     cidr_blocks = [var.vpc_cidr]
   }
 
+  # POS -> RDS PostgreSQL (rds.tf). The VPC CIDR, not the DB security group, to avoid a cycle.
+  egress {
+    description = "PostgreSQL to RDS"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   tags = {
     Name    = "${var.name_prefix}-pos"
     service = "pos"
@@ -116,6 +125,15 @@ resource "aws_security_group" "payments" {
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Payments -> RDS PostgreSQL (rds.tf). The VPC CIDR, not the DB security group, to avoid a cycle.
+  egress {
+    description = "PostgreSQL to RDS"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
   }
 
   tags = {

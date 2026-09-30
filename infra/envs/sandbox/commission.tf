@@ -20,7 +20,7 @@ variable "commission_schedules_enabled" {
 variable "commission_check_enabled" {
   description = "Turn the 06:30 EAT check schedule on (after disburse.py --check exists)."
   type        = bool
-  default     = false
+  default     = true # disburse.py --check released in #88
 }
 
 variable "commission_tenant_ids" {

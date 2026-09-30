@@ -1,0 +1,9 @@
+{
+  "trace_id": "1-6abd2d70-f86eda7826fe5e01d6ca13a7",
+  "checks": {
+    "pos_request_span": true,
+    "payments_span_under_pos": true,
+    "callback_in_the_sale_trace": true,
+    "http_status_recorded": true
+  }
+}

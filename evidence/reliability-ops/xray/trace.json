@@ -1,0 +1,48 @@
+{
+    "Traces": [
+        {
+            "Id": "1-6abd2d70-f86eda7826fe5e01d6ca13a7",
+            "Duration": 6.284,
+            "LimitExceeded": false,
+            "Segments": [
+                {
+                    "Id": "e6138f6b43a73b6d",
+                    "Document": "{\"id\":\"e6138f6b43a73b6d\",\"name\":\"pos\",\"start_time\":1.7907828363842168E9,\"trace_id\":\"1-6abd2d70-f86eda7826fe5e01d6ca13a7\",\"end_time\":1.7907828364132473E9,\"parent_id\":\"ee6d7804f6b20a79\",\"fault\":false,\"error\":false,\"throttle\":false,\"http\":{\"request\":{\"method\":\"POST\"},\"response\":{\"status\":201,\"content_length\":0}},\"aws\":{\"xray\":{\"auto_instrumentation\":false}},\"metadata\":{\"default\":{\"http.route\":\"/tenants/{tenant_id}/sales\",\"otel.resource.service.name\":\"pos\"}}}"
+                },
+                {
+                    "Id": "b09b8b1f463e4138",
+                    "Document": "{\"id\":\"b09b8b1f463e4138\",\"name\":\"pos\",\"start_time\":1.7907828371035757E9,\"trace_id\":\"1-6abd2d70-f86eda7826fe5e01d6ca13a7\",\"end_time\":1.7907828372808552E9,\"parent_id\":\"ee6d7804f6b20a79\",\"fault\":false,\"error\":false,\"throttle\":false,\"http\":{\"request\":{\"method\":\"POST\"},\"response\":{\"status\":200,\"content_length\":0}},\"aws\":{\"xray\":{\"auto_instrumentation\":false}},\"metadata\":{\"default\":{\"http.route\":\"/tenants/{tenant_id}/sales/{sale_id}/payment-request\",\"otel.resource.service.name\":\"pos\"}}}"
+                },
+                {
+                    "Id": "42c4be66d585eba6",
+                    "Document": "{\"id\":\"42c4be66d585eba6\",\"name\":\"pos\",\"start_time\":1.790782835006949E9,\"trace_id\":\"1-6abd2d70-f86eda7826fe5e01d6ca13a7\",\"end_time\":1.7907828350197563E9,\"parent_id\":\"ee6d7804f6b20a79\",\"fault\":false,\"error\":false,\"throttle\":false,\"http\":{\"request\":{\"method\":\"POST\"},\"response\":{\"status\":201,\"content_length\":0}},\"aws\":{\"xray\":{\"auto_instrumentation\":false}},\"metadata\":{\"default\":{\"http.route\":\"/tenants/{tenant_id}/attendants\",\"otel.resource.service.name\":\"pos\"}}}"
+                },
+                {
+                    "Id": "815fd006be1e95c6",
+                    "Document": "{\"id\":\"815fd006be1e95c6\",\"name\":\"pos\",\"start_time\":1.7907828330471413E9,\"trace_id\":\"1-6abd2d70-f86eda7826fe5e01d6ca13a7\",\"end_time\":1.7907828330775723E9,\"parent_id\":\"ee6d7804f6b20a79\",\"fault\":false,\"error\":false,\"throttle\":false,\"http\":{\"request\":{\"method\":\"POST\"},\"response\":{\"status\":201,\"content_length\":0}},\"aws\":{\"xray\":{\"auto_instrumentation\":false}},\"metadata\":{\"default\":{\"http.route\":\"/tenants\",\"otel.resource.service.name\":\"pos\"}}}"
+                },
+                {
+                    "Id": "40c8ede6227f106d",
+                    "Document": "{\"id\":\"40c8ede6227f106d\",\"name\":\"pos\",\"start_time\":1.7907828341300907E9,\"trace_id\":\"1-6abd2d70-f86eda7826fe5e01d6ca13a7\",\"end_time\":1.7907828341418335E9,\"parent_id\":\"ee6d7804f6b20a79\",\"fault\":false,\"error\":false,\"throttle\":false,\"http\":{\"request\":{\"method\":\"POST\"},\"response\":{\"status\":201,\"content_length\":0}},\"aws\":{\"xray\":{\"auto_instrumentation\":false}},\"metadata\":{\"default\":{\"http.route\":\"/tenants/{tenant_id}/tills\",\"otel.resource.service.name\":\"pos\"}}}"
+                },
+                {
+                    "Id": "d72178aa3e6e5884",
+                    "Document": "{\"id\":\"d72178aa3e6e5884\",\"name\":\"payments\",\"start_time\":1.7907828393150878E9,\"trace_id\":\"1-6abd2d70-f86eda7826fe5e01d6ca13a7\",\"end_time\":1.7907828393161407E9,\"parent_id\":\"430776cc0a5501fe\",\"fault\":false,\"error\":false,\"throttle\":false,\"http\":{\"request\":{\"method\":\"GET\"},\"response\":{\"status\":200,\"content_length\":0}},\"aws\":{\"xray\":{\"auto_instrumentation\":false}},\"metadata\":{\"default\":{\"http.route\":\"/payments/{id}\",\"otel.resource.service.name\":\"payments\"}}}"
+                },
+                {
+                    "Id": "430776cc0a5501fe",
+                    "Document": "{\"id\":\"430776cc0a5501fe\",\"name\":\"pos\",\"start_time\":1.790782839300135E9,\"trace_id\":\"1-6abd2d70-f86eda7826fe5e01d6ca13a7\",\"end_time\":1.7907828393316057E9,\"parent_id\":\"ee6d7804f6b20a79\",\"fault\":false,\"error\":false,\"throttle\":false,\"http\":{\"request\":{\"method\":\"POST\"},\"response\":{\"status\":200,\"content_length\":0}},\"aws\":{\"xray\":{\"auto_instrumentation\":false}},\"metadata\":{\"default\":{\"http.route\":\"/tenants/{tenant_id}/sales/{sale_id}/payment-reconcile\",\"otel.resource.service.name\":\"pos\"}}}"
+                },
+                {
+                    "Id": "7c8aaa01fe59ae50",
+                    "Document": "{\"id\":\"7c8aaa01fe59ae50\",\"name\":\"pos\",\"start_time\":1.7907828357014964E9,\"trace_id\":\"1-6abd2d70-f86eda7826fe5e01d6ca13a7\",\"end_time\":1.790782835714983E9,\"parent_id\":\"ee6d7804f6b20a79\",\"fault\":false,\"error\":false,\"throttle\":false,\"http\":{\"request\":{\"method\":\"POST\"},\"response\":{\"status\":201,\"content_length\":0}},\"aws\":{\"xray\":{\"auto_instrumentation\":false}},\"metadata\":{\"default\":{\"http.route\":\"/tenants/{tenant_id}/products\",\"otel.resource.service.name\":\"pos\"}}}"
+                },
+                {
+                    "Id": "3a8b5d33a054d3dd",
+                    "Document": "{\"id\":\"3a8b5d33a054d3dd\",\"name\":\"payments\",\"start_time\":1.7907828372519062E9,\"trace_id\":\"1-6abd2d70-f86eda7826fe5e01d6ca13a7\",\"end_time\":1.790782837269342E9,\"parent_id\":\"b09b8b1f463e4138\",\"fault\":false,\"error\":false,\"throttle\":false,\"http\":{\"request\":{\"method\":\"POST\"},\"response\":{\"status\":201,\"content_length\":0}},\"aws\":{\"xray\":{\"auto_instrumentation\":false}},\"metadata\":{\"default\":{\"http.route\":\"/payments\",\"otel.resource.service.name\":\"payments\"}},\"subsegments\":[{\"id\":\"b5ff63c385260cb3\",\"name\":\"payment PENDING to SUCCEEDED\",\"start_time\":1.7907828386292284E9,\"end_time\":1.7907828386302283E9,\"fault\":false,\"error\":false,\"throttle\":false,\"aws\":{\"xray\":{\"auto_instrumentation\":false}},\"metadata\":{\"default\":{\"tillflow.request_trace_id\":\"6abd2d762c14082ff444d3ddd1e2c652\",\"tillflow.record_id\":\"pay_cb63bf9bd1fc4e3fa6e09c7a19cf1d97\"}}}]}"
+                }
+            ]
+        }
+    ],
+    "UnprocessedTraceIds": []
+}

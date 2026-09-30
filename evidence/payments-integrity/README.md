@@ -40,12 +40,12 @@ lists the commits. PRs, with the account that authored the commits:
 
 ## 3. Tests
 
-265 tests, standard library only, no network:
+272 tests, standard library only, no network:
 
 | Suite | Tests | Covers |
 |---|---|---|
 | `services/_shared/tests` | 60 | The port contract and every FakeAdapter scenario (STK and B2C), its thread safety, and a guard that nothing in `_shared` imports an HTTP client or carries a Safaricom URL or secret |
-| `services/payments/tests` | 148 | `test_payments.py` (40) and `test_payouts.py` (34): idempotency, the state machines, replay and reorder, timeouts, reconcile, limits, kill switch. `test_daraja_sandbox.py` (18): the real adapter over a recorded transport. `test_invariants.py`, `test_metrics.py`, `test_trace_evidence.py`, `test_public_edge.py`, `test_unhandled_errors.py`, `test_http.py`, `test_config.py`, and the no-outbound guard |
+| `services/payments/tests` | 155 | `test_payments.py` (40) and `test_payouts.py` (34): idempotency, the state machines, replay and reorder, timeouts, reconcile, limits, kill switch. `test_daraja_sandbox.py` (18): the real adapter over a recorded transport. `test_invariants.py`, `test_metrics.py`, `test_trace_evidence.py`, `test_otlp.py`, `test_public_edge.py`, `test_unhandled_errors.py`, `test_http.py`, `test_config.py`, and the no-outbound guard |
 | `services/commission/tests` | 57 | Commission maths and carry-forward, the daily close, disburse and reconcile against the real Payments service in process, a guard that Commission never imports M-Pesa code, and `test_end_to_end.py`: real POS + Commission + Payments over HTTP, run twice |
 
 ## 4. Runtime proof
@@ -98,14 +98,28 @@ aws logs filter-log-events --log-group-name /devops-g9/payments --filter-pattern
 
 ### One trace from sale to callback
 
-[`trace/sale-to-callback.json`](trace/sale-to-callback.json) (5 checks): one `traceparent` sent on
-a sale's POS calls finds, in order, POS's sale and payment-request lines, Payments' create and
-`PENDING`, the callback's `SUCCEEDED` transition, and POS's reconcile. POS logs the trace id and
-passes it to Payments. The provider's callback is a separate request with its own trace id, so
-Payments stores the creating trace id on the payment and logs it as `origin_trace_id` when a later
-request (callback, sweep or reconcile) moves the record. Filtering either log group by the sale's
-trace id returns the whole path. Commission does the same per run: `close.py` to POS and
-`disburse.py` to Payments each send one run trace id.
+One `traceparent` sent on a sale's POS calls is followed end to end, in logs and as spans.
+
+| File | Shows |
+|---|---|
+| [`trace/sale-to-callback.json`](trace/sale-to-callback.json) (5 checks) | Filtering both services' logs by the sale's trace id returns POS's sale and payment-request, Payments' create and `PENDING`, the callback's `SUCCEEDED`, and POS's reconcile |
+| [`trace/collector-spans.json`](trace/collector-spans.json) (3 checks) | The span tree an ADOT collector v0.43.1 (the sidecar's version) received: Payments' `POST /payments` under POS's `payment-request`, and the callback under that create span |
+
+```
+pos POST /tenants/{tenant_id}/sales
+pos POST /tenants/{tenant_id}/sales/{sale_id}/payment-request
+  payments POST /payments
+    payments payment PENDING -> SUCCEEDED        <- the provider's callback
+pos POST /tenants/{tenant_id}/sales/{sale_id}/payment-reconcile
+  payments GET /payments/{id}
+```
+
+The provider's callback is a separate request with its own trace id, so Payments stores the
+creating trace and span id on the payment; when a later request (callback, sweep, reconcile) moves
+the record it logs `origin_trace_id` and emits a span into the sale's trace as a child of the
+create. Spans go to the ADOT sidecar as OTLP/HTTP JSON from the standard library, loopback only,
+off the request path (`core/otlp.py`, `tests/test_otlp.py`). Commission sends one run trace id
+from `close.py` to POS and from `disburse.py` to Payments.
 
 ## 5. Reproduce
 
@@ -113,9 +127,9 @@ Every command below was run on 2026-09-30 from a fresh clone of `main` and passe
 Python 3.12, no credentials, nothing reaches Safaricom.
 
 ```bash
-# Tests (265). Commission's two end-to-end tests need POS's packages; without them they skip.
+# Tests (272). Commission's two end-to-end tests need POS's packages; without them they skip.
 (cd services/_shared    && python3 -m unittest discover -s tests -t .)   # 60
-(cd services/payments   && python3 -m unittest discover -s tests)        # 148
+(cd services/payments   && python3 -m unittest discover -s tests)        # 155
 python3 -m venv .venv && .venv/bin/pip install -r services/pos/requirements.txt
 (cd services/commission && ../../.venv/bin/python -m unittest discover -s tests)   # 57
 
@@ -149,8 +163,8 @@ sandbox runs.
   section 6).
 - **Commission in the sandbox.** It has an image and CI but is not deployed; it waits for RDS
   because its ledger must persist between runs.
-- **Span waterfalls.** Tracing is trace ids in JSON logs, propagated by `traceparent`, not X-Ray
-  spans (ADR 0009 "Alternatives considered"). The sale-to-callback trace below is proven against
-  local services; the capture from the deployed log groups in Grafana is Platform's.
+- **The X-Ray screenshot itself.** Spans are exported and the tree is proven against the same
+  ADOT collector version the sidecar runs, locally. The waterfall captured from X-Ray needs the
+  deployed services and is Platform's to capture.
 - **The exact Daraja result code** is logged on every callback line (`code`) but not returned by
   `GET /payouts`.

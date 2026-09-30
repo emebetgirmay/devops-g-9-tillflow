@@ -147,7 +147,8 @@ class PaymentService:
                 conn.execute(
                     "INSERT INTO payments (payment_id, tenant_id, idem_key, sale_id, msisdn,"
                     " amount_minor, currency, reference, state, initiate_started_at, created_at,"
-                    " updated_at, trace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'CREATED', ?, ?, ?, ?)",
+                    " updated_at, trace_id, span_id)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'CREATED', ?, ?, ?, ?, ?)",
                     (
                         payment_id,
                         tenant_id,
@@ -161,6 +162,7 @@ class PaymentService:
                         now,
                         now,
                         tracing.current_trace_id() or None,
+                        tracing.current_span_id() or None,
                     ),
                 )
         except sqlite3.IntegrityError:

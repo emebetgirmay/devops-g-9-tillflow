@@ -1,0 +1,124 @@
+{
+  "collector": "aws-otel-collector v0.43.1, OTLP/HTTP receiver, debug exporter",
+  "trace_id": "6abd0962d60af96f412474c17a9ca737",
+  "checks": {
+    "payments_create_is_a_child_of_the_pos_payment_request": true,
+    "callback_is_a_child_of_the_payments_create_in_the_sale_trace": true,
+    "every_span_accepted_ok": true
+  },
+  "all_passed": true,
+  "waterfall": [
+    "pos POST /tenants",
+    "pos POST /tenants/{tenant_id}/tills",
+    "pos POST /tenants/{tenant_id}/attendants",
+    "pos POST /tenants/{tenant_id}/products",
+    "pos POST /tenants/{tenant_id}/sales",
+    "pos POST /tenants/{tenant_id}/sales/{sale_id}/payment-request",
+    "  payments POST /payments",
+    "    payments payment PENDING -> SUCCEEDED",
+    "pos POST /tenants/{tenant_id}/sales/{sale_id}/payment-reconcile",
+    "  payments GET /payments/{id}"
+  ],
+  "spans": [
+    {
+      "service": "pos",
+      "name": "POST /tenants",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "4c55dd87a2a0db84",
+      "parent_span_id": "4cfd24008b25cfb6",
+      "start": "2026-09-30 13:06:42.862431232 +0000 UTC",
+      "end": "2026-09-30 13:06:42.876680448 +0000 UTC"
+    },
+    {
+      "service": "pos",
+      "name": "POST /tenants/{tenant_id}/tills",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "37fb2bcd2ef30315",
+      "parent_span_id": "4cfd24008b25cfb6",
+      "start": "2026-09-30 13:06:42.88840576 +0000 UTC",
+      "end": "2026-09-30 13:06:42.896630272 +0000 UTC"
+    },
+    {
+      "service": "pos",
+      "name": "POST /tenants/{tenant_id}/attendants",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "949b6e30960a7ea0",
+      "parent_span_id": "4cfd24008b25cfb6",
+      "start": "2026-09-30 13:06:42.918757632 +0000 UTC",
+      "end": "2026-09-30 13:06:42.935662848 +0000 UTC"
+    },
+    {
+      "service": "pos",
+      "name": "POST /tenants/{tenant_id}/products",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "2d2438d1586272d0",
+      "parent_span_id": "4cfd24008b25cfb6",
+      "start": "2026-09-30 13:06:42.947750912 +0000 UTC",
+      "end": "2026-09-30 13:06:42.95774208 +0000 UTC"
+    },
+    {
+      "service": "pos",
+      "name": "POST /tenants/{tenant_id}/sales",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "b246323abc660b6d",
+      "parent_span_id": "4cfd24008b25cfb6",
+      "start": "2026-09-30 13:06:42.97279104 +0000 UTC",
+      "end": "2026-09-30 13:06:42.986522624 +0000 UTC"
+    },
+    {
+      "service": "pos",
+      "name": "POST /tenants/{tenant_id}/sales/{sale_id}/payment-request",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "a78a94bde9601757",
+      "parent_span_id": "4cfd24008b25cfb6",
+      "start": "2026-09-30 13:06:43.000781568 +0000 UTC",
+      "end": "2026-09-30 13:06:43.063955712 +0000 UTC"
+    },
+    {
+      "service": "payments",
+      "name": "POST /payments",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "299f4c5a1743425e",
+      "parent_span_id": "a78a94bde9601757",
+      "start": "2026-09-30 13:06:43.03476864 +0000 UTC",
+      "end": "2026-09-30 13:06:43.055925248 +0000 UTC"
+    },
+    {
+      "service": "payments",
+      "name": "payment PENDING -> SUCCEEDED",
+      "kind": "Internal",
+      "status": "Ok",
+      "span_id": "6fd49ed6673eedf5",
+      "parent_span_id": "299f4c5a1743425e",
+      "start": "2026-09-30 13:06:43.079766016 +0000 UTC",
+      "end": "2026-09-30 13:06:43.080765952 +0000 UTC"
+    },
+    {
+      "service": "pos",
+      "name": "POST /tenants/{tenant_id}/sales/{sale_id}/payment-reconcile",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "3785d2c44c679bb6",
+      "parent_span_id": "4cfd24008b25cfb6",
+      "start": "2026-09-30 13:06:43.09706112 +0000 UTC",
+      "end": "2026-09-30 13:06:43.139159552 +0000 UTC"
+    },
+    {
+      "service": "payments",
+      "name": "GET /payments/{id}",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "51a4da16a425b3f3",
+      "parent_span_id": "3785d2c44c679bb6",
+      "start": "2026-09-30 13:06:43.12781056 +0000 UTC",
+      "end": "2026-09-30 13:06:43.128701952 +0000 UTC"
+    }
+  ]
+}

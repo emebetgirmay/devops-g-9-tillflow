@@ -15,7 +15,8 @@ PAYMENTS="${PAYMENTS_URL:-http://127.0.0.1:8080}"
 LOGS="${LOGS:?set LOGS to the POS and Payments log files}"
 PY="${PYTHON:-python3}"
 
-TRACE="$("$PY" -c 'import secrets; print(secrets.token_hex(16))')"
+# First 8 hex are the epoch second, the form X-Ray's own trace ids take.
+TRACE="$("$PY" -c 'import secrets, time; print(f"{int(time.time()):08x}" + secrets.token_hex(12))')"
 TP="00-${TRACE}-$("$PY" -c 'import secrets; print(secrets.token_hex(8))')-01"
 post() { curl -sSf -X POST "$1$2" -H 'Content-Type: application/json' -H "traceparent: ${TP}" "${@:4}" --data "$3"; }
 field() { "$PY" -c "import json,sys; print(json.load(sys.stdin)['$1'])"; }

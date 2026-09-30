@@ -1,0 +1,22 @@
+{
+  "start": "2026-09-30T19:12:56Z",
+  "destroy_started": "2026-09-30T19:12:58Z",
+  "destroy_done": "2026-09-30T19:36:08Z",
+  "apply_started": "2026-09-30T19:36:10Z",
+  "apply_done": "2026-09-30T19:45:32Z",
+  "bootstrap_done": "2026-09-30T19:46:41Z",
+  "slack_webhook_set": "2026-09-30T19:48:08Z",
+  "api_url_variable_set": "2026-09-30T19:49:47Z",
+  "release_started": "2026-09-30T19:49:58Z",
+  "release_done": "2026-09-30T19:55:34Z",
+  "note": "The script stopped at 'gh variable set' (the active gh account had read access only); the variable, the release and the smoke were finished by hand at the times shown.",
+  "smoke_green": "2026-09-30T19:56:24Z",
+  "minutes": {
+    "destroy": 23.2,
+    "apply": 9.4,
+    "bootstrap": 1.1,
+    "release": 5.6,
+    "rebuild_total": 20.2,
+    "destroy_to_green": 43.4
+  }
+}

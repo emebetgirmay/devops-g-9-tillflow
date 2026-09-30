@@ -100,10 +100,20 @@ if [ "$PHASE" = "all" ] || [ "$PHASE" = "rebuild" ]; then
 
   # The release's smoke test reads the public URL from this Actions variable; a rebuilt API Gateway
   # has a new id, so point it at the new URL before releasing (else the smoke tests a dead URL).
-  gh variable set API_GATEWAY_URL --body "$(tf output -raw api_gateway_url)"
+  # Needs write access to the repository: with several gh accounts, the active one must be the
+  # owner's (gh auth switch). On a 403, set it in GitHub (Settings > Secrets and variables >
+  # Actions) and press Enter; stopping here would leave a rebuilt sandbox unreleased.
+  new_url="$(tf output -raw api_gateway_url)"
+  if ! gh variable set API_GATEWAY_URL --body "$new_url"; then
+    echo "could not set API_GATEWAY_URL: set it to $new_url in GitHub, then press Enter"
+    read -r _
+  fi
   mark api_url_variable_set
 
-  gh workflow run release.yml --ref main
+  if ! gh workflow run release.yml --ref main; then
+    echo "could not start the release: run the Release workflow on main in GitHub (Actions), then press Enter"
+    read -r _
+  fi
   sleep 10
   run_id="$(gh run list --workflow release.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
   echo "release run $run_id: approve the sandbox deployment at"

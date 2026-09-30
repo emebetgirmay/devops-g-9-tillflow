@@ -18,7 +18,7 @@
 set -euo pipefail
 
 export AWS_PROFILE="${AWS_PROFILE:-g9}" AWS_REGION="${AWS_REGION:-eu-north-1}"
-BASE="${BASE_URL:-https://ewi66kqbp8.execute-api.eu-north-1.amazonaws.com}"
+BASE="${BASE_URL:-https://nilrqzkq8a.execute-api.eu-north-1.amazonaws.com}"
 CLUSTER=devops-g9
 SERVICE=devops-g9-payments
 OUT="$(cd "$(dirname "$0")" && pwd)"

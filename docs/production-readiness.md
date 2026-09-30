@@ -46,5 +46,5 @@
 | ✅ | Load tested, capacity recorded | [k6 analysis](../evidence/reliability-ops/k6-analysis.md): 36.7 req/s sustained, p95 154 ms, 0.00% failed |
 | ✅ | Runbook rehearsed | Slack drill and real incidents ([G3 evidence](../evidence/reliability-ops/g3-evidence.md)); G4 game day: restore (scenario 1) and Payments task killed (scenario 2), each fixing what it found in the runbook or alarms ([G4 game day](../evidence/reliability-ops/g4-game-day.md)) |
 | ✅ | Incidents and lessons recorded | [`scar-log.md`](scar-log.md) |
-| ❌ | Destroy and rebuild documented and proven | Not done (G5). Needs `force_destroy` / `force_delete` where appropriate and a timed rebuild |
+| ✅ | Destroy and rebuild documented and proven | **Run 2026-09-30:** everything destroyed and rebuilt from `main`, green through the new public URL **43 min** after the destroy started (rebuild alone 20 min), 6/6 smoke checks, nothing billable left behind ([evidence](../evidence/platform-delivery/g5-destroy-rebuild/README.md), [runbook](runbook.md#destroy-and-rebuild)) |
 | ✅ | Cost model | [`cost-model.md`](cost-model.md): about $135 a month at today's size, built from TillFlow's own resources and the unit prices in the bill, reconciled with the measured `eu-north-1` bill; levers and decisions listed. Found a lab stack costing ~$194 a month still running |

@@ -17,7 +17,7 @@ Private group mono-repo · Terraform · GitHub Actions + CodePipeline.
 
 | | |
 |---|---|
-| **Public API** (API Gateway) | https://ewi66kqbp8.execute-api.eu-north-1.amazonaws.com — try [`/health`](https://ewi66kqbp8.execute-api.eu-north-1.amazonaws.com/health), `/ready`, `/version` |
+| **Public API** (API Gateway) | https://nilrqzkq8a.execute-api.eu-north-1.amazonaws.com — try [`/health`](https://nilrqzkq8a.execute-api.eu-north-1.amazonaws.com/health), `/ready`, `/version` |
 | **Grafana** | https://honestmesa567.grafana.net — dashboards *TillFlow overview*, *TillFlow POS*, *TillFlow Payments* (all three members have logins) |
 | **Alerts** | Slack `#devops-g9-alerts` (firing and recovered, with runbook links) |
 | **Payments adapter** | FakeAdapter by default; the Daraja sandbox only for the B2C contract test |

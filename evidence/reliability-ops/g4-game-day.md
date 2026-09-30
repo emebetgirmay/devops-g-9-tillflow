@@ -33,6 +33,7 @@ was wrong is fixed in the runbook the same day), and the money invariants holdin
 |---|---|---|---|---|---|---|---|---|
 | 1 | 17:20:51 (declared) | Planned, announced | 17:39:34 (restored instance verified) | **18 min 44 s** to a verified restore (RDS restore 17 min 45 s); switching services adds a redeploy | **2 min 36 s** (restore point 17:18:15) | Before-markers present, after-markers absent, as the `payments` and `pos` roles | Runbook step 2 fixed: `--manage-master-user-password` rejected | [`g4-restore/`](g4-restore/) 6/6 checks |
 | 2 | 16:12:43 | None: `payments-down` needs 2 min (by design); the ALB 5xx burn alarm **should have and did not** (finding 1) | 16:13:59 (new task serving) | 76 s from stop; 40 s of failed reads | 0: nothing lost | Held: `/_admin/invariants` all true ([`invariants-after.json`](g4-gameday/invariants-after.json)); payments unchanged, idempotency key replays | Finding 1 fixed (alarm maths); finding 2 open | [`g4-gameday/`](g4-gameday/) 5/5 checks |
+| 2 (re-run) | 20:22:37 | `alb-5xx-slow-burn` 20:25:13, `alb-5xx-fast-burn` 20:25:18 (Slack, 200); fast OK again | 20:23:14 (new task serving) | 37 s from stop; 28 s of failed reads | 0 | Payments unchanged, idempotency key replays | Finding 1's fix proven; finding 2 closed | [`rerun-*`](g4-gameday/) 5/5 checks |
 | 3 | 17:44:41 | `payments-fast-burn` 17:47:07 → OK 17:51:07; `pos-fast-burn` 17:47:53 → OK 17:53:53 (Slack) | POS 17:45:33, Payments 17:45:59 | Database away 43 s (RDS events); POS failed 31 s, Payments 58 s; no task replaced, no redeploy | 0 | Held ([`db-reboot-checks.json`](g4-gameday/db-reboot-checks.json)) | Finding 6 (Payments pool) for `@chesangJ` | [`db-reboot-*`](g4-gameday/) 4/4 checks |
 | 4 | | | | | | | | |
 
@@ -88,10 +89,18 @@ the public URL (295 probes, [`db-reboot-probes.json`](g4-gameday/db-reboot-probe
    healthy target" are not in it (16:13: 7 errors, 5 requests). With every request failing the
    ratio read 0. **Fixed:** the denominator is now requests plus ALB errors (`alarms.tf`); on this
    window it reads 20.6% against the 1.44% fast-burn line.
-2. **Short outages can fall between 5-minute buckets.** The burn alarms evaluate fixed 5-minute
-   periods; a 40-second burst whose datapoints arrive late may never be seen in its bucket. Probable,
-   not proven from this run. Proposed: evaluate the fast burn over 1-minute periods, 2 of the last 5
-   breaching; decide after the re-run of this scenario with finding 1's fix live.
+2. **~~Short outages can fall between 5-minute buckets.~~ Closed by the re-run:** with finding 1's
+   fix live, a 28-second outage paged within 3 minutes. The alarm's own reason cites a datapoint at
+   20:24 on a 5-minute period, so CloudWatch evaluates a rolling window, not fixed buckets; the first
+   run's silence was finding 1 alone. No change needed.
+**2026-09-30, scenario 2 re-run** after the G5 rebuild, with finding 1's fix live
+([`rerun-checks.json`](g4-gameday/rerun-checks.json), [`rerun-timeline.json`](g4-gameday/rerun-timeline.json),
+[`rerun-alarms.json`](g4-gameday/rerun-alarms.json)): task stopped 20:22:37, 5 ALB 503s in 20:22–20:23,
+new task serving 20:23:14. `alb-5xx-slow-burn` and `alb-5xx-fast-burn` went to ALARM at 20:25:13 and
+20:25:18 and were posted to Slack (status 200, which also proves the webhook set again during the
+rebuild); the fast burn was OK again by 20:31. (`payments-slow-burn` was already in ALARM before the
+run and returned to OK at 20:26.)
+
 3. **Paging threshold, by design:** a self-healing 40-second loss of one task does not page
    (`payments-down` needs 2 minutes). It spends about 0.3% of Payments' 28-day budget.
 4. **The runbook's restore command could not run.** Step 2 passed `--manage-master-user-password`,
@@ -109,6 +118,6 @@ the public URL (295 probes, [`db-reboot-probes.json`](g4-gameday/db-reboot-probe
    `timeout` of a few seconds, `connect_timeout` in the connection arguments, and
    `check=ConnectionPool.check_connection`, then re-run this scenario.
 7. **The burn alarms work for an outage longer than a minute:** both fast-burn alarms paged and
-   recovered in Slack for a 31–58 s outage at low traffic, which is the behaviour finding 2
-   questioned for a 40 s one; that scenario's re-run is still due.
+   recovered in Slack for a 31–58 s outage at low traffic; the scenario 2 re-run confirmed it for a
+   28 s one (finding 2).
 

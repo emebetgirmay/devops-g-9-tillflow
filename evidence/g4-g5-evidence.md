@@ -12,7 +12,7 @@ use the FakeAdapter only.
 |---|---|---|---|
 | **Restore with measured RPO and RTO** | Point-in-time restore beside the live instance: **RPO 2 min 36 s, RTO 18 min 44 s**, 6/6 checks (before-markers present, after-markers absent, as the services' own roles). Found and fixed a runbook restore command that could not run | [`reliability-ops/g4-game-day.md`](reliability-ops/g4-game-day.md) scenario 1, [`g4-restore/`](reliability-ops/g4-restore/) | `@emebetgirmay` |
 | **Broken release** | A POS build crashed at start-up; the release's smoke check rolled it back to the previous revision automatically, no user impact, 9/9 checks | [`platform-delivery/g4-broken-release/`](platform-delivery/g4-broken-release/README.md) | `@emebetgirmay` |
-| **Service task killed** | Payments' only task stopped on RDS: served again after 76 s, nothing lost, idempotency key replays, invariants hold, 5/5. Found and fixed an alarm that could not see a total outage | g4-game-day.md scenario 2, [`g4-gameday/`](reliability-ops/g4-gameday/) | `@emebetgirmay` |
+| **Service task killed** | Payments' only task stopped on RDS: served again after 76 s, nothing lost, idempotency key replays, invariants hold, 5/5. Found and fixed an alarm that could not see a total outage; the re-run (37 s) proved the fix: it paged in Slack within 3 minutes | g4-game-day.md scenario 2, [`g4-gameday/`](reliability-ops/g4-gameday/) | `@emebetgirmay` |
 | **Database failure** | RDS rebooted under traffic (43 s away): both services recovered without intervention, fast-burn alarms paged and recovered in Slack, 4/4. Found Payments waiting 30 s instead of failing fast (finding 6) | g4-game-day.md scenario 3 | `@emebetgirmay`, fix `@chesangJ` |
 | **Uncertain payment and payout, callback replay** | A timeout is never a decline; replayed and reordered callbacks change nothing; also on PostgreSQL | [`payments-integrity/g4/`](payments-integrity/g4/), [`postgres/g4-checks.json`](payments-integrity/postgres/g4-checks.json) | `@chesangJ` |
 | **A sale stuck on Payments' no-push gap** | POS refuses an unsafe retry and recovers the sale by reconcile, with no second STK push | [`product-pos/README.md`](product-pos/README.md) "G4", `g4-recover-*` | `@Moraaalice` |
@@ -38,7 +38,6 @@ use the FakeAdapter only.
 | Commission schedules switched on | Infrastructure and release live; waits for `disburse.py --check` and a sandbox tenant id (the rebuild emptied the database) | `@chesangJ`, `@Moraaalice`, then `@emebetgirmay` |
 | Payments fails fast when the database is away (G4 finding 6) | Proposed fix in `services/payments/core/db.py`; scenario 3 re-run after it | `@chesangJ` |
 | Callbacks on SQS with a DLQ, and G4 scenario 4 (poisoned callback) | Not built: callbacks are handled synchronously with the scheduled reconcile as the safety net (ADR 0009 question 5) | `@chesangJ` (code), `@emebetgirmay` (queue, alarm) |
-| Short outages between 5-minute alarm buckets (G4 finding 2) | Probable, not proven; re-run scenario 2 with the alarm fix live | `@emebetgirmay` |
 
 ## Sign-off
 

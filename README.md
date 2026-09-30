@@ -70,6 +70,7 @@ Commit authorship is mapped in [`.mailmap`](.mailmap) (`git shortlog -sne`): com
 | [SLOs & error budgets](docs/slo-error-budgets.md) | Reliability targets |
 | [Runbook](docs/runbook.md) | Operate / recover procedures |
 | [Production readiness](docs/production-readiness.md) | Release checklist (fills through G5) |
+| [Viva walkthrough](docs/viva-walkthrough.md) | The live demo script: who shows what, the numbers to say, questions to expect |
 | [Cost model](docs/cost-model.md) | What the sandbox costs a month, measured from the bill, and the levers |
 | [Scar log](docs/scar-log.md) | Incidents and lessons |
 

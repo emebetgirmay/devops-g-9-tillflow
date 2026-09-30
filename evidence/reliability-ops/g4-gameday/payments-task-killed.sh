@@ -14,6 +14,7 @@
 #
 # Stops a task: announce it in Slack first. Needs an SSO session: aws sso login --profile g9
 #   ./evidence/reliability-ops/g4-gameday/payments-task-killed.sh
+#   OUT_PREFIX=rerun- ./evidence/reliability-ops/g4-gameday/payments-task-killed.sh   # keep run 1
 
 set -euo pipefail
 
@@ -23,12 +24,13 @@ CLUSTER=devops-g9
 SERVICE=devops-g9-payments
 OUT="$(cd "$(dirname "$0")" && pwd)"
 
-python3 - "$OUT" "$BASE" "$CLUSTER" "$SERVICE" <<'PY'
+python3 - "$OUT" "$BASE" "$CLUSTER" "$SERVICE" "${OUT_PREFIX:-}" <<'PY'
 import json, subprocess, sys, time, urllib.error, urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 out, base, cluster, service = Path(sys.argv[1]), sys.argv[2].rstrip("/"), sys.argv[3], sys.argv[4]
+prefix = sys.argv[5]  # OUT_PREFIX=rerun- keeps an earlier run's files
 run = time.strftime("%Y%m%dT%H%M%S", time.gmtime())
 
 
@@ -128,9 +130,9 @@ for name in ("devops-g9-payments-down", "devops-g9-probe-down"):
                     "StateUpdate", "--start-date", timeline["stop"])["AlarmHistoryItems"]:
         alarms.append({"alarm": name, "time": item["Timestamp"], "summary": item["HistorySummary"]})
 
-(out / "timeline.json").write_text(json.dumps(timeline, indent=2) + "\n")
-(out / "alarms.json").write_text(json.dumps(sorted(alarms, key=lambda a: a["time"]), indent=2) + "\n")
-(out / "checks.json").write_text(json.dumps({"run": run, "payments": {k: v.get("payment_id") for k, v in after.items()},
+(out / f"{prefix}timeline.json").write_text(json.dumps(timeline, indent=2) + "\n")
+(out / f"{prefix}alarms.json").write_text(json.dumps(sorted(alarms, key=lambda a: a["time"]), indent=2) + "\n")
+(out / f"{prefix}checks.json").write_text(json.dumps({"run": run, "payments": {k: v.get("payment_id") for k, v in after.items()},
                                             "before": {k: v.get("state") for k, v in before.items()},
                                             "after": {k: v.get("state") for k, v in after.items()},
                                             "replay_http": replay_status, "checks": checks}, indent=2) + "\n")

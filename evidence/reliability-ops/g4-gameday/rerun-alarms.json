@@ -1,0 +1,22 @@
+[
+  {
+    "alarm": "alb-5xx-slow-burn",
+    "time": "2026-09-30T23:25:13.064000+03:00",
+    "summary": "Alarm updated from OK to ALARM"
+  },
+  {
+    "alarm": "alb-5xx-fast-burn",
+    "time": "2026-09-30T23:25:18.069000+03:00",
+    "summary": "Alarm updated from OK to ALARM"
+  },
+  {
+    "alarm": "payments-slow-burn",
+    "time": "2026-09-30T23:26:17.397000+03:00",
+    "summary": "Alarm updated from ALARM to OK"
+  },
+  {
+    "alarm": "alb-5xx-fast-burn",
+    "time": "2026-09-30T23:31:18.064000+03:00",
+    "summary": "Alarm updated from ALARM to OK"
+  }
+]

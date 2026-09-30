@@ -30,7 +30,9 @@ BANNED_IMPORTS = {
     "botocore",
 }
 IMPORT_BAN_EXEMPT = {"reconcile.py"}
-ADAPTER_FILE = "daraja_sandbox.py"
+# The two files allowed an HTTP client, and only urllib.request: the Daraja adapter, and the span
+# exporter, which refuses any endpoint that is not the loopback sidecar (tests/test_otlp.py).
+HTTP_CLIENT_FILES = {"daraja_sandbox.py", "otlp.py"}
 ADAPTER_ALLOWED_IMPORTS = {"urllib.request"}
 
 PATTERNS = [
@@ -83,7 +85,7 @@ class NoOutboundGuardTest(unittest.TestCase):
             if path.suffix != ".py" or path.name in IMPORT_BAN_EXEMPT:
                 continue
             found = banned_imports_in(path.read_text())
-            if path.name == ADAPTER_FILE:
+            if path.name in HTTP_CLIENT_FILES:
                 found = [n for n in found if n not in ADAPTER_ALLOWED_IMPORTS]
             with self.subTest(file=str(path.relative_to(SERVICE_DIR))):
                 self.assertEqual(found, [])

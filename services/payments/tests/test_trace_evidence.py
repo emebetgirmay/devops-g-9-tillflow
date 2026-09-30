@@ -101,20 +101,21 @@ class SaleTraceReachesTheCallbackTest(TracedCase):
 
 
 class OlderDatabaseFileTest(unittest.TestCase):
-    def test_trace_id_column_is_added_to_an_existing_file(self) -> None:
+    def test_trace_columns_are_added_to_an_existing_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = str(Path(tmp) / "old.db")
             Store(path)
             conn = sqlite3.connect(path)
             for table in ("payments", "disbursements"):
-                conn.execute(f"ALTER TABLE {table} DROP COLUMN trace_id")
+                for column in ("trace_id", "span_id"):
+                    conn.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
             conn.commit()
             conn.close()
             Store(path)
             conn = sqlite3.connect(path)
             for table in ("payments", "disbursements"):
                 columns = [row[1] for row in conn.execute(f"PRAGMA table_info({table})")]
-                self.assertIn("trace_id", columns)
+                self.assertLessEqual({"trace_id", "span_id"}, set(columns))
             conn.close()
 
 

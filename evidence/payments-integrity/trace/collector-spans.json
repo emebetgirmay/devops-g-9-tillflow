@@ -1,0 +1,162 @@
+{
+  "collector": "aws-otel-collector v0.43.1, OTLP/HTTP receiver, debug exporter",
+  "trace_id": "6abd1c80e33ae9d18851b63949c44f72",
+  "checks": {
+    "payments_create_is_a_child_of_the_pos_payment_request": true,
+    "callback_is_a_child_of_the_payments_create_in_the_sale_trace": true,
+    "every_span_accepted_ok": true,
+    "http_status_received_as_an_int": true,
+    "no_span_name_contains_a_greater_than_sign": true
+  },
+  "all_passed": true,
+  "waterfall": [
+    "pos POST /tenants",
+    "pos POST /tenants/{tenant_id}/tills",
+    "pos POST /tenants/{tenant_id}/attendants",
+    "pos POST /tenants/{tenant_id}/products",
+    "pos POST /tenants/{tenant_id}/sales",
+    "pos POST /tenants/{tenant_id}/sales/{sale_id}/payment-request",
+    "  payments POST /payments",
+    "    payments payment PENDING to SUCCEEDED",
+    "pos POST /tenants/{tenant_id}/sales/{sale_id}/payment-reconcile",
+    "  payments GET /payments/{id}"
+  ],
+  "spans": [
+    {
+      "service": "pos",
+      "name": "POST /tenants",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "876899160883f84d",
+      "parent_span_id": "96d50d0a03f30ff8",
+      "start": "2026-09-30 14:28:16.508932096 +0000 UTC",
+      "end": "2026-09-30 14:28:16.544397312 +0000 UTC",
+      "http.status_code": {
+        "type": "Int",
+        "value": 201
+      }
+    },
+    {
+      "service": "pos",
+      "name": "POST /tenants/{tenant_id}/tills",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "7b2ac1d57c57df02",
+      "parent_span_id": "96d50d0a03f30ff8",
+      "start": "2026-09-30 14:28:16.555547904 +0000 UTC",
+      "end": "2026-09-30 14:28:16.565962752 +0000 UTC",
+      "http.status_code": {
+        "type": "Int",
+        "value": 201
+      }
+    },
+    {
+      "service": "pos",
+      "name": "POST /tenants/{tenant_id}/attendants",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "35eb7fa9254bd6e2",
+      "parent_span_id": "96d50d0a03f30ff8",
+      "start": "2026-09-30 14:28:16.57792384 +0000 UTC",
+      "end": "2026-09-30 14:28:16.588999936 +0000 UTC",
+      "http.status_code": {
+        "type": "Int",
+        "value": 201
+      }
+    },
+    {
+      "service": "pos",
+      "name": "POST /tenants/{tenant_id}/products",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "a820cc84e16e8190",
+      "parent_span_id": "96d50d0a03f30ff8",
+      "start": "2026-09-30 14:28:16.6011328 +0000 UTC",
+      "end": "2026-09-30 14:28:16.612338176 +0000 UTC",
+      "http.status_code": {
+        "type": "Int",
+        "value": 201
+      }
+    },
+    {
+      "service": "pos",
+      "name": "POST /tenants/{tenant_id}/sales",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "d46b6fe4a29c02cb",
+      "parent_span_id": "96d50d0a03f30ff8",
+      "start": "2026-09-30 14:28:16.624239104 +0000 UTC",
+      "end": "2026-09-30 14:28:16.655724288 +0000 UTC",
+      "http.status_code": {
+        "type": "Int",
+        "value": 201
+      }
+    },
+    {
+      "service": "pos",
+      "name": "POST /tenants/{tenant_id}/sales/{sale_id}/payment-request",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "27800e6e9ae88e4c",
+      "parent_span_id": "96d50d0a03f30ff8",
+      "start": "2026-09-30 14:28:16.665196288 +0000 UTC",
+      "end": "2026-09-30 14:28:16.738902784 +0000 UTC",
+      "http.status_code": {
+        "type": "Int",
+        "value": 200
+      }
+    },
+    {
+      "service": "payments",
+      "name": "POST /payments",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "031348c4df398e41",
+      "parent_span_id": "27800e6e9ae88e4c",
+      "start": "2026-09-30 14:28:16.708517376 +0000 UTC",
+      "end": "2026-09-30 14:28:16.72785664 +0000 UTC",
+      "http.status_code": {
+        "type": "Int",
+        "value": 201
+      }
+    },
+    {
+      "service": "payments",
+      "name": "payment PENDING to SUCCEEDED",
+      "kind": "Internal",
+      "status": "Ok",
+      "span_id": "3e5a88b1b1829be2",
+      "parent_span_id": "031348c4df398e41",
+      "start": "2026-09-30 14:28:16.752720128 +0000 UTC",
+      "end": "2026-09-30 14:28:16.753720064 +0000 UTC"
+    },
+    {
+      "service": "pos",
+      "name": "POST /tenants/{tenant_id}/sales/{sale_id}/payment-reconcile",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "b584aa61d0ecbea6",
+      "parent_span_id": "96d50d0a03f30ff8",
+      "start": "2026-09-30 14:28:16.768664832 +0000 UTC",
+      "end": "2026-09-30 14:28:16.807727616 +0000 UTC",
+      "http.status_code": {
+        "type": "Int",
+        "value": 200
+      }
+    },
+    {
+      "service": "payments",
+      "name": "GET /payments/{id}",
+      "kind": "Server",
+      "status": "Ok",
+      "span_id": "b4adf46f2bc7248c",
+      "parent_span_id": "b584aa61d0ecbea6",
+      "start": "2026-09-30 14:28:16.794448384 +0000 UTC",
+      "end": "2026-09-30 14:28:16.795298816 +0000 UTC",
+      "http.status_code": {
+        "type": "Int",
+        "value": 200
+      }
+    }
+  ]
+}

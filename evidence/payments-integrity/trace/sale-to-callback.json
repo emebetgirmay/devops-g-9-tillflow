@@ -1,5 +1,5 @@
 {
-  "trace_id": "096b1f060a6aada7fe89171eee6f2432",
+  "trace_id": "6abd1c80e33ae9d18851b63949c44f72",
   "checks": {
     "pos_logged_the_sale": true,
     "pos_logged_the_payment_request": true,
@@ -10,86 +10,86 @@
   "all_passed": true,
   "events": [
     {
-      "ts": 1790772760.4610827,
+      "ts": 1790778496.5443482,
       "service": "pos",
       "event": "request",
       "result": "POST /tenants -> 201",
-      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+      "trace_id": "6abd1c80e33ae9d18851b63949c44f72"
     },
     {
-      "ts": 1790772760.4921577,
+      "ts": 1790778496.565917,
       "service": "pos",
       "event": "request",
       "result": "POST /tenants/{tenant_id}/tills -> 201",
-      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+      "trace_id": "6abd1c80e33ae9d18851b63949c44f72"
     },
     {
-      "ts": 1790772760.526011,
+      "ts": 1790778496.5889301,
       "service": "pos",
       "event": "request",
       "result": "POST /tenants/{tenant_id}/attendants -> 201",
-      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+      "trace_id": "6abd1c80e33ae9d18851b63949c44f72"
     },
     {
-      "ts": 1790772760.5693228,
+      "ts": 1790778496.6122856,
       "service": "pos",
       "event": "request",
       "result": "POST /tenants/{tenant_id}/products -> 201",
-      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+      "trace_id": "6abd1c80e33ae9d18851b63949c44f72"
     },
     {
-      "ts": 1790772760.6075928,
+      "ts": 1790778496.6556833,
       "service": "pos",
       "event": "request",
       "result": "POST /tenants/{tenant_id}/sales -> 201",
-      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+      "trace_id": "6abd1c80e33ae9d18851b63949c44f72"
     },
     {
-      "ts": 1790772760.6993213,
+      "ts": 1790778496.7197323,
       "service": "payments",
       "event": "state_transition",
       "record_kind": "payment",
-      "record_id": "pay_90ead037b7fb4f8db8334a979ae85ae4",
+      "record_id": "pay_68f26cf06aec4a4d9afad342e3395032",
       "state": "PENDING",
-      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+      "trace_id": "6abd1c80e33ae9d18851b63949c44f72"
     },
     {
-      "ts": 1790772760.7103333,
+      "ts": 1790778496.7278,
       "service": "payments",
       "event": "request",
       "result": "POST /payments -> 201",
-      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+      "trace_id": "6abd1c80e33ae9d18851b63949c44f72"
     },
     {
-      "ts": 1790772760.718607,
+      "ts": 1790778496.7388477,
       "service": "pos",
       "event": "request",
       "result": "POST /tenants/{tenant_id}/sales/{sale_id}/payment-request -> 200",
-      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+      "trace_id": "6abd1c80e33ae9d18851b63949c44f72"
     },
     {
-      "ts": 1790772760.7363667,
+      "ts": 1790778496.7537553,
       "service": "payments",
       "event": "state_transition",
       "record_kind": "payment",
-      "record_id": "pay_90ead037b7fb4f8db8334a979ae85ae4",
+      "record_id": "pay_68f26cf06aec4a4d9afad342e3395032",
       "state": "SUCCEEDED",
-      "trace_id": "a5b20545ccb26ddd613c1b46b1012660",
-      "origin_trace_id": "096b1f060a6aada7fe89171eee6f2432"
+      "trace_id": "6abd1c80388222b688941e3f556ae3ff",
+      "origin_trace_id": "6abd1c80e33ae9d18851b63949c44f72"
     },
     {
-      "ts": 1790772760.7946923,
+      "ts": 1790778496.7952628,
       "service": "payments",
       "event": "request",
       "result": "GET /payments/{id} -> 200",
-      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+      "trace_id": "6abd1c80e33ae9d18851b63949c44f72"
     },
     {
-      "ts": 1790772760.8047018,
+      "ts": 1790778496.807688,
       "service": "pos",
       "event": "request",
       "result": "POST /tenants/{tenant_id}/sales/{sale_id}/payment-reconcile -> 200",
-      "trace_id": "096b1f060a6aada7fe89171eee6f2432"
+      "trace_id": "6abd1c80e33ae9d18851b63949c44f72"
     }
   ]
 }

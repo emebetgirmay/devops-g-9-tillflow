@@ -173,7 +173,8 @@ class PayoutService:
                     "INSERT INTO disbursements (disbursement_id, tenant_id, idem_key, attendant_id,"
                     " payout_period, payout_key, msisdn, amount_minor, currency,"
                     " originator_conversation_id, state, initiate_started_at, created_at, updated_at,"
-                    " trace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CREATED', ?, ?, ?, ?)",
+                    " trace_id, span_id)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CREATED', ?, ?, ?, ?, ?)",
                     (
                         disbursement_id,
                         tenant_id,
@@ -189,6 +190,7 @@ class PayoutService:
                         now,
                         now,
                         tracing.current_trace_id() or None,
+                        tracing.current_span_id() or None,
                     ),
                 )
         except sqlite3.IntegrityError:

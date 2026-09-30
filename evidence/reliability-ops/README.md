@@ -10,7 +10,8 @@ DRI: Emebet Girmay (`@emebetgirmay`)
   incidents and the drill, k6, what is not claimed, sign-off.
 - [`k6-analysis.md`](k6-analysis.md): envelope, three runs, findings, capacity statement.
 - Scripts: [`run-k6.sh`](run-k6.sh) (k6 inside the VPC), [`collect-drill.sh`](collect-drill.sh)
-  (drill evidence as JSON with pass/fail checks).
+  (drill evidence as JSON with pass/fail checks), [`collect-probe.sh`](collect-probe.sh) (edge
+  probe history, every minute, before CloudWatch rolls it up).
 
 ## Later
 - G4: game-day notes, restore evidence

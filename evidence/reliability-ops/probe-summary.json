@@ -1,0 +1,36 @@
+{
+  "window": {
+    "from": "2026-09-29T13:00Z",
+    "to": "2026-09-30T11:04Z",
+    "requested_from": "2026-09-15T11:05:00Z"
+  },
+  "rule": "one probe a minute of the public /ready; a failed or missing minute counts as down",
+  "minutes": 1325,
+  "up_minutes": 1325,
+  "failed_minutes": 0,
+  "missing_minutes": 0,
+  "availability_percent": 100.0,
+  "latency_ms": {
+    "p50": 55.3,
+    "p95": 76.8,
+    "p99": 379.8,
+    "max": 469.1
+  },
+  "by_day": {
+    "2026-09-29": {
+      "minutes": 660,
+      "up": 660,
+      "failed": 0,
+      "missing": 0,
+      "availability_percent": 100.0
+    },
+    "2026-09-30": {
+      "minutes": 665,
+      "up": 665,
+      "failed": 0,
+      "missing": 0,
+      "availability_percent": 100.0
+    }
+  },
+  "outages": []
+}

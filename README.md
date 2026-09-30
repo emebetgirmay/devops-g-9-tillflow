@@ -69,6 +69,7 @@ Commit authorship is mapped in [`.mailmap`](.mailmap) (`git shortlog -sne`): com
 | [SLOs & error budgets](docs/slo-error-budgets.md) | Reliability targets |
 | [Runbook](docs/runbook.md) | Operate / recover procedures |
 | [Production readiness](docs/production-readiness.md) | Release checklist (fills through G5) |
+| [Cost model](docs/cost-model.md) | What the sandbox costs a month, measured from the bill, and the levers |
 | [Scar log](docs/scar-log.md) | Incidents and lessons |
 
 Per-service and infra notes live next to the code. Gate proof goes under `evidence/` (`product-pos`, `payments-integrity`, `platform-delivery`, `reliability-ops`).
@@ -101,4 +102,4 @@ PRs follow `CODEOWNERS` and the cross-review map in ownership.md.
 - Required tags: `group`, `owner`, `environment`, `service`, `managed-by=terraform`, `capstone=tillflow`
 - Daraja **sandbox only** — never commit live credentials or customer data
 - CI / k6 use the deterministic fake M-Pesa adapter
-- Bootstrap (`terraform init/plan`, service targets, destroy) lands in G1 under `infra/` — Platform DRI owns destroy/rebuild evidence; cost tracked at G5
+- Bootstrap (`terraform init/plan`, service targets, destroy) lands in G1 under `infra/` — Platform DRI owns destroy/rebuild evidence; cost in [`docs/cost-model.md`](docs/cost-model.md)

@@ -1,6 +1,6 @@
 # Production readiness checklist
 
-**Owner:** Platform + delivery, Emebet Girmay (`@emebetgirmay`) · **Updated:** 2026-09-30 (G3) · Filled through G5.
+**Owner:** Platform + delivery, Emebet Girmay (`@emebetgirmay`) · **Updated:** 2026-09-30 (G3; cost model) · Filled through G5.
 
 ✅ done with evidence · 🟡 partly · ❌ not done (with the reason and the plan)
 
@@ -42,9 +42,9 @@
 |---|---|---|
 | ✅ | SLOs and error budgets, SLIs wired in Grafana | [`slo-error-budgets.md`](slo-error-budgets.md); Grafana overview, POS and Payments dashboards |
 | ✅ | Burn-rate alerts (fast and slow) that page and recover in Slack | 17 alarms; [G3 evidence](../evidence/reliability-ops/g3-evidence.md) |
-| ✅ | Uptime probe on the public edge | `devops-g9-probe`, every minute, `probe-down` |
+| ✅ | Uptime probe on the public edge | `devops-g9-probe`, every minute, `probe-down`; history exported: 1,325 of 1,325 minutes up ([G3 evidence](../evidence/reliability-ops/g3-evidence.md#edge-probe-history)) |
 | ✅ | Load tested, capacity recorded | [k6 analysis](../evidence/reliability-ops/k6-analysis.md): 36.7 req/s sustained, p95 154 ms, 0.00% failed |
 | 🟡 | Runbook rehearsed | Slack drill and real incidents followed the runbook ([G3 evidence](../evidence/reliability-ops/g3-evidence.md)); restore not rehearsed (no database) |
 | ✅ | Incidents and lessons recorded | [`scar-log.md`](scar-log.md) |
 | ❌ | Destroy and rebuild documented and proven | Not done (G5). Needs `force_destroy` / `force_delete` where appropriate and a timed rebuild |
-| ❌ | Cost model | Not done (G5) |
+| ✅ | Cost model | [`cost-model.md`](cost-model.md): about $135 a month at today's size, built from TillFlow's own resources and the unit prices in the bill, reconciled with the measured `eu-north-1` bill; levers and decisions listed. Found a lab stack costing ~$194 a month still running |

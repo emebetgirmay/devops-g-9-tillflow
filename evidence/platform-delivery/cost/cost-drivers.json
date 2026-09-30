@@ -1,0 +1,184 @@
+{
+  "window": {
+    "from": "2026-09-16",
+    "to_exclusive": "2026-09-30",
+    "days": 14
+  },
+  "inventory_now": {
+    "tillflow": {
+      "vcpu": 0.75,
+      "memory_gb": 1.5,
+      "nat_gateways": 1.0,
+      "load_balancers": 1.0,
+      "public_ipv4": 1.0
+    },
+    "other": {
+      "vcpu": 1.0,
+      "memory_gb": 2.0,
+      "nat_gateways": 1.0,
+      "load_balancers": 1.0,
+      "vpc_endpoint_enis": 12.0,
+      "public_ipv4": 3.0
+    }
+  },
+  "ecs_tasks": [
+    {
+      "cluster": "devops-g9",
+      "service": "devops-g9-payments",
+      "desired": 1,
+      "vcpu": 0.5,
+      "memory_gb": 1.0,
+      "arm": false
+    },
+    {
+      "cluster": "devops-g9",
+      "service": "devops-g9-pos",
+      "desired": 1,
+      "vcpu": 0.25,
+      "memory_gb": 0.5,
+      "arm": false
+    },
+    {
+      "cluster": "devops-g9-iac-cluster",
+      "service": "devops-g9-iac-svc-c",
+      "desired": 1,
+      "vcpu": 0.25,
+      "memory_gb": 0.5,
+      "arm": false
+    },
+    {
+      "cluster": "devops-g9-iac-cluster",
+      "service": "devops-g9-iac-svc-b",
+      "desired": 1,
+      "vcpu": 0.25,
+      "memory_gb": 0.5,
+      "arm": false
+    },
+    {
+      "cluster": "devops-g9-iac-cluster",
+      "service": "devops-g9-iac-svc-a",
+      "desired": 2,
+      "vcpu": 0.25,
+      "memory_gb": 0.5,
+      "arm": false
+    }
+  ],
+  "tillflow": {
+    "alarms": {
+      "total": 17,
+      "metrics_insights": 6
+    },
+    "custom_metrics_recently_active": {
+      "TillFlow": 86,
+      "TillFlow/Probe": 2,
+      "ECS/ContainerInsights": 63
+    },
+    "log_groups": [
+      {
+        "name": "/devops-g9/adot/metrics",
+        "retention_days": 14,
+        "stored_mb": 1.48,
+        "ingested_mb_in_window": 7.92
+      },
+      {
+        "name": "/devops-g9/adot/payments",
+        "retention_days": 14,
+        "stored_mb": 0.04,
+        "ingested_mb_in_window": 0.07
+      },
+      {
+        "name": "/devops-g9/adot/pos",
+        "retention_days": 14,
+        "stored_mb": 0.05,
+        "ingested_mb_in_window": 0.09
+      },
+      {
+        "name": "/devops-g9/api-gateway",
+        "retention_days": 14,
+        "stored_mb": 0.24,
+        "ingested_mb_in_window": 0.23
+      },
+      {
+        "name": "/devops-g9/k6",
+        "retention_days": 14,
+        "stored_mb": 0.77,
+        "ingested_mb_in_window": 1.33
+      },
+      {
+        "name": "/devops-g9/payments",
+        "retention_days": 14,
+        "stored_mb": 32.76,
+        "ingested_mb_in_window": 104.98
+      },
+      {
+        "name": "/devops-g9/pos",
+        "retention_days": 14,
+        "stored_mb": 14.64,
+        "ingested_mb_in_window": 11.59
+      },
+      {
+        "name": "/aws/lambda/devops-g9-probe",
+        "retention_days": 14,
+        "stored_mb": 0.27,
+        "ingested_mb_in_window": 0.31
+      },
+      {
+        "name": "/aws/lambda/devops-g9-reconcile-sweep",
+        "retention_days": 14,
+        "stored_mb": 0.03,
+        "ingested_mb_in_window": 0.04
+      },
+      {
+        "name": "/aws/lambda/devops-g9-slack-notifier",
+        "retention_days": 14,
+        "stored_mb": 0.01,
+        "ingested_mb_in_window": 0.01
+      }
+    ],
+    "secrets": 2,
+    "kms_keys": 1,
+    "ecr": {
+      "devops-g9/pos": {
+        "images": 12,
+        "gb": 0.821
+      },
+      "devops-g9/payments": {
+        "images": 12,
+        "gb": 0.54
+      }
+    },
+    "api_requests_in_window": 938.0,
+    "lambda_invocations_in_window": {
+      "devops-g9-slack-notifier": 26.0,
+      "devops-g9-reconcile-sweep": 84.0,
+      "devops-g9-probe": 660.0
+    },
+    "lambda_gb_seconds_in_window": 35.0
+  },
+  "usage_in_window": {
+    "tillflow": {
+      "nat_gb": 9.777244857,
+      "lcu_hours": 1.1547444444444446
+    },
+    "other": {
+      "nat_gb": 0.0,
+      "lcu_hours": 0.07828171999999943
+    }
+  },
+  "other_stacks": {
+    "load_balancers": [
+      "devops-g9-iac-alb"
+    ],
+    "nat_gateways": [
+      "devops-g9-iac-nat"
+    ],
+    "interface_vpc_endpoints": [
+      "devops-g9-iac-vpce-ecr-dkr",
+      "devops-g9-iac-vpce-ec2messages",
+      "devops-g9-iac-vpce-ssmmessages",
+      "devops-g9-iac-vpce-ssm",
+      "devops-g9-iac-vpce-ecr-api",
+      "devops-g9-iac-vpce-logs"
+    ]
+  }
+}

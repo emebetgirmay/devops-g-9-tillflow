@@ -40,6 +40,10 @@ ID_PATH = r"([A-Za-z0-9_.:-]{1,80})"
 # about. This list has to be kept in the same shape as the routing in _get/
 # _post below; there's no framework here to derive it automatically.
 _EXCLUDED_ROUTES = frozenset({"/health", "/ready", "/version", "/metrics"})
+
+# Set by API Gateway on every request it forwards (infra/envs/sandbox/api_gateway.tf); its
+# presence means "came from the internet". See App._blocked_at_public_edge.
+PUBLIC_EDGE_HEADER = "x-tillflow-edge"
 _ROUTE_PATTERNS: tuple[tuple[str, re.Pattern], ...] = (
     ("/payments/{id}/reconcile", re.compile(rf"^/payments/{ID_PATH}/reconcile$")),
     ("/payouts/{id}/reconcile", re.compile(rf"^/payouts/{ID_PATH}/reconcile$")),
@@ -99,7 +103,9 @@ class App:
             with metrics.Timer() as timer:
                 try:
                     remote_addr = self._source(lower, remote_addr)
-                    if method == "GET":
+                    if self._blocked_at_public_edge(path, lower):
+                        reply = Reply(404, {"error": "not_found"})
+                    elif method == "GET":
                         reply = self._get(path)
                     elif method == "POST":
                         reply = self._post(path, lower, headers, body, remote_addr)
@@ -133,6 +139,19 @@ class App:
                 result=f"{method} {route} -> {reply.status}",
             )
         return reply
+
+    def _blocked_at_public_edge(self, path: str, lower: dict[str, str]) -> bool:
+        """Operator and test paths are not served to the internet on a real-adapter build.
+
+        API Gateway overwrites PUBLIC_EDGE_HEADER on every request it forwards, so a caller can
+        neither forge nor strip it; in-VPC callers (the scheduled sweep, k6) never pass through
+        API Gateway and never carry it. /_fake/* and /_admin/invariants already answer 404 unless
+        the FakeAdapter is running; this also closes /_admin/sweep. The sandbox runs the
+        FakeAdapter, so drills and demos that call these paths through the public URL still work
+        there (ADR 0009 G3-7)."""
+        if not path.startswith(("/_admin/", "/_fake/")):
+            return False
+        return PUBLIC_EDGE_HEADER in lower and not isinstance(self.adapter, FakeAdapter)
 
     def _source(self, lower: dict[str, str], peer: str) -> str:
         """The caller's address for the callback allowlist. Behind API Gateway the socket peer is

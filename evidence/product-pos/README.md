@@ -4,7 +4,8 @@ DRI: Alice Moraa (`@Moraaalice`)
 
 ## G0
 - [x] Linked ADR / architecture decisions you own — `docs/adrs/0007-multi-tenancy.md`
-- [ ] PR link for G0 docs contribution
+- [x] PR link for G0 docs contribution — [#14](https://github.com/emebetgirmay/devops-g-9-tillflow/pull/14)
+  (ADR 0007 filled in and accepted, alongside the G2 sale API it documents)
 
 ## G2 — Product
 
@@ -23,6 +24,26 @@ DRI: Alice Moraa (`@Moraaalice`)
   `sale-demo-fake-deliver.json` (Payments' deterministic fake STK callback, standing in for
   Daraja) -> `sale-demo-reconcile-1.json` (`PAID` on the first poll) -> `sale-demo-final.json`.
   `sale-demo-reconcile-replay.json` proves a repeat reconcile is a no-op (`applied: false`).
+
+## G3 — Operate
+
+- [x] `GET /metrics` (ADR 0010, work item P-1) implemented in `services/pos/app/metrics.py`:
+  five Prometheus metrics (`pos_http_requests_total`, `pos_http_request_duration_seconds`,
+  `pos_sale_creates_total{result}`, `pos_payment_events_total{result}`, `pos_sales_paid_total`),
+  route labels templated (never a resolved path), `/health`/`/ready`/`/version`/`/metrics`
+  excluded from HTTP metrics, no tenant/sale/till/attendant/product id in any label.
+- [x] Contract and cardinality-safety tests — `services/pos/tests/test_metrics.py` (6 tests):
+  endpoint shape, operational-route exclusion, route templating vs. a real resolved path,
+  unmatched-path bucketing, per-result sale-create/payment-event counts, and a direct
+  no-ids-in-labels assertion. Verified 2026-09-30: `pytest -q` — 54 passed (full POS suite,
+  including these 6).
+- [x] Defense walkthrough written for live narration — `docs/g3-pos-walkthrough.md` (sale flow,
+  idempotency/conflict handling, the replay-safe state machine, the reconcile scheduler, and
+  `/metrics`).
+- Grafana panels, alarms, and the ADOT scrape path for this endpoint are Emebet's
+  (ADR 0010 R-4/R-5), not tracked here.
+- No web frontend work is tracked at G3 — `services/web` is explicitly out of scope, see
+  `services/web/README.md` and ADR 0010's Product decision on open question 1.
 
 ### Reproduction
 

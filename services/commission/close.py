@@ -65,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
         else _yesterday(settings.business_day_utc_offset_hours)
     )
 
-    store = Store(settings.db_path)
+    store = Store(settings.database_url or settings.db_path)
     pos_client = POSClient(settings.pos_base_url, settings.http_timeout_seconds)
 
     results = [

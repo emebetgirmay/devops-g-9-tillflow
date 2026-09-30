@@ -16,7 +16,6 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
-import sqlite3
 import sys
 import uuid
 from typing import Any
@@ -39,7 +38,7 @@ from mpesa.models import (
     MSISDN_RE,
 )
 
-from core import jsonlog, metrics, tracing
+from core import db, jsonlog, metrics, tracing
 from core.common import (
     PROVIDER,
     TEXT_RE,
@@ -193,7 +192,7 @@ class PayoutService:
                         tracing.current_span_id() or None,
                     ),
                 )
-        except sqlite3.IntegrityError:
+        except db.IntegrityError:
             metrics.create_results_total.inc("payout", "conflict", "")
             with self.store.connection() as conn:
                 existing = conn.execute(
@@ -244,7 +243,7 @@ class PayoutService:
         return None
 
     @staticmethod
-    def _idem_reply(row: sqlite3.Row | None, fp: str) -> Reply | None:
+    def _idem_reply(row: db.Row | None, fp: str) -> Reply | None:
         verdict = Store.idem_classify(row, fp)
         if verdict == "mismatch":
             metrics.create_results_total.inc("payout", "mismatch", "")
@@ -306,7 +305,7 @@ class PayoutService:
     # Read ----------------------------------------------------------------------------------
 
     @staticmethod
-    def _find(conn: sqlite3.Connection, ident: str) -> sqlite3.Row | None:
+    def _find(conn: db.Connection, ident: str) -> db.Row | None:
         return conn.execute(
             "SELECT * FROM disbursements WHERE disbursement_id = ?"
             " OR originator_conversation_id = ? OR conversation_id = ?",
@@ -314,7 +313,7 @@ class PayoutService:
         ).fetchone()
 
     @staticmethod
-    def _public(conn: sqlite3.Connection, disbursement_id: str) -> dict[str, Any]:
+    def _public(conn: db.Connection, disbursement_id: str) -> dict[str, Any]:
         row = conn.execute(
             "SELECT * FROM disbursements WHERE disbursement_id = ?", (disbursement_id,)
         ).fetchone()
@@ -332,9 +331,9 @@ class PayoutService:
             if row is None:
                 return Reply(404, {"error": "not_found"})
             ledger = conn.execute(
-                "SELECT COUNT(*) FROM ledger_entries WHERE record_id = ? AND entry_type = ?",
+                "SELECT COUNT(*) AS n FROM ledger_entries WHERE record_id = ? AND entry_type = ?",
                 (row["disbursement_id"], "DISBURSEMENT_DEBIT"),
-            ).fetchone()[0]
+            ).fetchone()["n"]
             body = self._public(conn, row["disbursement_id"])
         body.update(
             {
@@ -376,7 +375,7 @@ class PayoutService:
         try:
             with self.store.tx() as conn:
                 result = self._apply_result(conn, event)
-        except sqlite3.IntegrityError as exc:
+        except db.IntegrityError as exc:
             with self.store.tx() as conn:
                 self.store.anomaly(
                     conn,
@@ -403,7 +402,7 @@ class PayoutService:
         )
         return Reply(200, {**ACK, "status": result})
 
-    def _apply_result(self, conn: sqlite3.Connection, event: Any) -> str:
+    def _apply_result(self, conn: db.Connection, event: Any) -> str:
         now = self.clock.now()
         oid = event.originator_conversation_id
         row = conn.execute(
@@ -411,8 +410,9 @@ class PayoutService:
         ).fetchone()
         if row is None:
             conn.execute(
-                "INSERT OR IGNORE INTO unmatched_callbacks (kind, provider_ref, payload_sha256,"
-                " outcome, raw_code, amount_minor, received_at) VALUES ('b2c', ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO unmatched_callbacks (kind, provider_ref, payload_sha256,"
+                " outcome, raw_code, amount_minor, received_at) VALUES ('b2c', ?, ?, ?, ?, ?, ?)"
+                " ON CONFLICT DO NOTHING",
                 (
                     oid,
                     event.payload_sha256,
@@ -424,8 +424,9 @@ class PayoutService:
             )
             return "unmatched"
         conn.execute(
-            "INSERT OR IGNORE INTO provider_callbacks (kind, provider_ref, payload_sha256, outcome,"
-            " raw_code, received_at) VALUES ('b2c', ?, ?, ?, ?, ?)",
+            "INSERT INTO provider_callbacks (kind, provider_ref, payload_sha256, outcome,"
+            " raw_code, received_at) VALUES ('b2c', ?, ?, ?, ?, ?)"
+            " ON CONFLICT DO NOTHING",
             (oid, event.payload_sha256, event.outcome.value, event.raw_code, now),
         )
         state = DisbursementState(row["state"])
@@ -448,7 +449,7 @@ class PayoutService:
     # State application ---------------------------------------------------------------------
 
     def _move(
-        self, conn: sqlite3.Connection, row: sqlite3.Row, target: DisbursementState, **fields: Any
+        self, conn: db.Connection, row: db.Row, target: DisbursementState, **fields: Any
     ) -> None:
         self.store.transition(
             conn,
@@ -462,7 +463,7 @@ class PayoutService:
             **fields,
         )
 
-    def _trip(self, conn: sqlite3.Connection, reason: FailureReason, record_id: str) -> None:
+    def _trip(self, conn: db.Connection, reason: FailureReason, record_id: str) -> None:
         now = self.clock.now()
         self.store.set_flag(conn, FLAG_PAYOUTS_ENABLED, False, reason.value, now)
         self.store.anomaly(
@@ -477,8 +478,8 @@ class PayoutService:
 
     def _fail(
         self,
-        conn: sqlite3.Connection,
-        row: sqlite3.Row,
+        conn: db.Connection,
+        row: db.Row,
         reason: FailureReason,
         raw_code: str | None,
     ) -> None:
@@ -487,7 +488,7 @@ class PayoutService:
         if reason in TRIPPING_REASONS:
             self._trip(conn, reason, row["disbursement_id"])
 
-    def _event(self, conn: sqlite3.Connection, row: sqlite3.Row, event_type: str) -> None:
+    def _event(self, conn: db.Connection, row: db.Row, event_type: str) -> None:
         self.store.outbox(
             conn,
             row["disbursement_id"],
@@ -502,7 +503,7 @@ class PayoutService:
             self.clock.now(),
         )
 
-    def _to_unknown(self, conn: sqlite3.Connection, row: sqlite3.Row, raw_code: str | None) -> None:
+    def _to_unknown(self, conn: db.Connection, row: db.Row, raw_code: str | None) -> None:
         now = self.clock.now()
         self._move(
             conn,
@@ -513,7 +514,7 @@ class PayoutService:
             raw_code=raw_code,
         )
 
-    def _to_review(self, conn: sqlite3.Connection, row: sqlite3.Row, detail: str) -> None:
+    def _to_review(self, conn: db.Connection, row: db.Row, detail: str) -> None:
         state = DisbursementState(row["state"])
         if state is S.CREATED:
             self._move(conn, row, S.PENDING, pending_since=self.clock.now())
@@ -543,8 +544,8 @@ class PayoutService:
 
     def _apply_outcome(
         self,
-        conn: sqlite3.Connection,
-        row: sqlite3.Row,
+        conn: db.Connection,
+        row: db.Row,
         outcome: Outcome,
         reason: FailureReason | None,
         receipt: str | None,

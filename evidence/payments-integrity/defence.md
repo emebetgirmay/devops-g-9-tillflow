@@ -29,7 +29,8 @@ evidence index is [`README.md`](README.md); the G3 code is explained in
 | Only documented Daraja result codes are terminal; every other code is `UNKNOWN` | A wrong "failed" on a payment that succeeded loses money silently | More items reach reconcile and review |
 | No automatic resubmission of a payout | B2C cannot be reversed through the API | A failed payout waits for an operator |
 | Kill switch trips on `CONFIGURATION` or insufficient funds | Repeated bad credentials lock the API user; stop instead of retrying | One bad result pauses every payout until someone resets it |
-| Standard library only, SQLite | No dependency to patch, easy to test, deterministic | One task only, no backups, state lost on redeploy; Postgres is the fix (ADR 0002) |
+| One writer at a time (SQLite's `BEGIN IMMEDIATE`, an advisory lock on PostgreSQL) | Every invariant was tested and load-tested under that rule; it also holds across several tasks | Write throughput does not scale with tasks; per-record row locks are the upgrade |
+| One dependency, the PostgreSQL driver, loaded only on RDS | State must survive a redeploy (ADR 0002); SQLite stays for local runs and unit tests | Two backends to keep passing; CI runs the suite on both |
 | Pull, not push, to POS | Payments has no outbound HTTP client, which a guard test enforces | POS must poll `payment-reconcile`; a sale can sit unpaid until it does |
 | Spans without the OpenTelemetry SDK, loopback only | The reviewer wanted an X-Ray waterfall; an SDK would add dependencies and an outbound client to the money path | I own a small exporter; a dropped span is silent by design |
 | FakeAdapter for CI, k6 and drills | Timeouts and duplicate callbacks cannot be forced in the sandbox | Real Daraja behaviour is proven only by the separate contract test |
@@ -52,10 +53,11 @@ The list in [`README.md`](README.md#6-not-claimed): no `SUCCEEDED` payout from t
 yet, no restore because there is no database to restore, Commission not deployed, and the X-Ray
 waterfall is proven against a local collector, not yet captured from X-Ray.
 
-The weakest point, said plainly: every guarantee above holds while the database survives. On this
-build a redeploy replaces the task and its SQLite file, so idempotency records, the payout keys and
-the kill switch are forgotten. A retry after a redeploy could reach the provider a second time.
-That is why RDS blocks production, not just the restore drill.
+The weakest point, said plainly: every guarantee above holds while the database survives. On
+SQLite inside the container a redeploy forgot the idempotency records, payout keys and kill
+switch, so a retry after a redeploy could reach the provider a second time. The PostgreSQL backend
+fixes that (`postgres/restart-checks.json`: a new task on the same database keeps all of them),
+but the sandbox service is still on SQLite until `payments_database = "rds"` is flipped.
 
 ## Cross-system scenarios to practise
 
@@ -77,5 +79,6 @@ Work each one from symptom to cause using only the tools that exist.
    reconcile against the M-PESA portal.
 4. **"Payments 5xx after a deploy."** Release smoke fails and ECS rolls back
    (`evidence/platform-delivery/g4-broken-release/`). With the database intact, a client retrying
-   with the same key gets the original. On this build the rollback starts a new task with an empty
-   database, so say that, and point to RDS.
+   with the same key gets the original. That holds on PostgreSQL (`postgres/restart-checks.json`);
+   while the sandbox is still on SQLite the rollback starts a task with an empty database, so say
+   which one is deployed.

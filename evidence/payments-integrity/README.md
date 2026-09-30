@@ -40,12 +40,13 @@ lists the commits. PRs, with the account that authored the commits:
 
 ## 3. Tests
 
-272 tests, standard library only, no network:
+278 tests, no network. They run on SQLite with the standard library only, and again on
+PostgreSQL 16 in CI (`postgres-tests`), each test in its own schema:
 
 | Suite | Tests | Covers |
 |---|---|---|
 | `services/_shared/tests` | 60 | The port contract and every FakeAdapter scenario (STK and B2C), its thread safety, and a guard that nothing in `_shared` imports an HTTP client or carries a Safaricom URL or secret |
-| `services/payments/tests` | 155 | `test_payments.py` (40) and `test_payouts.py` (34): idempotency, the state machines, replay and reorder, timeouts, reconcile, limits, kill switch. `test_daraja_sandbox.py` (18): the real adapter over a recorded transport. `test_invariants.py`, `test_metrics.py`, `test_trace_evidence.py`, `test_otlp.py`, `test_public_edge.py`, `test_unhandled_errors.py`, `test_http.py`, `test_config.py`, and the no-outbound guard |
+| `services/payments/tests` | 161 | `test_payments.py` (40) and `test_payouts.py` (34): idempotency, the state machines, replay and reorder, timeouts, reconcile, limits, kill switch. `test_daraja_sandbox.py` (18): the real adapter over a recorded transport. `test_two_tasks.py` (two services racing on one database), `test_restore_reconcile.py`, `test_invariants.py`, `test_metrics.py`, `test_trace_evidence.py`, `test_otlp.py`, `test_public_edge.py`, `test_unhandled_errors.py`, `test_http.py`, `test_config.py`, and the no-outbound guard |
 | `services/commission/tests` | 57 | Commission maths and carry-forward, the daily close, disburse and reconcile against the real Payments service in process, a guard that Commission never imports M-Pesa code, and `test_end_to_end.py`: real POS + Commission + Payments over HTTP, run twice |
 
 ## 4. Runtime proof
@@ -121,15 +122,31 @@ create. Spans go to the ADOT sidecar as OTLP/HTTP JSON from the standard library
 off the request path (`core/otlp.py`, `tests/test_otlp.py`). Commission sends one run trace id
 from `close.py` to POS and from `disburse.py` to Payments.
 
+### PostgreSQL (ADR 0002)
+
+Payments and Commission run on PostgreSQL 16, the engine RDS runs. [`postgres/`](postgres/) holds
+runs against the **shipped Payments image** on PostgreSQL:
+
+| File | Shows |
+|---|---|
+| `postgres/g2-checks.json`, `postgres/g4-checks.json` | The G2 pack (7 checks) and the G4 drills (23 checks) pass unchanged on PostgreSQL |
+| `postgres/restart-checks.json` (7 checks) | A **new task on the same database** still has the succeeded payment and payout with their ledger entries, returns the original for the old idempotency keys, keeps the kill switch on, and moves the in-flight payment to `UNKNOWN`. On SQLite every one of these was lost on redeploy |
+
+Tests behind it: the whole suite on both backends; `test_two_tasks.py`, two services racing the
+same create and the same callback on one database (one payment, one ledger entry; it fails if the
+writer lock is removed); `test_restore_reconcile.py`, the runbook's restore step 5: work that
+completed after the restore point is unfinished in the restored data and is recovered by asking
+the provider, with one ledger entry and nothing sent twice.
+
 ## 5. Reproduce
 
 Every command below was run on 2026-09-30 from a fresh clone of `main` and passed.
 Python 3.12, no credentials, nothing reaches Safaricom.
 
 ```bash
-# Tests (272). Commission's two end-to-end tests need POS's packages; without them they skip.
+# Tests (278). Commission's two end-to-end tests need POS's packages; without them they skip.
 (cd services/_shared    && python3 -m unittest discover -s tests -t .)   # 60
-(cd services/payments   && python3 -m unittest discover -s tests)        # 155
+(cd services/payments   && python3 -m unittest discover -s tests)        # 161
 python3 -m venv .venv && .venv/bin/pip install -r services/pos/requirements.txt
 (cd services/commission && ../../.venv/bin/python -m unittest discover -s tests)   # 57
 
@@ -141,6 +158,13 @@ python3 -m venv .venv && .venv/bin/pip install -r services/pos/requirements.txt
 PAYMENTS_URL=http://127.0.0.1:8080 ./evidence/payments-integrity/collect.sh          # G2, 7 checks
 PAYMENTS_DB=/tmp/ev-payments.db ./evidence/commission-payout/collect.sh              # G2, 9 checks, waits 61 s
 PAYMENTS_URL=http://127.0.0.1:8080 python3 evidence/payments-integrity/g4/drills.py  # G4, 23 checks
+# PostgreSQL: the same suites, and the restart check around replacing the task.
+pip install -r services/payments/requirements.txt
+docker run -d -e POSTGRES_PASSWORD=test -e POSTGRES_DB=tillflow -p 127.0.0.1:55440:5432 postgres:16
+export TEST_POSTGRES_URL=postgresql://postgres:test@127.0.0.1:55440/tillflow
+(cd services/payments   && python3 -m unittest discover -s tests)
+(cd services/commission && python3 -m unittest discover -s tests)
+python3 evidence/payments-integrity/postgres/restart.py before   # then replace the task, then: after
 # Trace: start the two services with their output redirected to files, then
 LOGS="/tmp/tr-pos.log /tmp/tr-payments.log" ./evidence/payments-integrity/trace/collect.sh   # 5 checks
 ```
@@ -156,13 +180,14 @@ sandbox runs.
   path and the fail-safes; runs 3 and 5 ended `CONFIGURATION` (see the contract-test README). STK
   through the real adapter, the `QueueTimeOutURL` handler and the asynchronous Transaction Status
   query are not built (ADR 0008).
-- **Restore, RPO and RTO.** Payments and Commission keep state in SQLite inside the container, so
-  there is nothing to back up or restore until RDS (ADR 0002). The kill switch is in that database:
-  a redeploy resets it.
-- **Capacity.** k6 proves correctness under concurrency on SQLite, not production sizing (ADR 0009
-  section 6).
-- **Commission in the sandbox.** It has an image and CI but is not deployed; it waits for RDS
-  because its ledger must persist between runs.
+- **Running on RDS in the sandbox.** The code, images and CI are ready and proven on a local
+  PostgreSQL 16; the deployed Payments still uses SQLite until `payments_database = "rds"` is
+  flipped, which needs the RDS bootstrap script run first. The timed point-in-time restore (RPO,
+  RTO) on RDS is Platform's drill; the reconcile step of it is proven here as a test.
+- **Capacity.** One writer at a time, by design, on both backends. k6 proves correctness under
+  concurrency, not production sizing; the capacity run on RDS is not done (ADR 0009 G3-5).
+- **Commission in the sandbox.** It has an image and CI and runs on PostgreSQL, but is not
+  deployed: the scheduled task is Platform's to add.
 - **The X-Ray screenshot itself.** Spans are exported and the tree is proven against the same
   ADOT collector version the sidecar runs, locally. The waterfall captured from X-Ray needs the
   deployed services and is Platform's to capture.

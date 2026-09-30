@@ -20,8 +20,12 @@ Rules come from [ADR 0004](../../docs/adrs/0004-mpesa-adapter.md) (boundary),
   CI, tests and k6 use the FakeAdapter only. That file is the only one here allowed an HTTP client,
   and no Safaricom URL or secret lives in code; `tests/test_no_outbound_guard.py` fails if that
   changes.
-- **No Postgres yet.** SQLite is the storage. A `postgres://` `DATABASE_URL` is refused at startup
-  until RDS lands (ADR 0002).
+- **Two storage backends (ADR 0002).** SQLite for local runs and unit tests; PostgreSQL when
+  `DATABASE_URL` is `postgresql://…` (the `devops-g9/db/payments` secret on RDS). `core/db.py`
+  gives both the same interface, and the same rule: one write transaction at a time
+  (`BEGIN IMMEDIATE` on SQLite, an advisory lock on PostgreSQL), so every invariant holds on one
+  task or several. The driver (`requirements.txt`, psycopg) is imported only for PostgreSQL. CI
+  runs the whole suite on both.
 - The fake keeps its state in memory, so `reconcile.py` only resolves references issued by the
   same process; use `--service-url` against the running service.
 
@@ -111,7 +115,8 @@ guard below):
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORT` | `8080` | Listen port |
-| `DATABASE_URL` | `sqlite:///data/payments.db` (under this folder) | `sqlite:///<path>` only |
+| `DATABASE_URL` | `sqlite:///data/payments.db` (under this folder) | `sqlite:///<path>`, or `postgresql://…` on RDS |
+| `DB_POOL_SIZE` | `5` | PostgreSQL connections kept by this task |
 | `MPESA_ADAPTER` | `fake` | `fake`, or `daraja_sandbox` (deployed sandbox, B2C only; forces the system clock) |
 | `MPESA_BASE_URL` | | `daraja_sandbox`: https `sandbox.` provider host |
 | `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET` | | `daraja_sandbox`: app credentials, from `devops-g9/daraja` |

@@ -9,7 +9,6 @@ sale and one live disbursement per payout. Postgres arrives with RDS; until then
 from __future__ import annotations
 
 import json
-import sqlite3
 import sys
 import time
 from collections.abc import Iterator
@@ -18,7 +17,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from core import jsonlog, metrics, otlp, tracing
+from core import db, jsonlog, metrics, otlp, tracing
 from core.states import check_transition
 
 SCHEMA = """
@@ -171,55 +170,33 @@ class StaleStateError(Exception):
 
 
 class Store:
-    def __init__(self, db_path: str) -> None:
-        self.db_path = db_path
-        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-        with self.connection() as conn:
-            conn.executescript(SCHEMA)
-            # A database file created before these existed: CREATE TABLE IF NOT EXISTS skips it.
-            for table in ("payments", "disbursements"):
-                columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
-                for column in ("trace_id", "span_id"):
-                    if column not in columns:
-                        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT")
+    def __init__(self, target: str, pool_size: int = 5) -> None:
+        """`target` is a SQLite file path or a postgresql:// URL (core/db.py)."""
+        self.db = db.open_database(target, pool_size)
+        self.db.create_schema(SCHEMA)
+        # A database created before these columns existed: CREATE TABLE IF NOT EXISTS skips it.
+        for table in ("payments", "disbursements"):
+            for column in ("trace_id", "span_id"):
+                self.db.ensure_column(table, column)
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path, timeout=30, isolation_level=None)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=30000")
-        conn.execute("PRAGMA foreign_keys=ON")
-        return conn
+    def connection(self):
+        """Autocommit connection for reads and single statements."""
+        return self.db.connection()
 
-    @contextmanager
-    def connection(self) -> Iterator[sqlite3.Connection]:
-        conn = self._connect()
-        try:
-            yield conn
-        finally:
-            conn.close()
+    def tx(self):
+        """One write transaction, one writer at a time: a payment or callback is read and updated
+        with no other writer in between (BEGIN IMMEDIATE on SQLite, an advisory lock on
+        PostgreSQL; see core/db.py)."""
+        return self.db.tx()
 
-    @contextmanager
-    def tx(self) -> Iterator[sqlite3.Connection]:
-        """One write transaction. BEGIN IMMEDIATE serialises writers, so a payment or callback is
-        read and updated under the lock (the sqlite equivalent of SELECT ... FOR UPDATE)."""
-        conn = self._connect()
-        try:
-            conn.execute("BEGIN IMMEDIATE")
-            yield conn
-            conn.execute("COMMIT")
-        except BaseException:
-            if conn.in_transaction:
-                conn.execute("ROLLBACK")
-            raise
-        finally:
-            conn.close()
+    def close(self) -> None:
+        self.db.close()
 
     def ping(self) -> bool:
         try:
             with self.connection() as conn:
                 conn.execute("SELECT 1").fetchone()
-        except sqlite3.Error:
+        except db.Error:
             return False
         return True
 
@@ -227,15 +204,15 @@ class Store:
 
     @staticmethod
     def idem_lookup(
-        conn: sqlite3.Connection, tenant_id: str, operation: str, key: str
-    ) -> sqlite3.Row | None:
+        conn: db.Connection, tenant_id: str, operation: str, key: str
+    ) -> db.Row | None:
         return conn.execute(
             "SELECT * FROM idempotency_keys WHERE tenant_id = ? AND operation = ? AND idem_key = ?",
             (tenant_id, operation, key),
         ).fetchone()
 
     @staticmethod
-    def idem_classify(row: sqlite3.Row | None, fingerprint: str) -> str:
+    def idem_classify(row: db.Row | None, fingerprint: str) -> str:
         """'new', 'mismatch', 'replay' or 'in_flight'."""
         if row is None:
             return "new"
@@ -245,7 +222,7 @@ class Store:
 
     @staticmethod
     def idem_begin(
-        conn: sqlite3.Connection,
+        conn: db.Connection,
         tenant_id: str,
         operation: str,
         key: str,
@@ -261,7 +238,7 @@ class Store:
 
     @staticmethod
     def idem_complete(
-        conn: sqlite3.Connection,
+        conn: db.Connection,
         tenant_id: str,
         operation: str,
         key: str,
@@ -280,7 +257,7 @@ class Store:
 
     @staticmethod
     def transition(
-        conn: sqlite3.Connection,
+        conn: db.Connection,
         *,
         kind: str,
         table: str,
@@ -338,7 +315,7 @@ class Store:
 
     @staticmethod
     def ledger(
-        conn: sqlite3.Connection,
+        conn: db.Connection,
         *,
         tenant_id: str,
         record_id: str,
@@ -352,9 +329,10 @@ class Store:
     ) -> bool:
         """Insert the ledger entry; False if one already existed (a replay is a no-op)."""
         cursor = conn.execute(
-            "INSERT OR IGNORE INTO ledger_entries (tenant_id, record_id, entry_type, amount_minor,"
+            "INSERT INTO ledger_entries (tenant_id, record_id, entry_type, amount_minor,"
             " currency, provider, provider_ref, receipt, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            " ON CONFLICT DO NOTHING",
             (
                 tenant_id,
                 record_id,
@@ -371,22 +349,23 @@ class Store:
 
     @staticmethod
     def outbox(
-        conn: sqlite3.Connection,
+        conn: db.Connection,
         aggregate_id: str,
         event_type: str,
         payload: dict[str, Any],
         now: float,
     ) -> bool:
         cursor = conn.execute(
-            "INSERT OR IGNORE INTO outbox (aggregate_id, event_type, payload, created_at)"
-            " VALUES (?, ?, ?, ?)",
+            "INSERT INTO outbox (aggregate_id, event_type, payload, created_at)"
+            " VALUES (?, ?, ?, ?)"
+            " ON CONFLICT DO NOTHING",
             (aggregate_id, event_type, json.dumps(payload, sort_keys=True), now),
         )
         return cursor.rowcount == 1
 
     @staticmethod
     def anomaly(
-        conn: sqlite3.Connection,
+        conn: db.Connection,
         *,
         kind: str,
         severity: str,
@@ -418,12 +397,12 @@ class Store:
         metrics.anomalies_total.inc(kind, severity)
 
     @staticmethod
-    def get_flag(conn: sqlite3.Connection, name: str, default: bool) -> bool:
+    def get_flag(conn: db.Connection, name: str, default: bool) -> bool:
         row = conn.execute("SELECT value FROM flags WHERE name = ?", (name,)).fetchone()
         return default if row is None else bool(row["value"])
 
     @staticmethod
-    def set_flag(conn: sqlite3.Connection, name: str, value: bool, reason: str, now: float) -> None:
+    def set_flag(conn: db.Connection, name: str, value: bool, reason: str, now: float) -> None:
         conn.execute(
             "INSERT INTO flags (name, value, reason, updated_at) VALUES (?, ?, ?, ?)"
             " ON CONFLICT (name) DO UPDATE SET value = excluded.value, reason = excluded.reason,"

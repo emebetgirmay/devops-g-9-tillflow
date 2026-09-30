@@ -27,7 +27,7 @@ def main() -> int:
     trace_id = tracing.start_new_run()
     print(json.dumps({"event": "disburse_run_started", "trace_id": trace_id}), file=sys.stderr)
 
-    store = Store(settings.db_path)
+    store = Store(settings.database_url or settings.db_path)
     sent = send_due_payouts(store, settings)
     reconciled = reconcile_requested_payouts(store, settings)
     summary = {"send": sent, "reconcile": reconciled}

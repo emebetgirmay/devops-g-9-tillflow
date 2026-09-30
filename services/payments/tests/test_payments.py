@@ -461,10 +461,10 @@ class StateMachineTest(ServiceTestCase):
             )
 
     def test_the_database_refuses_a_state_outside_the_machine(self) -> None:
-        import sqlite3
+        from core import db
 
         pid = self.pay().body["payment_id"]
-        with self.assertRaises(sqlite3.IntegrityError), self.app.store.tx() as conn:
+        with self.assertRaises(db.IntegrityError), self.app.store.tx() as conn:
             conn.execute("UPDATE payments SET state = 'REVERSED' WHERE payment_id = ?", (pid,))
 
     def test_a_second_ledger_entry_for_a_provider_reference_is_a_no_op(self) -> None:

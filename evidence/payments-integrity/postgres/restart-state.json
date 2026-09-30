@@ -1,0 +1,54 @@
+{
+  "run": "20260930T141129",
+  "keys": {
+    "paid": "restart-20260930T141129-paid",
+    "pending": "restart-20260930T141129-pending",
+    "payout": "restart-20260930T141129-payout",
+    "funds": "restart-20260930T141129-funds"
+  },
+  "stopped_at": 1790777489.1173573,
+  "paid": {
+    "payment_id": "pay_67f276203ee64f18b4cbf77beeda2aff",
+    "checkout_request_id": "fake-co-8ee0b5214aa1930f",
+    "state": "SUCCEEDED",
+    "decline_reason": null,
+    "tenant_id": "restart",
+    "sale_id": null,
+    "amount_minor": 150000,
+    "currency": "KES",
+    "msisdn": "2540****001",
+    "receipt": "FAKE6ED5820C",
+    "ledger_entries": 1
+  },
+  "pending": {
+    "payment_id": "pay_5568fc3cd52d4176b9021ec7951a4b02",
+    "checkout_request_id": "fake-co-53c80c5215c628e7",
+    "state": "PENDING",
+    "decline_reason": null,
+    "tenant_id": "restart",
+    "sale_id": null,
+    "amount_minor": 150000,
+    "currency": "KES",
+    "msisdn": "2540****006",
+    "receipt": null,
+    "ledger_entries": 0
+  },
+  "payout": {
+    "disbursement_id": "dis_870e66f1b1ad4fe8b535576372d6432f",
+    "conversation_id": "AG_f160ef697685f15a",
+    "originator_conversation_id": "6CLSSLQZPXBJSTTR2FBQ",
+    "state": "SUCCEEDED",
+    "failure_reason": null,
+    "tenant_id": "restart",
+    "attendant_id": "att-r",
+    "payout_period": "20260930T141129-ok",
+    "amount_minor": 500000,
+    "msisdn": "2540****101",
+    "receipt": "FAKEC8D4ACEC",
+    "ledger_entries": 1
+  },
+  "kill_switch_before": {
+    "http": 503,
+    "error": "payouts_disabled"
+  }
+}

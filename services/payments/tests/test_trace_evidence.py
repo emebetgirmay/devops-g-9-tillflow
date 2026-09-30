@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 
@@ -100,6 +101,7 @@ class SaleTraceReachesTheCallbackTest(TracedCase):
         self.assertEqual((line["record_id"], line["result"], line["code"]), (ref, "applied", "0"))
 
 
+@unittest.skipIf(os.environ.get("TEST_POSTGRES_URL"), "about an older SQLite file")
 class OlderDatabaseFileTest(unittest.TestCase):
     def test_trace_columns_are_added_to_an_existing_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

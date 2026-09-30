@@ -1,0 +1,11 @@
+{
+  "run": "1790769448",
+  "sale_id": "84a82196-b94e-4fd5-829c-e1940aa52c00",
+  "checks": {
+    "repeat_reconcile_is_a_no_op": true,
+    "sale_stuck_at_payment_requested_before_reconcile": true,
+    "reconcile_recovers_sale_to_paid": true,
+    "reconcile_reports_applied_true_on_recovery": true,
+    "unsafe_retry_payment_request_is_refused": true
+  }
+}

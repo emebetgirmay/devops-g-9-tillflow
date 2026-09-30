@@ -72,13 +72,14 @@ resource "aws_security_group" "db" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "PostgreSQL from POS, Payments and the bootstrap task"
+    description = "PostgreSQL from POS, Payments, Commission and the bootstrap task"
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
     security_groups = [
       aws_security_group.pos.id,
       aws_security_group.payments.id,
+      aws_security_group.commission.id,
       aws_security_group.db_bootstrap.id,
     ]
   }

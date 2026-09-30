@@ -32,6 +32,7 @@ jobs:
       infra: ${{ steps.out.outputs.infra }}
       pos: ${{ steps.out.outputs.pos }}
       payments: ${{ steps.out.outputs.payments }}
+      commission: ${{ steps.out.outputs.commission }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -58,16 +59,25 @@ jobs:
               - 'infra/envs/sandbox/ecs.tf'
               - 'infra/envs/sandbox/daraja.tf'
               - 'infra/envs/sandbox/rds.tf'
+            commission:
+              - 'services/commission/**'
+              - '.github/workflows/release.yml'
+              # Terraform's task definition carries a placeholder image; a change to it only runs
+              # the real image once this deploy registers a new revision from it.
+              - 'infra/envs/sandbox/commission.tf'
+              - 'infra/envs/sandbox/rds.tf'
       - id: out
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "infra=true" >> "$GITHUB_OUTPUT"
             echo "pos=true" >> "$GITHUB_OUTPUT"
             echo "payments=true" >> "$GITHUB_OUTPUT"
+            echo "commission=true" >> "$GITHUB_OUTPUT"
           else
             echo "infra=${{ steps.filter.outputs.infra }}" >> "$GITHUB_OUTPUT"
             echo "pos=${{ steps.filter.outputs.pos }}" >> "$GITHUB_OUTPUT"
             echo "payments=${{ steps.filter.outputs.payments }}" >> "$GITHUB_OUTPUT"
+            echo "commission=${{ steps.filter.outputs.commission }}" >> "$GITHUB_OUTPUT"
           fi
 
   plan:
@@ -589,3 +599,172 @@ jobs:
         with:
           name: smoke-payments-${{ github.sha }}
           path: smoke-payments-*.json
+
+  # Commission is scheduled one-off tasks, not a service (infra/envs/sandbox/commission.tf): the
+  # schedules run the family's latest revision, so releasing is registering a new revision with the
+  # new image. Smoke: one disburse.py pass (idempotent; with nothing planned it sends nothing), which
+  # proves the image starts, reads its secret and reaches RDS, POS and Payments. On failure the new
+  # revision is deregistered, so the schedules keep running the previous one.
+  deploy-commission:
+    name: Build scan push release Commission
+    needs: [changes, apply]
+    if: |
+      always() &&
+      needs.changes.outputs.commission == 'true' &&
+      (needs.apply.result == 'success' || needs.apply.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: sandbox
+    env:
+      ECR_REPOSITORY: devops-g9/commission
+      FAMILY: devops-g9-commission
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build image
+        id: build
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          IMAGE_URI="${REGISTRY}/${ECR_REPOSITORY}:${SHA}"
+          docker build --build-arg "COMMIT_SHA=${SHA}" -t "${IMAGE_URI}" services/commission
+          echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Trivy image scan
+        env:
+          TRIVY_VERSION: "0.56.2"
+          IMAGE_URI: ${{ steps.build.outputs.image_uri }}
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            "aquasec/trivy:${TRIVY_VERSION}" \
+            image --severity HIGH,CRITICAL --exit-code 1 \
+            --ignore-unfixed "${IMAGE_URI}"
+
+      - name: SBOM (CycloneDX)
+        env:
+          TRIVY_VERSION: "0.56.2"
+          IMAGE_URI: ${{ steps.build.outputs.image_uri }}
+        run: |
+          set -euo pipefail
+          mkdir -p sbom && chmod 777 sbom
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${PWD}/sbom:/out" \
+            "aquasec/trivy:${TRIVY_VERSION}" \
+            image --quiet --format cyclonedx --output "/out/sbom-commission.cdx.json" "${IMAGE_URI}"
+          python3 -c "import json; d = json.load(open('sbom/sbom-commission.cdx.json')); print(d['bomFormat'], d['specVersion'], len(d.get('components', [])), 'components')"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-commission-${{ github.sha }}
+          path: sbom/sbom-commission.cdx.json
+          retention-days: 90
+
+      - name: Push or reuse immutable digest
+        id: push
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          SHA: ${{ github.sha }}
+          IMAGE_URI: ${{ steps.build.outputs.image_uri }}
+        run: |
+          set -euo pipefail
+          EXISTING="$(aws ecr describe-images --repository-name "${ECR_REPOSITORY}" \
+            --image-ids "imageTag=${SHA}" --query 'imageDetails[0].imageDigest' --output text 2>/dev/null || true)"
+          if [ -n "${EXISTING}" ] && [ "${EXISTING}" != "None" ]; then
+            DIGEST="${EXISTING}"
+          else
+            docker push "${IMAGE_URI}"
+            DIGEST="$(aws ecr describe-images --repository-name "${ECR_REPOSITORY}" \
+              --image-ids "imageTag=${SHA}" --query 'imageDetails[0].imageDigest' --output text)"
+          fi
+          echo "image_digest_uri=${REGISTRY}/${ECR_REPOSITORY}@${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+
+      - name: Resolve base task definition (Terraform-managed)
+        id: base_arn
+        working-directory: infra/envs/sandbox
+        run: |
+          set -euo pipefail
+          terraform init -backend-config=backend.hcl -input=false
+          echo "task_arn=$(terraform output -raw commission_task_definition_arn)" >> "$GITHUB_OUTPUT"
+
+      - name: Register digest task definition
+        id: task
+        env:
+          IMAGE: ${{ steps.push.outputs.image_digest_uri }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          aws ecs describe-task-definition --task-definition "${{ steps.base_arn.outputs.task_arn }}" \
+            --query 'taskDefinition' > task.json
+          python3 - <<'PY'
+          import json, os
+          td = json.load(open("task.json"))
+          for k in ["taskDefinitionArn", "revision", "status", "requiresAttributes",
+                    "compatibilities", "registeredAt", "registeredBy", "deregisteredAt"]:
+              td.pop(k, None)
+          for c in td["containerDefinitions"]:
+              if c["name"] == "commission":
+                  c["image"] = os.environ["IMAGE"]
+                  env = {e["name"]: e["value"] for e in c.get("environment", [])}
+                  env["COMMIT_SHA"] = os.environ["SHA"]
+                  env["IMAGE_DIGEST"] = os.environ["IMAGE"].split("@", 1)[-1]
+                  c["environment"] = [{"name": k, "value": v} for k, v in env.items()]
+          json.dump(td, open("task-new.json", "w"))
+          PY
+          NEW_ARN=$(aws ecs register-task-definition --cli-input-json file://task-new.json \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "task_arn=${NEW_ARN}" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke - one disburse pass on the new revision
+        id: smoke
+        run: |
+          set -euo pipefail
+          SUBNETS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=devops-g9-private-*" \
+            --query 'Subnets[].SubnetId' --output text | tr '\t' ',')
+          SG=$(aws ec2 describe-security-groups --filters Name=group-name,Values=devops-g9-commission \
+            --query 'SecurityGroups[0].GroupId' --output text)
+          TASK=$(aws ecs run-task --cluster "${ECS_CLUSTER}" --launch-type FARGATE \
+            --task-definition "${{ steps.task.outputs.task_arn }}" \
+            --overrides '{"containerOverrides":[{"name":"commission","command":["disburse.py"]}]}' \
+            --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SG}],assignPublicIp=DISABLED}" \
+            --query 'tasks[0].taskArn' --output text)
+          aws ecs wait tasks-stopped --cluster "${ECS_CLUSTER}" --tasks "${TASK}"
+          CODE=$(aws ecs describe-tasks --cluster "${ECS_CLUSTER}" --tasks "${TASK}" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          aws logs get-log-events --log-group-name /devops-g9/commission \
+            --log-stream-name "commission/commission/${TASK##*/}" \
+            --query 'events[].message' --output text | tr '\t' '\n' | tee smoke-commission.txt || true
+          echo "disburse.py exit code: ${CODE}"
+          [ "${CODE}" = "0" ]
+
+      - name: Deregister the new revision on smoke failure
+        if: failure() && steps.smoke.outcome == 'failure'
+        run: |
+          set -euo pipefail
+          echo "Smoke failed: the schedules keep running the previous revision"
+          aws ecs deregister-task-definition --task-definition "${{ steps.task.outputs.task_arn }}" >/dev/null
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.smoke.outcome == 'success'
+        with:
+          name: smoke-commission-${{ github.sha }}
+          path: smoke-commission.txt

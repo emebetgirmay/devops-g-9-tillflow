@@ -159,6 +159,56 @@ resource "aws_iam_role_policy" "ci_deploy" {
         Resource = "arn:aws:scheduler:${var.aws_region}:${local.account_id}:schedule/*/${var.name_prefix}-*"
       },
       {
+        # RDS PostgreSQL (ADR 0002): the instance, its subnet and parameter groups and its
+        # snapshots, by name. The default option group is referenced by every Postgres 16 instance.
+        Sid    = "ManageOwnDatabase"
+        Effect = "Allow"
+        Action = ["rds:*"]
+        Resource = [
+          "arn:aws:rds:${var.aws_region}:${local.account_id}:db:${var.name_prefix}-*",
+          "arn:aws:rds:${var.aws_region}:${local.account_id}:subgrp:${var.name_prefix}-*",
+          "arn:aws:rds:${var.aws_region}:${local.account_id}:pg:${var.name_prefix}-*",
+          "arn:aws:rds:${var.aws_region}:${local.account_id}:snapshot:${var.name_prefix}-*",
+          "arn:aws:rds:${var.aws_region}:${local.account_id}:og:default:postgres-16"
+        ]
+      },
+      {
+        Sid      = "DescribeDatabases"
+        Effect   = "Allow"
+        Action   = ["rds:Describe*", "rds:ListTagsForResource"]
+        Resource = "*"
+      },
+      {
+        # manage_master_user_password: RDS creates and rotates its own master secret (rds!db-...).
+        # CI can create and describe it but, as for every secret, never read its value.
+        Sid    = "RdsManagedMasterSecret"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:CreateSecret",
+          "secretsmanager:DeleteSecret",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:RotateSecret",
+          "secretsmanager:TagResource"
+        ]
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${local.account_id}:secret:rds!*"
+      },
+      {
+        # Encryption at rest and the master secret use the AWS managed keys (aws/rds,
+        # aws/secretsmanager), only through those services.
+        Sid      = "UseManagedKeysViaRds"
+        Effect   = "Allow"
+        Action   = ["kms:DescribeKey", "kms:CreateGrant"]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = [
+              "rds.${var.aws_region}.amazonaws.com",
+              "secretsmanager.${var.aws_region}.amazonaws.com"
+            ]
+          }
+        }
+      },
+      {
         # Slack webhook secret: CI creates and describes it, never reads or writes the value.
         Sid    = "ManageOwnSecretsMetadata"
         Effect = "Allow"
@@ -251,7 +301,8 @@ resource "aws_iam_role_policy" "ci_deploy" {
               "ecs.amazonaws.com",
               "ecs.application-autoscaling.amazonaws.com",
               "elasticloadbalancing.amazonaws.com",
-              "elasticfilesystem.amazonaws.com"
+              "elasticfilesystem.amazonaws.com",
+              "rds.amazonaws.com"
             ]
           }
         }

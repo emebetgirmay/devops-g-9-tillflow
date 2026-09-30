@@ -1,0 +1,58 @@
+{
+  "run": "20260930T140617",
+  "target": "http://127.0.0.1:8080",
+  "drills": {
+    "uncertain-payment": {
+      "passed": true,
+      "wall_total_s": 0.115,
+      "provider_total_s": 230.0,
+      "checks": {
+        "retry_while_pending_returns_original": true,
+        "timeout_is_unknown_not_declined": true,
+        "retry_while_unknown_returns_original": true,
+        "reconcile_resolves_to_succeeded": true,
+        "exactly_one_ledger_entry": true,
+        "retry_after_recovery_changes_nothing": true,
+        "initiate_timeout_is_unknown": true,
+        "no_second_initiate_on_retry": true
+      }
+    },
+    "uncertain-payout": {
+      "passed": true,
+      "wall_total_s": 0.075,
+      "provider_total_s": 230.0,
+      "checks": {
+        "timeout_is_unknown_not_failed": true,
+        "same_key_returns_original": true,
+        "second_key_cannot_pay_again": true,
+        "reconcile_resolves_to_succeeded": true,
+        "exactly_one_ledger_entry": true
+      }
+    },
+    "callback-replay": {
+      "passed": true,
+      "wall_total_s": 0.15,
+      "provider_total_s": 94.0,
+      "checks": {
+        "stk_duplicates_applied_once": true,
+        "stk_duplicate_one_ledger_entry": true,
+        "stk_one_legal_transition": true,
+        "stk_late_failure_cannot_undo_success": true,
+        "stk_failure_then_success_one_transition": true,
+        "stk_late_success_never_auto_credited": true,
+        "b2c_duplicates_applied_once": true,
+        "b2c_duplicate_one_ledger_entry": true,
+        "b2c_one_legal_transition": true,
+        "b2c_late_failure_cannot_undo_success": true
+      }
+    }
+  },
+  "trace_ids": {
+    "stk_duplicate": "c4860be951b4b7ecf36614db4f4deace",
+    "stk_success_then_failure": "a8d4d047197206e4c10bec1247e209c3",
+    "stk_failure_then_success": "2fafc71ab873e591e36288971234d9cd",
+    "b2c_duplicate": "1c381ff47918bc54ab4992728aeaf621",
+    "b2c_success_then_failure": "3264153045a4ce94f1683f8db7c3ac3d"
+  },
+  "all_passed": true
+}

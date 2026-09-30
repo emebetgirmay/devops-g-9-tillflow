@@ -1,0 +1,12 @@
+{
+  "checks": {
+    "roundtrip_succeeded_with_one_ledger_entry": true,
+    "duplicate_callback_gives_one_ledger_entry": true,
+    "replayed_request_returns_200_not_201": true,
+    "timeout_is_unknown_not_a_decline": true,
+    "unverified_code_1037_is_unknown_not_terminal": true,
+    "payout_succeeded_with_one_ledger_entry": true,
+    "replayed_payout_request_returns_200": true
+  },
+  "all_passed": true
+}

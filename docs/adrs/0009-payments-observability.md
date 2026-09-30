@@ -82,7 +82,7 @@ Each alert also carries the fields the runbook contract requires; Platform's Sla
 
 ### 7. Out of scope
 
-Dashboards and Slack rules (Platform), Product's sale-side signals, the real Daraja adapter and its contract test, X-Ray spans.
+Dashboards and Slack rules (Platform), Product's sale-side signals, the real Daraja adapter and its contract test. (X-Ray spans were out of scope at G3 and were added on 2026-09-30, see Implementation status.)
 
 ## Consequences
 
@@ -99,7 +99,7 @@ Dashboards and Slack rules (Platform), Product's sale-side signals, the real Dar
 | OpenTelemetry SDK exporting OTLP to the sidecar (as `pos` is set up to) | Needs third-party packages and an HTTP exporter, which breaks the no-outbound-client guarantee on the money path. Kept as the fallback if Platform prefers OTLP over a scrape |
 | CloudWatch Embedded Metric Format lines written to stdout | Couples the app to one backend and mixes metrics into logs |
 | Logs only, with metric filters | Weak for SLO burn, and it makes every alert a text match |
-| X-Ray spans now | Adds the SDK dependency; `trace_id` in logs plus `traceparent` propagation covers the tracing G3 asks for |
+| X-Ray spans through the OpenTelemetry SDK | Adds the SDK dependency. **Revised 2026-09-30:** the reviewer asked for a captured X-Ray waterfall, so spans are now exported, without the SDK (see Implementation status) |
 
 ## Platform sign-off (2026-09-28)
 
@@ -146,12 +146,29 @@ each piece (read that before defending this area live).
   (`applied`, `replay`, `illegal_transition_logged`, `unmatched`) as a `callback` line under the
   request's `trace_id`, and anomaly lines carry the `trace_id`, so one trace explains a duplicate
   (`tests/test_trace_evidence.py`). This extends section 5; it changes no metric.
-- **Added for G5 (sale-to-callback trace):** POS adopts or starts a `traceparent`, logs a
-  `request` line with `trace_id` and passes it to Payments; Payments stores the creating trace id
-  on each payment and payout and logs it as `origin_trace_id` on any later transition (callback,
-  sweep, reconcile); callback lines carry the provider's raw `code`; `close.py` sends a run trace
-  id to POS. Proof: `evidence/payments-integrity/trace/`.
-- **Not built:** G3-5 (Postgres backend and capacity re-run, blocked on RDS); the second half of
+- **Added for G5 (sale-to-callback trace, revising "X-Ray spans" above):**
+  - *Propagation.* POS adopts or starts a `traceparent`, logs a `request` line with `trace_id`,
+    and passes it to Payments naming its own span as the parent. `close.py` sends a run trace id
+    to POS, as `disburse.py` does to Payments. New trace ids start with the epoch second, the form
+    X-Ray's own ids take.
+  - *The callback joins the sale's trace.* A provider callback is a separate request with no
+    `traceparent` of ours. Payments stores the creating request's trace id and span id on each
+    payment and payout. When a later request (callback, sweep, reconcile) moves the record,
+    `Store.transition()` logs `origin_trace_id` and exports a span into the **original** trace as
+    a child of the creating span.
+  - *Spans without the SDK.* `core/otlp.py` (and POS's copy) posts OTLP/HTTP JSON to the ADOT
+    sidecar, which already exports traces to X-Ray. It keeps the no-outbound guarantee in the
+    form that matters: the endpoint must be loopback or export is off, the guard test allows this
+    one file `urllib.request` and nothing else, and spans leave on a bounded queue from a daemon
+    thread, so a slow or dead collector cannot delay or fail a payment.
+  - Callback lines carry the provider's raw `code`.
+  - Proof: `evidence/payments-integrity/trace/`: `sale-to-callback.json` (logs) and
+    `collector-spans.json` (the span tree an ADOT collector v0.43.1 received). The capture from
+    X-Ray itself needs the deployed services and is Platform's.
+- **Postgres backend built (G3-5, first half).** Payments and Commission run on PostgreSQL
+  (`core/db.py`, `ledger/db.py`) with the single-writer rule kept as an advisory lock; both suites
+  pass on PostgreSQL 16 in CI. The k6 capacity re-run on RDS is the half still to do.
+- **Not built:** the k6 capacity re-run on RDS (G3-5, second half); the second half of
   G3-7, taking `/_admin/*` and `/_fake/*` off the public listener (they are still forwarded by
   the ALB rule); two section 4 alarms, callback rejections above baseline and provider-unknown
   rate above 5%, which need a traffic baseline; G3-9 (open questions 2 and 5).

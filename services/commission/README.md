@@ -36,7 +36,11 @@ python3 close.py --business-date 2026-09-20 --tenant t1
 python3 disburse.py
 ```
 
-## The ledger (`ledger/`, sqlite by default)
+## The ledger (`ledger/`: SQLite by default, PostgreSQL on RDS)
+
+`DATABASE_URL=postgresql://…` (the `devops-g9/db/commission` secret) puts the ledger on RDS, where
+it survives between scheduled runs; `ledger/db.py` is the same layer as Payments' `core/db.py`,
+and CI runs this suite on both backends.
 
 | Table | Holds |
 |---|---|
@@ -80,7 +84,8 @@ COMMISSION_INPUT=due.csv PAYMENTS_URL=http://127.0.0.1:8080 python3 worker.py
 ## Test
 
 ```bash
-python3 -m unittest discover -s tests                       # 53 tests, stdlib only
+python3 -m unittest discover -s tests                       # stdlib only on SQLite
+TEST_POSTGRES_URL=postgresql://… python3 -m unittest discover -s tests   # same suite on PostgreSQL (needs requirements.txt)
 pip install -r ../pos/requirements.txt                       # optional, for the two below
 python3 -m unittest discover -s tests -p test_end_to_end.py  # +2 tests: real POS + Payments + Commission
 ```

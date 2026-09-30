@@ -51,10 +51,11 @@ def close_business_day(
             now = time.time()
             with store.tx() as conn:
                 conn.execute(
-                    "INSERT OR IGNORE INTO payout_items (id, sale_id, tenant_id, attendant_id,"
+                    "INSERT INTO payout_items (id, sale_id, tenant_id, attendant_id,"
                     " business_date, sale_total_minor, commission_rate_bps, commission_minor,"
                     " paid_at, payout_ledger_id, created_at)"
-                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)",
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)"
+                    " ON CONFLICT DO NOTHING",
                     (
                         "itm_" + uuid.uuid4().hex,
                         sale.sale_id,

@@ -12,7 +12,6 @@ Rules this module enforces and the tests prove:
 from __future__ import annotations
 
 import json
-import sqlite3
 import sys
 import uuid
 from typing import Any
@@ -30,7 +29,7 @@ from mpesa import (
 from mpesa.fake_common import Clock
 from mpesa.models import IDEMPOTENCY_KEY_RE, MSISDN_RE
 
-from core import jsonlog, metrics, tracing
+from core import db, jsonlog, metrics, tracing
 from core.common import (
     PROVIDER,
     TEXT_RE,
@@ -147,7 +146,8 @@ class PaymentService:
                 conn.execute(
                     "INSERT INTO payments (payment_id, tenant_id, idem_key, sale_id, msisdn,"
                     " amount_minor, currency, reference, state, initiate_started_at, created_at,"
-                    " updated_at, trace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'CREATED', ?, ?, ?, ?)",
+                    " updated_at, trace_id, span_id)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'CREATED', ?, ?, ?, ?, ?)",
                     (
                         payment_id,
                         tenant_id,
@@ -161,9 +161,10 @@ class PaymentService:
                         now,
                         now,
                         tracing.current_trace_id() or None,
+                        tracing.current_span_id() or None,
                     ),
                 )
-        except sqlite3.IntegrityError:
+        except db.IntegrityError:
             metrics.create_results_total.inc("payment", "conflict", "")
             return Reply(409, {"error": "sale_already_has_live_payment"})
 
@@ -265,12 +266,12 @@ class PaymentService:
     # Read ----------------------------------------------------------------------------------
 
     @staticmethod
-    def _find(conn: sqlite3.Connection, ident: str) -> sqlite3.Row | None:
+    def _find(conn: db.Connection, ident: str) -> db.Row | None:
         return conn.execute(
             "SELECT * FROM payments WHERE payment_id = ? OR provider_ref = ?", (ident, ident)
         ).fetchone()
 
-    def _public(self, conn: sqlite3.Connection, payment_id: str) -> dict[str, Any]:
+    def _public(self, conn: db.Connection, payment_id: str) -> dict[str, Any]:
         row = conn.execute("SELECT * FROM payments WHERE payment_id = ?", (payment_id,)).fetchone()
         return {
             "payment_id": row["payment_id"],
@@ -285,9 +286,9 @@ class PaymentService:
             if row is None:
                 return Reply(404, {"error": "not_found"})
             ledger = conn.execute(
-                "SELECT COUNT(*) FROM ledger_entries WHERE record_id = ? AND entry_type = ?",
+                "SELECT COUNT(*) AS n FROM ledger_entries WHERE record_id = ? AND entry_type = ?",
                 (row["payment_id"], "PAYMENT_CREDIT"),
-            ).fetchone()[0]
+            ).fetchone()["n"]
             body = self._public(conn, row["payment_id"])
         body.update(
             {
@@ -344,7 +345,7 @@ class PaymentService:
         try:
             with self.store.tx() as conn:
                 result = self._apply_callback(conn, event, confirmed)
-        except sqlite3.IntegrityError as exc:
+        except db.IntegrityError as exc:
             with self.store.tx() as conn:
                 self.store.anomaly(
                     conn,
@@ -394,15 +395,16 @@ class PaymentService:
             return "contradicted"
         return "inconclusive"
 
-    def _apply_callback(self, conn: sqlite3.Connection, event: Any, confirmed: str | None) -> str:
+    def _apply_callback(self, conn: db.Connection, event: Any, confirmed: str | None) -> str:
         now = self.clock.now()
         payment = conn.execute(
             "SELECT * FROM payments WHERE provider_ref = ?", (event.provider_ref,)
         ).fetchone()
         if payment is None:
             conn.execute(
-                "INSERT OR IGNORE INTO unmatched_callbacks (kind, provider_ref, payload_sha256,"
-                " outcome, raw_code, amount_minor, received_at) VALUES ('stk', ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO unmatched_callbacks (kind, provider_ref, payload_sha256,"
+                " outcome, raw_code, amount_minor, received_at) VALUES ('stk', ?, ?, ?, ?, ?, ?)"
+                " ON CONFLICT DO NOTHING",
                 (
                     event.provider_ref,
                     event.payload_sha256,
@@ -414,8 +416,9 @@ class PaymentService:
             )
             return "unmatched"
         conn.execute(
-            "INSERT OR IGNORE INTO provider_callbacks (kind, provider_ref, payload_sha256, outcome,"
-            " raw_code, received_at) VALUES ('stk', ?, ?, ?, ?, ?)",
+            "INSERT INTO provider_callbacks (kind, provider_ref, payload_sha256, outcome,"
+            " raw_code, received_at) VALUES ('stk', ?, ?, ?, ?, ?)"
+            " ON CONFLICT DO NOTHING",
             (event.provider_ref, event.payload_sha256, event.outcome.value, event.raw_code, now),
         )
         state = PaymentState(payment["state"])
@@ -454,7 +457,7 @@ class PaymentService:
     # State application (shared by callbacks and reconciliation) ----------------------------
 
     def _to_unknown(
-        self, conn: sqlite3.Connection, payment: sqlite3.Row, raw_code: str | None
+        self, conn: db.Connection, payment: db.Row, raw_code: str | None
     ) -> None:
         now = self.clock.now()
         self.store.transition(
@@ -471,7 +474,7 @@ class PaymentService:
             raw_code=raw_code,
         )
 
-    def _to_review(self, conn: sqlite3.Connection, payment: sqlite3.Row, detail: str) -> None:
+    def _to_review(self, conn: db.Connection, payment: db.Row, detail: str) -> None:
         now = self.clock.now()
         state = PaymentState(payment["state"])
         if state is PaymentState.PENDING:
@@ -501,7 +504,7 @@ class PaymentService:
         )
 
     def _event(
-        self, conn: sqlite3.Connection, payment: sqlite3.Row, event_type: str, now: float
+        self, conn: db.Connection, payment: db.Row, event_type: str, now: float
     ) -> None:
         self.store.outbox(
             conn,
@@ -517,8 +520,8 @@ class PaymentService:
 
     def _apply_outcome(
         self,
-        conn: sqlite3.Connection,
-        payment: sqlite3.Row,
+        conn: db.Connection,
+        payment: db.Row,
         outcome: Outcome,
         reason: DeclineReason | None,
         receipt: str | None,

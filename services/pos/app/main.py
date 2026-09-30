@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
-from . import metrics, scheduler, tracing
+from . import metrics, otlp, scheduler, tracing
 from .db import init_db, is_database_reachable
 from .routers import catalog, commission, internal, sales
 
@@ -46,6 +46,7 @@ _UNLOGGED_ROUTES = {"/health", "/ready", "/metrics"}
 @app.middleware("http")
 async def record_http_metrics(request: Request, call_next):
     trace_id = tracing.start(request.headers.get("traceparent"))
+    started = time.time()
     start = time.perf_counter()
     response = await call_next(request)
     duration = time.perf_counter() - start
@@ -71,6 +72,20 @@ async def record_http_metrics(request: Request, call_next):
             "result": f"{request.method} {route_path} -> {response.status_code}",
         }
         print(json.dumps(line, sort_keys=True), flush=True)
+        otlp.export(
+            trace_id=trace_id,
+            span_id=tracing.span_id(),
+            parent_span_id=tracing.parent_span_id(),
+            name=f"{request.method} {route_path}",
+            start=started,
+            end=time.time(),
+            attributes={
+                "http.method": request.method,
+                "http.route": route_path,
+                "http.status_code": response.status_code,
+            },
+            error=response.status_code >= 500,
+        )
     return response
 
 

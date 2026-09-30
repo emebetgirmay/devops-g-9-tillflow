@@ -8,7 +8,7 @@ import re
 
 from fastapi.testclient import TestClient
 
-from app import payments_client, tracing
+from app import otlp, payments_client, tracing
 
 TRACE = "4bf92f3577b34da6a3ce929d0e0e4736"
 TRACEPARENT = f"00-{TRACE}-00f067aa0ba902b7-01"
@@ -69,4 +69,32 @@ def test_payments_client_sends_the_trace_id(monkeypatch) -> None:
     )
     pc.get_payment("pay_1")
     assert [h["traceparent"].split("-")[1] for h in sent] == [TRACE, TRACE]
+    # Payments' span must hang under this request's span, not the caller's.
+    assert {h["traceparent"].split("-")[2] for h in sent} == {tracing.span_id()}
+    assert tracing.parent_span_id() == "00f067aa0ba902b7"
     assert sent[0]["Idempotency-Key"] == "k" * 16
+
+
+def test_each_request_exports_a_server_span_in_the_callers_trace(client: TestClient, monkeypatch) -> None:
+    spans: list[dict] = []
+    monkeypatch.setattr(otlp, "export", lambda **span: spans.append(span))
+    client.post("/tenants", json={"name": "Acme Duka"}, headers={"traceparent": TRACEPARENT})
+    client.get("/health")
+    (span,) = spans
+    assert (span["trace_id"], span["parent_span_id"]) == (TRACE, "00f067aa0ba902b7")
+    assert (span["name"], span["attributes"]["http.status_code"]) == ("POST /tenants", 201)
+    assert re.fullmatch(r"[0-9a-f]{16}", span["span_id"]) and not span["error"]
+    # The status goes to X-Ray as an int, or it records status 0.
+    status = [x for x in otlp.payload(span)["resourceSpans"][0]["scopeSpans"][0]["spans"][0]["attributes"]
+              if x["key"] == "http.status_code"]
+    assert status == [{"key": "http.status_code", "value": {"intValue": "201"}}]
+
+
+def test_the_exporter_only_talks_to_a_loopback_collector(monkeypatch) -> None:
+    for url, expected in (
+        ("http://127.0.0.1:4318", "http://127.0.0.1:4318"),
+        ("https://collector.example.com:4318", None),
+        ("", None),
+    ):
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", url)
+        assert otlp.endpoint() == expected

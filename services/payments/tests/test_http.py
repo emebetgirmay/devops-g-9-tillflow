@@ -256,9 +256,10 @@ class StartupRefusalTest(unittest.TestCase):
         self.assertIn("sandbox host", result.stderr)
         self.assertNotIn("listening", result.stdout)
 
-    def test_postgres_url_refuses_to_start(self) -> None:
-        result = self.run_app({"DATABASE_URL": "postgres://u@h/db"})
+    def test_an_unsupported_database_url_refuses_to_start(self) -> None:
+        result = self.run_app({"DATABASE_URL": "mysql://u@h/db"})
         self.assertEqual(result.returncode, 2)
+        self.assertIn("refusing to start", result.stderr)
 
 
 if __name__ == "__main__":

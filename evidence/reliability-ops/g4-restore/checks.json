@@ -1,0 +1,20 @@
+{
+  "run": "20260930T171523",
+  "rows": {
+    "payments_rows": "7",
+    "payment_before": "1",
+    "payment_after": "0",
+    "tenants_rows": "5",
+    "sales_rows": "0",
+    "tenant_before": "1",
+    "tenant_after": "0"
+  },
+  "checks": {
+    "verify_task_succeeded": true,
+    "payment_before_present": true,
+    "payment_after_absent": true,
+    "tenant_before_present": true,
+    "tenant_after_absent": true,
+    "tables_have_rows": true
+  }
+}

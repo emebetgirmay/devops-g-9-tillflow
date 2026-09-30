@@ -1,0 +1,19 @@
+before markers written 2026-09-30T17:15:24Z; waiting until RDS can restore past them
+restore point 2026-09-30T17:18:15Z; after markers written 2026-09-30T17:20:51Z
+2026-09-30T17:20:51Z  declared
+2026-09-30T17:20:55Z  restore_started
+2026-09-30T17:38:40Z  restore_available
+2026-09-30T17:39:34Z  restore_verified
+2026-09-30T17:39:36Z  restore_delete_requested
+{
+  "restore_point": "2026-09-30T17:18:15Z",
+  "rpo_seconds": 156,
+  "rto_seconds": 1124
+}
+rows: {'payments_rows': '7', 'payment_before': '1', 'payment_after': '0', 'tenants_rows': '5', 'sales_rows': '0', 'tenant_before': '1', 'tenant_after': '0'}
+PASS  verify_task_succeeded
+PASS  payment_before_present
+PASS  payment_after_absent
+PASS  tenant_before_present
+PASS  tenant_after_absent
+PASS  tables_have_rows

@@ -1,0 +1,29 @@
+{
+  "run": "20260930T174418",
+  "reboot": "2026-09-30T17:44:41Z",
+  "db_available": "2026-09-30T17:46:25Z",
+  "stable_60s": "2026-09-30T18:01:28Z",
+  "pos_ready_first_failure": "2026-09-30T17:44:51Z",
+  "pos_ready_last_failure": "2026-09-30T17:45:20Z",
+  "pos_ready_failed_seconds": 31,
+  "payments_read_first_failure": "2026-09-30T17:44:51Z",
+  "payments_read_last_failure": "2026-09-30T17:45:46Z",
+  "payments_read_failed_seconds": 58,
+  "tasks_replaced": {
+    "devops-g9-pos": [],
+    "devops-g9-payments": []
+  },
+  "rds_events": [
+    {
+      "t": "2026-09-30T17:44:49.950000+00:00",
+      "m": "DB instance shutdown"
+    },
+    {
+      "t": "2026-09-30T17:45:32.705000+00:00",
+      "m": "DB instance restarted"
+    }
+  ],
+  "pos_ready_first_ok_after": "2026-09-30T17:45:33Z",
+  "payments_read_first_ok_after": "2026-09-30T17:45:59Z",
+  "note": "stable_60s is the 15-minute wait timing out (a probe-count threshold bug, fixed); recovery times are the *_first_ok_after fields."
+}

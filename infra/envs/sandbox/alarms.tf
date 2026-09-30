@@ -379,10 +379,13 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_burn" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
 
+  # RequestCount only counts requests the ALB could send to a target, so the 503s it answers when a
+  # target group has no healthy target are not in it: dividing by it alone reads 0 in a total
+  # outage (G4 game day, 2026-09-30: 7 errors against 5 requests in one minute, alarm stayed OK).
   metric_query {
     id          = "error_rate"
-    expression  = "IF(requests > 0, FILL(errors, 0) / requests, 0)"
-    label       = "ALB-generated 5xx share"
+    expression  = "IF(FILL(requests, 0) + FILL(errors, 0) > 0, FILL(errors, 0) / (FILL(requests, 0) + FILL(errors, 0)), 0)"
+    label       = "ALB-generated 5xx share of all requests"
     return_data = true
   }
 
@@ -413,7 +416,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_burn" {
     service           = "edge"
     symptom           = "ALB-generated 5xx ${each.key} burn: above ${format("%.2f", each.value.factor * (1 - local.slo_services.pos.slo) * 100)}% of requests (${each.value.severity})"
     slo_impact        = "POS and Payments availability; these errors never reach the services' own 5xx counts"
-    observed          = "HTTPCode_ELB_5XX_Count / RequestCount for the whole ALB over ${each.value.period / 60} min"
+    observed          = "HTTPCode_ELB_5XX_Count / (RequestCount + HTTPCode_ELB_5XX_Count) for the whole ALB over ${each.value.period / 60} min"
     grafana_panel     = local.grafana_dashboard
     runbook           = "${local.runbook_url}#alb-5xx-${each.key}-burn"
     owner             = "@emebetgirmay"

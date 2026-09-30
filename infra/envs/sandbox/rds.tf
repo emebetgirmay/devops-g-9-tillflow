@@ -25,7 +25,7 @@ variable "pos_database" {
 variable "payments_database" {
   description = "Where Payments keeps its data: sqlite (file in the task, lost on restart) or rds."
   type        = string
-  default     = "sqlite"
+  default     = "rds" # image has the driver (services/payments/requirements.txt); bootstrap has run
 
   validation {
     condition     = contains(["sqlite", "rds"], var.payments_database)

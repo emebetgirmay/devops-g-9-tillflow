@@ -33,7 +33,7 @@
 | | Item | Evidence |
 |---|---|---|
 | ❌ | **Managed database with backups** | **POS and Payments use SQLite inside the container: a task restart loses their data.** Plan: RDS PostgreSQL (ADR 0002). This blocks the restore drill and horizontal scaling |
-| ❌ | Cache and queue with DLQ | Not built. Callbacks are handled synchronously with reconcile as the safety net (ADR 0009 question 5) |
+| ❌ | Cache and queue with DLQ | Not built. Design question resolved 2026-09-30 (ADR 0009 question 5): agreed candidate is Daraja callbacks on SQS + a DLQ; POS has no equivalent inbound event to queue (its settlement path is a poll with its own safety net, not a delivery). Callbacks are handled synchronously today, with reconcile as the interim safety net |
 | ❌ | Backups, restore drill, measured RTO/RPO | Blocked on RDS (G4) |
 
 ## Operate

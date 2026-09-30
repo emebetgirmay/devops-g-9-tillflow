@@ -18,6 +18,7 @@ import os
 import sys
 from datetime import date, datetime, timedelta, timezone
 
+from ledger import tracing
 from ledger.close import close_business_day
 from ledger.config import ConfigError, Settings
 from ledger.pos_client import POSClient
@@ -47,6 +48,9 @@ def main(argv: list[str] | None = None) -> int:
     except ConfigError as exc:
         print(f"close: {exc}", file=sys.stderr)
         return 2
+
+    trace_id = tracing.start_new_run()
+    print(json.dumps({"event": "close_run_started", "trace_id": trace_id}), file=sys.stderr)
 
     tenants = args.tenants or [
         t.strip() for t in os.environ.get("COMMISSION_TENANT_IDS", "").split(",") if t.strip()

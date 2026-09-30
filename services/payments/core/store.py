@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS payments (
   reconcile_attempts INTEGER NOT NULL DEFAULT 0,
   next_reconcile_at REAL,
   created_at REAL NOT NULL,
-  updated_at REAL NOT NULL
+  updated_at REAL NOT NULL,
+  trace_id TEXT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS payments_one_live_per_sale
   ON payments (tenant_id, sale_id)
@@ -86,7 +87,8 @@ CREATE TABLE IF NOT EXISTS disbursements (
   reconcile_attempts INTEGER NOT NULL DEFAULT 0,
   next_reconcile_at REAL,
   created_at REAL NOT NULL,
-  updated_at REAL NOT NULL
+  updated_at REAL NOT NULL,
+  trace_id TEXT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS disbursements_one_live_per_payout
   ON disbursements (payout_key)
@@ -171,6 +173,11 @@ class Store:
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as conn:
             conn.executescript(SCHEMA)
+            # A database file created before trace_id existed: CREATE TABLE IF NOT EXISTS skips it.
+            for table in ("payments", "disbursements"):
+                columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+                if "trace_id" not in columns:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN trace_id TEXT")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path, timeout=30, isolation_level=None)
@@ -293,14 +300,21 @@ class Store:
         if cursor.rowcount != 1:
             raise StaleStateError(f"{table} {record_id} is no longer {current.value}")
         metrics.state_transitions_total.inc(kind, current.value, target.value)
+        # The record remembers the trace that created it, so a callback, sweep or reconcile that
+        # moves it later (under its own trace id) can be found from the sale's trace id.
+        trace_id = tracing.current_trace_id()
+        origin = conn.execute(
+            f"SELECT trace_id FROM {table} WHERE {id_column} = ?", (record_id,)
+        ).fetchone()["trace_id"]
         jsonlog.log_line(
             level="INFO",
             service="payments",
             event="state_transition",
-            trace_id=tracing.current_trace_id(),
+            trace_id=trace_id,
             record_kind=kind,
             record_id=record_id,
             state=target.value,
+            origin_trace_id=origin if origin != trace_id else None,
         )
 
     @staticmethod

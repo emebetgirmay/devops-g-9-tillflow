@@ -28,6 +28,8 @@ def log_line(
     record_id: str | None = None,
     state: str | None = None,
     result: str | None = None,
+    origin_trace_id: str | None = None,
+    code: str | None = None,
 ) -> None:
     line = {
         "ts": time.time(),
@@ -40,4 +42,10 @@ def log_line(
         "state": state,
         "result": result,
     }
+    # Only when set: the trace that created the record (a callback, sweep or reconcile moving it
+    # later runs under its own trace id), and the provider's raw result code on a callback.
+    if origin_trace_id:
+        line["origin_trace_id"] = origin_trace_id
+    if code is not None:
+        line["code"] = code
     print(json.dumps(line, sort_keys=True), flush=True)

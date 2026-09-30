@@ -32,6 +32,7 @@ class FakePOSSale:
 @dataclass
 class FakePOSServer:
     sales: dict[str, list[FakePOSSale]] = field(default_factory=dict)  # tenant_id -> sales
+    traceparents: list[str | None] = field(default_factory=list)  # one per request received
 
     def __post_init__(self) -> None:
         sales = self.sales
@@ -42,6 +43,7 @@ class FakePOSServer:
                 pass
 
             def do_GET(self) -> None:
+                outer.traceparents.append(self.headers.get("traceparent"))
                 parsed = urlparse(self.path)
                 parts = parsed.path.strip("/").split("/")
                 if (

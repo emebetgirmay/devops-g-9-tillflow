@@ -172,8 +172,8 @@ class PayoutService:
                 conn.execute(
                     "INSERT INTO disbursements (disbursement_id, tenant_id, idem_key, attendant_id,"
                     " payout_period, payout_key, msisdn, amount_minor, currency,"
-                    " originator_conversation_id, state, initiate_started_at, created_at, updated_at)"
-                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CREATED', ?, ?, ?)",
+                    " originator_conversation_id, state, initiate_started_at, created_at, updated_at,"
+                    " trace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CREATED', ?, ?, ?, ?)",
                     (
                         disbursement_id,
                         tenant_id,
@@ -188,6 +188,7 @@ class PayoutService:
                         now,
                         now,
                         now,
+                        tracing.current_trace_id() or None,
                     ),
                 )
         except sqlite3.IntegrityError:
@@ -396,6 +397,7 @@ class PayoutService:
             record_kind="b2c_result",
             record_id=event.originator_conversation_id,
             result=result,
+            code=event.raw_code,
         )
         return Reply(200, {**ACK, "status": result})
 

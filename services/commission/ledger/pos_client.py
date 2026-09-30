@@ -14,6 +14,8 @@ import urllib.request
 from collections.abc import Iterator
 from dataclasses import dataclass
 
+from ledger import tracing
+
 
 class POSError(Exception):
     """POS could not be reached, or answered with something unusable."""
@@ -37,7 +39,10 @@ class POSClient:
 
     def _get(self, path: str, params: dict[str, str]) -> dict:
         url = f"{self.base_url}{path}?{urllib.parse.urlencode(params)}"
-        request = urllib.request.Request(url, method="GET")
+        # The run's trace id, so POS logs this read under the same trace as the close.
+        request = urllib.request.Request(
+            url, method="GET", headers={"traceparent": tracing.traceparent_header()}
+        )
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 return json.loads(response.read())

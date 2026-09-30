@@ -40,13 +40,13 @@ lists the commits. PRs, with the account that authored the commits:
 
 ## 3. Tests
 
-259 tests, standard library only, no network. Counts at `main` 8839a39:
+265 tests, standard library only, no network:
 
 | Suite | Tests | Covers |
 |---|---|---|
 | `services/_shared/tests` | 60 | The port contract and every FakeAdapter scenario (STK and B2C), its thread safety, and a guard that nothing in `_shared` imports an HTTP client or carries a Safaricom URL or secret |
-| `services/payments/tests` | 143 | `test_payments.py` (40) and `test_payouts.py` (34): idempotency, the state machines, replay and reorder, timeouts, reconcile, limits, kill switch. `test_daraja_sandbox.py` (18): the real adapter over a recorded transport. `test_invariants.py`, `test_metrics.py`, `test_trace_evidence.py`, `test_public_edge.py`, `test_unhandled_errors.py`, `test_http.py`, `test_config.py`, and the no-outbound guard |
-| `services/commission/tests` | 56 | Commission maths and carry-forward, the daily close, disburse and reconcile against the real Payments service in process, a guard that Commission never imports M-Pesa code, and `test_end_to_end.py`: real POS + Commission + Payments over HTTP, run twice |
+| `services/payments/tests` | 148 | `test_payments.py` (40) and `test_payouts.py` (34): idempotency, the state machines, replay and reorder, timeouts, reconcile, limits, kill switch. `test_daraja_sandbox.py` (18): the real adapter over a recorded transport. `test_invariants.py`, `test_metrics.py`, `test_trace_evidence.py`, `test_public_edge.py`, `test_unhandled_errors.py`, `test_http.py`, `test_config.py`, and the no-outbound guard |
+| `services/commission/tests` | 57 | Commission maths and carry-forward, the daily close, disburse and reconcile against the real Payments service in process, a guard that Commission never imports M-Pesa code, and `test_end_to_end.py`: real POS + Commission + Payments over HTTP, run twice |
 
 ## 4. Runtime proof
 
@@ -96,17 +96,28 @@ A trace explains a duplicate on its own: every delivery logs `{"event": "callbac
 aws logs filter-log-events --log-group-name /devops-g9/payments --filter-pattern '"<trace_id>"'
 ```
 
+### One trace from sale to callback
+
+[`trace/sale-to-callback.json`](trace/sale-to-callback.json) (5 checks): one `traceparent` sent on
+a sale's POS calls finds, in order, POS's sale and payment-request lines, Payments' create and
+`PENDING`, the callback's `SUCCEEDED` transition, and POS's reconcile. POS logs the trace id and
+passes it to Payments. The provider's callback is a separate request with its own trace id, so
+Payments stores the creating trace id on the payment and logs it as `origin_trace_id` when a later
+request (callback, sweep or reconcile) moves the record. Filtering either log group by the sale's
+trace id returns the whole path. Commission does the same per run: `close.py` to POS and
+`disburse.py` to Payments each send one run trace id.
+
 ## 5. Reproduce
 
-Every command below was run on 2026-09-30 from a fresh clone of `main` (8839a39) and passed.
+Every command below was run on 2026-09-30 from a fresh clone of `main` and passed.
 Python 3.12, no credentials, nothing reaches Safaricom.
 
 ```bash
-# Tests (259). Commission's two end-to-end tests need POS's packages; without them they skip.
+# Tests (265). Commission's two end-to-end tests need POS's packages; without them they skip.
 (cd services/_shared    && python3 -m unittest discover -s tests -t .)   # 60
-(cd services/payments   && python3 -m unittest discover -s tests)        # 143
+(cd services/payments   && python3 -m unittest discover -s tests)        # 148
 python3 -m venv .venv && .venv/bin/pip install -r services/pos/requirements.txt
-(cd services/commission && ../../.venv/bin/python -m unittest discover -s tests)   # 56
+(cd services/commission && ../../.venv/bin/python -m unittest discover -s tests)   # 57
 
 # Two local services for the runtime packs.
 (cd services/payments && DATABASE_URL=sqlite:////tmp/ev-payments.db python3 app.py) &
@@ -116,6 +127,8 @@ python3 -m venv .venv && .venv/bin/pip install -r services/pos/requirements.txt
 PAYMENTS_URL=http://127.0.0.1:8080 ./evidence/payments-integrity/collect.sh          # G2, 7 checks
 PAYMENTS_DB=/tmp/ev-payments.db ./evidence/commission-payout/collect.sh              # G2, 9 checks, waits 61 s
 PAYMENTS_URL=http://127.0.0.1:8080 python3 evidence/payments-integrity/g4/drills.py  # G4, 23 checks
+# Trace: start the two services with their output redirected to files, then
+LOGS="/tmp/tr-pos.log /tmp/tr-payments.log" ./evidence/payments-integrity/trace/collect.sh   # 5 checks
 ```
 
 The packs overwrite the JSON next to them, so run them in a scratch clone to keep the committed
@@ -136,6 +149,8 @@ sandbox runs.
   section 6).
 - **Commission in the sandbox.** It has an image and CI but is not deployed; it waits for RDS
   because its ledger must persist between runs.
-- **One trace from sale to callback.** Payments logs a `trace_id` on every request and state change
-  and honours `traceparent`; POS does not send one yet and a provider callback arrives without one.
-- **The exact Daraja result code** is stored but not logged or returned by `GET /payouts`.
+- **Span waterfalls.** Tracing is trace ids in JSON logs, propagated by `traceparent`, not X-Ray
+  spans (ADR 0009 "Alternatives considered"). The sale-to-callback trace below is proven against
+  local services; the capture from the deployed log groups in Grafana is Platform's.
+- **The exact Daraja result code** is logged on every callback line (`code`) but not returned by
+  `GET /payouts`.

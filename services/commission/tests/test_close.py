@@ -11,6 +11,7 @@ from pathlib import Path
 import _bootstrap  # noqa: F401
 from fake_pos import FakePOSSale, FakePOSServer
 
+from ledger import tracing
 from ledger.close import close_business_day
 from ledger.config import Settings
 from ledger.pos_client import POSClient
@@ -71,6 +72,13 @@ class CloseTestCase(unittest.TestCase):
 
 
 class BasicCloseTest(CloseTestCase):
+    def test_every_read_from_pos_carries_the_runs_trace_id(self) -> None:
+        self.pos.add(TENANT, _sale("s1", "att-1", 9, total_minor=100_000, rate_bps=500))
+        trace_id = tracing.start_new_run()
+        self.close()
+        self.assertTrue(self.pos.traceparents)
+        self.assertEqual({tp.split("-")[1] for tp in self.pos.traceparents}, {trace_id})
+
     def test_one_sale_above_minimum_closes_to_a_ledger_row(self) -> None:
         self.pos.add(
             TENANT, _sale("s1", "att-1", 9, total_minor=100_000, rate_bps=500)

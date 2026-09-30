@@ -1,0 +1,10 @@
+[
+    {
+        "time": "2026-09-29T20:13:05.988000+03:00",
+        "summary": "Alarm updated from ALARM to OK"
+    },
+    {
+        "time": "2026-09-29T20:02:05.991000+03:00",
+        "summary": "Alarm updated from OK to ALARM"
+    }
+]

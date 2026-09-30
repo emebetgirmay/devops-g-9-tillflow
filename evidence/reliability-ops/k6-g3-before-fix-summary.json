@@ -1,0 +1,143 @@
+{
+    "metrics": {
+        "http_reqs": {
+            "count": 35276,
+            "rate": 34.55355506539004
+        },
+        "iterations": {
+            "count": 33744,
+            "rate": 33.0529300977016
+        },
+        "http_req_duration": {
+            "avg": 57.84942267099491,
+            "min": 2.273436,
+            "med": 19.579904499999998,
+            "max": 8262.019889,
+            "p(90)": 113.9685325,
+            "p(95)": 229.49746575,
+            "thresholds": {
+                "p(95)<500": false
+            }
+        },
+        "http_req_receiving": {
+            "avg": 0.10674410052160174,
+            "min": 0.024843,
+            "med": 0.0998325,
+            "max": 73.955811,
+            "p(90)": 0.121931,
+            "p(95)": 0.13324225
+        },
+        "http_req_sending": {
+            "avg": 0.04193562989001022,
+            "min": 0.009417,
+            "med": 0.040909,
+            "max": 0.563962,
+            "p(90)": 0.0526725,
+            "p(95)": 0.05673425
+        },
+        "http_req_failed": {
+            "fails": 35166,
+            "passes": 110,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0.003118267377253657
+        },
+        "http_req_blocked": {
+            "max": 38.205739,
+            "p(90)": 0.01205,
+            "p(95)": 0.013891,
+            "avg": 0.01060022057489506,
+            "min": 0.002696,
+            "med": 0.006268
+        },
+        "http_req_duration{expected_response:true}": {
+            "min": 2.273436,
+            "med": 19.577711,
+            "max": 8262.019889,
+            "p(90)": 114.042528,
+            "p(95)": 230.02630925,
+            "avg": 57.878840447705635
+        },
+        "iteration_duration": {
+            "avg": 327.25691635404564,
+            "min": 4.986459,
+            "med": 295.039049,
+            "max": 8619.266348,
+            "p(90)": 506.0114603,
+            "p(95)": 601.5063038499999
+        },
+        "data_sent": {
+            "count": 11453504,
+            "rate": 11218.938687936985
+        },
+        "http_req_tls_handshaking": {
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0
+        },
+        "http_req_waiting": {
+            "med": 19.435715000000002,
+            "max": 8261.916405,
+            "p(90)": 113.78556,
+            "p(95)": 229.16314699999998,
+            "avg": 57.7007429405829,
+            "min": 2.160693
+        },
+        "vus_max": {
+            "value": 81,
+            "min": 81,
+            "max": 81
+        },
+        "vus": {
+            "value": 1,
+            "min": 1,
+            "max": 51
+        },
+        "checks": {
+            "passes": 32978,
+            "fails": 0,
+            "thresholds": {
+                "rate>0.99": false
+            },
+            "value": 1
+        },
+        "data_received": {
+            "rate": 15647.634615342371,
+            "count": 15974795
+        },
+        "http_req_connecting": {
+            "med": 0,
+            "max": 38.119571,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.0029072797085837386,
+            "min": 0
+        }
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "payout create is 2xx or an idempotent conflict": {
+                    "name": "payout create is 2xx or an idempotent conflict",
+                    "path": "::payout create is 2xx or an idempotent conflict",
+                    "id": "0e74030250a8e19e13d8932d6949c840",
+                    "passes": 6396,
+                    "fails": 0
+                },
+                "payment create is 2xx": {
+                    "name": "payment create is 2xx",
+                    "path": "::payment create is 2xx",
+                    "id": "cdaf833ee11559d9f12a4bafcd2d73d5",
+                    "passes": 26582,
+                    "fails": 0
+                }
+            }
+    }
+}

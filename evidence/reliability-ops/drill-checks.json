@@ -1,0 +1,31 @@
+{
+  "alarm": "devops-g9-payments-reconcile-stale",
+  "checks": {
+    "alarm_went_ok_to_alarm": true,
+    "alarm_recovered_alarm_to_ok": true,
+    "slack_posted_firing_200": true,
+    "slack_posted_recovered_200": true,
+    "sns_published_at_least_2": true,
+    "sweep_resumed_after_drill": true
+  },
+  "passed": true,
+  "history": [
+    "Alarm updated from ALARM to OK",
+    "Alarm updated from OK to ALARM"
+  ],
+  "slack_posts": [
+    {
+      "event": "slack_posted",
+      "alarm": "devops-g9-payments-reconcile-stale",
+      "state": "ALARM",
+      "status": 200
+    },
+    {
+      "event": "slack_posted",
+      "alarm": "devops-g9-payments-reconcile-stale",
+      "state": "OK",
+      "status": 200
+    }
+  ],
+  "sns_published": 2.0
+}

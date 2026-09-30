@@ -1,0 +1,34 @@
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+     execution: local
+        script: /home/k6/capacity.js
+        output: -
+     scenarios: (100.00%) 5 scenarios, 81 max VUs, 17m30s max duration (incl. graceful stop):
+              * driver: 1 looping VUs for 17m0s (exec: driveFakeAdapter, gracefulStop: 30s)
+              * smoke: 1 looping VUs for 10s (exec: steadyMix, gracefulStop: 30s)
+              * stepped: Up to 20 looping VUs for 30s over 3 stages (gracefulRampDown: 30s, exec: steadyMix, startTime: 10s, gracefulStop: 30s)
+              * spike: Up to 50 looping VUs for 20s over 3 stages (gracefulRampDown: 30s, exec: steadyMix, startTime: 40s, gracefulStop: 30s)
+              * soak: 10 looping VUs for 15m0s (exec: steadyMix, startTime: 1m0s, gracefulStop: 30s)
+     ✓ payment create is 2xx
+     ✓ payout create is 2xx or an idempotent conflict
+   ✓ checks.........................: 100.00% 35081 out of 35081
+     data_received..................: 17 MB   17 kB/s
+     data_sent......................: 12 MB   12 kB/s
+     http_req_blocked...............: avg=6.81µs   min=810ns    med=2.96µs   max=29.55ms  p(90)=4.87µs   p(95)=14.38µs 
+     http_req_connecting............: avg=2.7µs    min=0s       med=0s       max=29.51ms  p(90)=0s       p(95)=0s      
+   ✓ http_req_duration..............: avg=39.14ms  min=1.05ms   med=18.77ms  max=7.59s    p(90)=85.21ms  p(95)=154.1ms 
+       { expected_response:true }...: avg=39.14ms  min=1.05ms   med=18.77ms  max=7.59s    p(90)=85.21ms  p(95)=154.1ms 
+   ✓ http_req_failed................: 0.00%   0 out of 37478
+     http_req_receiving.............: avg=27.91µs  min=7.43µs   med=21.75µs  max=3.93ms   p(90)=34.04µs  p(95)=45.62µs 
+     http_req_sending...............: avg=13.64µs  min=2.93µs   med=11.07µs  max=440.73µs p(90)=21.37µs  p(95)=27µs    
+     http_req_tls_handshaking.......: avg=0s       min=0s       med=0s       max=0s       p(90)=0s       p(95)=0s      
+     http_req_waiting...............: avg=39.1ms   min=946.25µs med=18.73ms  max=7.59s    p(90)=85.17ms  p(95)=154.06ms
+     http_reqs......................: 37478   36.734294/s
+     iteration_duration.............: avg=307.61ms min=2.49ms   med=286.43ms max=8.6s     p(90)=494.32ms p(95)=534.8ms 
+     iterations.....................: 35880   35.168004/s
+     vus............................: 1       min=1              max=51
+     vus_max........................: 81      min=81             max=81
+K6_EXIT_CODE=0

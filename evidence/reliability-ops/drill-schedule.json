@@ -1,0 +1,6 @@
+{
+    "name": "devops-g9-reconcile-sweep",
+    "state": "ENABLED",
+    "expression": "rate(5 minutes)",
+    "target": "arn:aws:lambda:eu-north-1:240462142849:function:devops-g9-reconcile-sweep"
+}

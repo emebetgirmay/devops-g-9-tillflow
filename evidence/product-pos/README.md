@@ -84,6 +84,33 @@ TID=$(curl -s -X POST localhost:8080/tenants -d '{"name":"Demo Duka"}' -H 'conte
 # ...create till/attendant/product, then POST a sale with Idempotency-Key — see README.
 ```
 
+## G4 — Recover
+
+- [x] Failure + recovery drill against the deployed sandbox — `evidence/product-pos/g4-recover-stuck-sale.sh`.
+  Proves the real gap in the POS ↔ Payments contract (Payments has no push callback, so a sale can
+  settle at Payments while POS's own record never finds out until something polls) by forcing it
+  open, then recovering from it correctly. Run for real on 2026-09-30, all 5 checks passed
+  (`g4-recover-checks.json`):
+  1. `sale_stuck_at_payment_requested_before_reconcile` — Payments resolved the STK to `SUCCEEDED`
+     (`g4-recover-fake-deliver.json`) while POS's own record was still `PAYMENT_REQUESTED`
+     (`g4-recover-stuck-state.json`) — the failure, made real, not assumed.
+  2. `unsafe_retry_payment_request_is_refused` — retrying `payment-request` on the stuck sale, as
+     if re-sending the STK push were a fix, is refused with 409 (`g4-recover-unsafe-retry.json`),
+     not silently re-sent.
+  3. `reconcile_recovers_sale_to_paid` / `reconcile_reports_applied_true_on_recovery` — the correct
+     recovery, `payment-reconcile`, applies the already-known outcome and reaches `PAID`
+     (`g4-recover-reconcile.json`) — no new charge, no new STK push, POS just catches up.
+  4. `repeat_reconcile_is_a_no_op` — the recovery action is itself safe to repeat
+     (`g4-recover-reconcile-replay.json`, `applied: false`).
+- Restore drill and RDS backups are blocked on RDS provisioning (ADR 0002) — Platform's, not POS's.
+
+### Reproduction
+
+```bash
+aws sso login --profile g9   # or: aws login --profile g9
+AWS_PROFILE=g9 ./evidence/product-pos/g4-recover-stuck-sale.sh
+```
+
 ## Later
 - Live trace (sale -> payment-request -> payment-event) once ADOT/Payments are wired end to end.
 - Cross-review sign-off from Payments DRI on `services/_shared/pos-payments-contract.md`.

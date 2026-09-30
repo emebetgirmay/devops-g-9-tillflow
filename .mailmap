@@ -1,0 +1,8 @@
+# Map every commit identity to one person, so `git shortlog -sne` shows the real split.
+# Commits made from a workstation whose git user was "Administrator" or "root" are Emebet's
+# (same email). Alice committed under several spellings and one malformed email.
+Emebet Girmay <girmaayemebet@gmail.com>
+Alice Moraa <124131335+Moraaalice@users.noreply.github.com>
+Alice Moraa <124131335+Moraaalice@users.noreply.github.com> <alicemoraaongongo@gmail.com>
+Alice Moraa <124131335+Moraaalice@users.noreply.github.com> <alicemoraaongongo@.com>
+Mitingi Joy Chesang <124131718+chesangJ@users.noreply.github.com>

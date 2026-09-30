@@ -1,8 +1,50 @@
-# Production readiness checklist (stub — fill through G5)
+# Production readiness checklist
 
-- [ ] Naming/tag audit (`devops-g9`, required tags)
-- [ ] Non-root, read-only containers; `/health` `/ready`
-- [ ] No `latest` tags — SHA build, digest deploy
-- [ ] SBOM + secret/dep/IaC/image scans; HIGH/CRITICAL policy
-- [ ] SLOs wired in Grafana; burn alerts
-- [ ] Runbook rehearsed; destroy/rebuild documented
+**Owner:** Platform + delivery, Emebet Girmay (`@emebetgirmay`) · **Updated:** 2026-09-30 (G3) · Filled through G5.
+
+✅ done with evidence · 🟡 partly · ❌ not done (with the reason and the plan)
+
+## Build and release
+
+| | Item | Evidence |
+|---|---|---|
+| ✅ | Naming `devops-g9-*` and required tags on every resource | `evidence/platform-delivery/tag-audit.txt`: 42 resources, all required tags present (G1 audit; re-run at G5 for the G3 resources) |
+| ✅ | No `latest` tags: SHA build, push by immutable digest, deploy by digest | `.github/workflows/release.yml`; ECR repositories are `IMMUTABLE` (`infra/envs/sandbox/ecr.tf`) |
+| ✅ | Secret scan, IaC scan, image scan; HIGH/CRITICAL fails the build | gitleaks, Trivy config and Trivy image in `pr.yml` and `release.yml` (`--severity HIGH,CRITICAL --exit-code 1`); accepted risks listed with owner and expiry in `.trivyignore` |
+| ❌ | SBOM per image | Not generated yet. Plan: Trivy (already pinned in CI) writes a CycloneDX SBOM for each image and the release keeps it as an artifact |
+| ✅ | Gated apply of the reviewed plan | `release.yml`: plan artifact, `sandbox` environment approval, apply of that exact plan |
+| ✅ | Post-deploy smoke and automatic rollback | `release.yml` "Wait stable + mandatory smoke" then "Rollback previous task definition". **Exercised for real on 2026-09-29:** a POS build crashed at start-up and was rolled back to revision 24 with no outage ([scar log](scar-log.md)) |
+| ✅ | Start-up check in CI with the production environment | `pr.yml` "Start-up smoke (ECS environment)" for POS (#54) |
+
+## Runtime
+
+| | Item | Evidence |
+|---|---|---|
+| ✅ | Containers run as a non-root user | `USER 10001:10001` in the POS, Payments and Commission Dockerfiles |
+| 🟡 | Read-only root filesystem | ADOT sidecars and the k6 task: yes. POS and Payments: no, because SQLite needs a writable path in the image. Becomes yes with RDS |
+| ✅ | `/health`, `/ready`, `/version` on every service; ALB and ECS health checks use `/ready` | `infra/envs/sandbox/ecs.tf`, `alb.tf`; live at the public edge |
+| ✅ | No public access to metrics or data paths | `/metrics` blocked at the ALB (#40); ALB internal, reachable only through API Gateway's VPC link and the VPC |
+| 🟡 | Test endpoints off the public route | `/_fake/*` and `/_admin/*` are still routed from API Gateway (ADR 0009 G3-7); in-VPC callers (k6, the sweep) no longer need them public |
+| ✅ | Least-privilege IAM, no long-lived keys | GitHub OIDC role; CI role scoped by name and `group` tag (#33); service roles read only their own secrets; Grafana reads through an external-ID role |
+| ✅ | Secrets only in Secrets Manager; CI can describe but not read them | Daraja and Slack secrets; runbook "Slack webhook" |
+
+## Data
+
+| | Item | Evidence |
+|---|---|---|
+| ❌ | **Managed database with backups** | **POS and Payments use SQLite inside the container: a task restart loses their data.** Plan: RDS PostgreSQL (ADR 0002). This blocks the restore drill and horizontal scaling |
+| ❌ | Cache and queue with DLQ | Not built. Callbacks are handled synchronously with reconcile as the safety net (ADR 0009 question 5) |
+| ❌ | Backups, restore drill, measured RTO/RPO | Blocked on RDS (G4) |
+
+## Operate
+
+| | Item | Evidence |
+|---|---|---|
+| ✅ | SLOs and error budgets, SLIs wired in Grafana | [`slo-error-budgets.md`](slo-error-budgets.md); Grafana overview, POS and Payments dashboards |
+| ✅ | Burn-rate alerts (fast and slow) that page and recover in Slack | 17 alarms; [G3 evidence](../evidence/reliability-ops/g3-evidence.md) |
+| ✅ | Uptime probe on the public edge | `devops-g9-probe`, every minute, `probe-down` |
+| ✅ | Load tested, capacity recorded | [k6 analysis](../evidence/reliability-ops/k6-analysis.md): 36.7 req/s sustained, p95 154 ms, 0.00% failed |
+| 🟡 | Runbook rehearsed | Slack drill and real incidents followed the runbook ([G3 evidence](../evidence/reliability-ops/g3-evidence.md)); restore not rehearsed (no database) |
+| ✅ | Incidents and lessons recorded | [`scar-log.md`](scar-log.md) |
+| ❌ | Destroy and rebuild documented and proven | Not done (G5). Needs `force_destroy` / `force_delete` where appropriate and a timed rebuild |
+| ❌ | Cost model | Not done (G5) |

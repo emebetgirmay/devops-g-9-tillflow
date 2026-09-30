@@ -1,7 +1,28 @@
 # Scar log
 
-Record incidents, budget burns, and lessons. Empty at G0.
+Incidents, budget burns and lessons: what hurt, what we changed, and where the change is.
+Newest first. Times are UTC unless stated.
 
 | Date | Area | What hurt | Fix / decision | Link |
 |---|---|---|---|---|
-| | | | | |
+| 2026-09-30 | CI / Commission | Commission's end-to-end tests failed every evening from 21:00 to 24:00 UTC: they used the UTC date as "today" while Commission closes EAT days | Tests ask Commission's own `business_date()` for "today"; PR plans now wait up to 5 minutes for a release's Terraform state lock instead of failing on it | #56 |
+| 2026-09-29 | Payments / capacity | At 0.25 vCPU Payments ran at 85–100% CPU under the k6 soak; p95 swung 229–546 ms around the 500 ms target and `payments-cpu-high` fired (21:11–21:18) | Payments to 0.5 vCPU / 1 GB; final k6 run: CPU peak 55%, p95 154 ms, no alarm | #55, [k6 analysis](../evidence/reliability-ops/k6-analysis.md) |
+| 2026-09-29 | POS / release | A rebuild pulled FastAPI 0.142.0, which starts OpenTelemetry itself when `OTEL_*` is set and exits at start-up without the extra (exit 3). Unit tests never start the app that way | The release's smoke check failed and **rolled POS back to revision 24 automatically**; POS stayed up. Pinned `fastapi<0.142`; CI now starts the POS image with ECS's environment and requires it to come up. Follow-up: exact pinned versions (lock file) | #54 |
+| 2026-09-29 | Payments / reliability | k6 soak: 110 ALB 502s (0.31%) that no Payments signal saw. `/_fake/deliver-callbacks` iterated a dict other request threads were inserting into; the thread died without a reply | Lock around the fakes' shared state; unhandled exceptions become a logged, counted 500; alarms on ALB-generated 5xx. A/B test showed the lock costs nothing | #52, #53 |
+| 2026-09-29 | Reliability / tooling | First in-VPC k6 run died in a minute: Fargate's scratch volume is root-owned, the k6 image runs as uid 12345. A later run's laptop session dropped mid-run | Script and summary go in the k6 user's home; `run-k6.sh` retries through network blips and can collect a run already in progress | #51, [`run-k6.sh`](../evidence/reliability-ops/run-k6.sh) |
+| 2026-09-29 | Payments / operations | Nothing ran Payments' reconcile pass on a schedule, so `UNKNOWN` payments and payouts would never resolve. `payments-reconcile-stale` fired at 15:44 and caught it | In-VPC Lambda calls `POST /_admin/sweep` every 5 minutes (ADR 0009 G3-10). Recovered 16:42 | #45 |
+| 2026-09-29 | Reliability / alerting | The Slack webhook was accidentally pasted onto the command line, so it appeared in shell history and a chat. Separately, every alarm before 16:19 was dropped because the secret had no value | Webhook deleted in Slack and replaced; shell history cleaned. Runbook "Slack webhook" section: read it with `read -rs`, never paste it on the command line. Notifier logs `slack_webhook_not_set` rather than failing | [runbook](runbook.md#slack-webhook) |
+| 2026-09-29 | Reliability / alerting | `reconcile-stale` failed to create: `result` is a reserved word in CloudWatch Metrics Insights; the other five alarms in the same apply succeeded | Quote reserved words (`"result"`). Alarms cannot use `SEARCH()`, and an exact-dimension alarm misses ADOT's `OTelLib`, so app alarms use Metrics Insights | #44 |
+| 2026-09-28/29 | Payments / security | Daraja B2C result callbacks were refused: the sender's address was unknown, and behind API Gateway the socket peer is the ALB | Source taken from a header API Gateway overwrites with the caller's IP; observed Daraja addresses allowlisted one by one (`196.201.212.69`, then `.138`) | #32, #34, #36, [contract test](../evidence/daraja-b2c-contract/README.md) |
+| 2026-09-28/29 | Payments / integration | No sandbox B2C payout reached `SUCCEEDED`: every result was `CONFIGURATION`, which (correctly) tripped the kill switch | Diagnosed as the stored security credential not matching the `testapi` initiator password; regenerate from the portal's Test Credentials page. Open | [contract test](../evidence/daraja-b2c-contract/README.md) |
+| 2026-09-24 | Platform / network | On the sandbox, POS could not reach Payments: the POS task only allowed HTTPS out and the internal ALB only accepted API Gateway traffic | Allow HTTP from tasks in the VPC to the internal ALB | #24 |
+| 2026-09-18 | Platform / delivery | The G1 ADOT fix merged but never reached the running service: the deploy cloned the service's stale task definition. Fixing that then cloned the placeholder `pos` health check onto the real image | Deploy clones Terraform's task definition revision and sets the real-app health check itself | #6, #7 |
+| Standing | Platform / data | **POS and Payments keep their data in SQLite inside the container.** Every task restart loses sales, payments, payouts and the payouts kill switch; nothing can be restored; horizontal scaling would split state | Known limitation, stated in the README and G3 evidence. Fix: RDS PostgreSQL (ADR 0002) | [ADR 0002](adrs/0002-rds-postgresql.md) |
+
+## Lessons we keep
+
+- **A release is not done until the running task changed.** Twice the code merged and the service did not pick it up (#6/#7, and the ADOT config needing POS in the deploy filter).
+- **Start the app the way production does, in CI.** Unit tests passed while the real start-up crashed (#54).
+- **An error that closes the connection is invisible to the service's own metrics.** Count ALB-generated 5xx separately (#53).
+- **Make drills real.** Stopping the actual sweep (#46, #48) tested the alarm, the SNS topic, the Lambda, the webhook and the runbook link, all at once.
+- **A test that depends on the time of day will pass until the evening it doesn't** (#56).

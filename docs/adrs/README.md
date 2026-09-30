@@ -19,7 +19,7 @@ index mirrors the files.
 | [0006](0006-idempotency-replay.md) | Idempotency and callback replay | `@chesangJ` | Accepted (G2) |
 | [0007](0007-multi-tenancy.md) | Multi-tenancy isolation | `@Moraaalice` | Accepted |
 | [0008](0008-b2c-payouts.md) | B2C commission payouts | `@chesangJ` | Accepted (G2) |
-| [0009](0009-payments-observability.md) | Payments observability for G3 | `@chesangJ` | Proposed (G3 draft) |
+| [0009](0009-payments-observability.md) | Payments observability for G3 | `@chesangJ` | Accepted (G3) |
 | [0010](0010-reliability-observability.md) | Reliability and observability for G3 | `@emebetgirmay` | Accepted (G3) |
 
 ## Reading order for the money path
@@ -35,5 +35,6 @@ from the wording.
 - ADR 0002 and 0003 are still `Proposed`; their owner decides when to accept them.
 - Items marked "verify against Daraja docs" in 0006 and 0008 are confirmed by a sandbox contract
   test run by the deployed adapter, which does not exist yet.
-- ADR 0009 is still `Proposed`. Platform signed off the metrics approach on 2026-09-28
-  (Prometheus scrape, `/metrics` off the public API). `@chesangJ` accepts it after review.
+- ADR 0009 was accepted on 2026-09-30. Still open from it: `/_admin/*` and `/_fake/*` are still
+  on the public listener (G3-7), the Postgres capacity re-run waits for RDS (G3-5), and two
+  baseline-dependent alarms are not built.

@@ -1,7 +1,8 @@
 # ADR 0009 - Payments observability for G3
 
-- **Status:** Proposed (G3 draft)
+- **Status:** Accepted (G3)
 - **Date:** 2026-09-21
+- **Accepted:** 2026-09-30 (G3; Platform sign-off 2026-09-28 by `@emebetgirmay`; evidence in [`g3-evidence.md`](../../evidence/reliability-ops/g3-evidence.md))
 - **DRI:** Payments + integrity, Mitingi Joy Chesang (`@chesangJ`)
 - **Related:** [SLOs](../slo-error-budgets.md), [runbook](../runbook.md), [architecture](../architecture.md), [threat model](../threat-model.md), [ADR 0002](0002-rds-postgresql.md), [ADR 0005](0005-dual-cicd-lanes.md), [ADR 0006](0006-idempotency-replay.md), [ADR 0008](0008-b2c-payouts.md)
 
@@ -102,7 +103,7 @@ Dashboards and Slack rules (Platform), Product's sale-side signals, the real Dar
 
 ## Platform sign-off (2026-09-28)
 
-`@emebetgirmay`. This does not accept the ADR. `@chesangJ` still sets `Accepted` after review.
+`@emebetgirmay`. This did not accept the ADR; `@chesangJ` accepted it on 2026-09-30 (see Acceptance below).
 
 - **Question 1.** ADOT scrapes `127.0.0.1:<port>/metrics` (Prometheus text). Payments does not add an OTLP SDK. The scrape config is G3-7, after `GET /metrics` exists.
 - **Question 3.** `/metrics` is not added to the API Gateway or the ALB listener rules. `/_admin/*` and `/_fake/*` are operator and test paths: the G2 listener currently forwards them, and G3-7 removes that public route. Release smoke and evidence collection move to an in-VPC call.
@@ -137,8 +138,27 @@ each piece (read that before defending this area live).
   default failure classification to not flag intended 409 idempotency conflicts as errors — see
   the walkthrough) before being committed. Capacity numbers are explicitly not sizing evidence on
   SQLite (section 6's own caveat) — G3-5 (re-run on Postgres) is blocked on RDS and not built.
-- **Not built:** everything in ADR 0010 that's Emebet's — the actual ADOT Prometheus scrape
-  (G3-7), Grafana panels, Slack alerts, the probe Lambda.
+- **Built by Platform under [ADR 0010](0010-reliability-observability.md)** (evidence:
+  [`g3-evidence.md`](../../evidence/reliability-ops/g3-evidence.md)): the ADOT Prometheus scrape
+  of `/metrics` with `/metrics` blocked at the ALB (G3-7), the Grafana panels and the Payments
+  alarms with Slack firing and recovery (G3-8), and the scheduled reconcile sweep (G3-10).
+- **Added after G3 (G4 drills, #47):** every STK callback and B2C result logs its verdict
+  (`applied`, `replay`, `illegal_transition_logged`, `unmatched`) as a `callback` line under the
+  request's `trace_id`, and anomaly lines carry the `trace_id`, so one trace explains a duplicate
+  (`tests/test_trace_evidence.py`). This extends section 5; it changes no metric.
+- **Not built:** G3-5 (Postgres backend and capacity re-run, blocked on RDS); the second half of
+  G3-7, taking `/_admin/*` and `/_fake/*` off the public listener (they are still forwarded by
+  the ALB rule); two section 4 alarms, callback rejections above baseline and provider-unknown
+  rate above 5%, which need a traffic baseline; G3-9 (open questions 2 and 5).
+
+## Acceptance (2026-09-30)
+
+`@chesangJ`. Accepted for G3 after checking the decision against `main`: the metric catalogue,
+JSON logs and `traceparent` propagation, the fake-build invariants endpoint and the k6 scripts are
+built and tested (G3-1 to G3-4); `/metrics` is scraped by the sidecar and answers a fixed 404 on
+the public path; the Payments alarms fired and recovered in Slack on real symptoms, including
+`payments-critical-anomaly` paging on the G4 replay drill while the invariant held. The items
+under "Not built" and the open questions below stay open and do not block the decision.
 
 ## Open questions
 
@@ -146,7 +166,7 @@ each piece (read that before defending this area live).
 |---|---|---|
 | 1 | Closed 2026-09-28: Prometheus scrape on the ADOT sidecar, not an OTLP SDK | `@emebetgirmay` |
 | 2 | Where the 60 s window starts for STK (the customer's PIN time), and how it treats payments left `UNKNOWN` (same as ADR 0006 question 8) | `@emebetgirmay` |
-| 3 | Closed 2026-09-28: `/metrics` stays off the public API. `/_admin/*` and `/_fake/*` leave the public listener in G3-7 | `@emebetgirmay` |
+| 3 | Decided 2026-09-28: `/metrics` stays off the public API (done, blocked at the ALB). `/_admin/*` and `/_fake/*` leave the public listener in G3-7: **not done yet**, waiting on confirmation that nothing outside the VPC calls them | `@emebetgirmay` |
 | 4 | Closed in G2: Payments log groups (14-day retention) and the ECS service are deployed | `@emebetgirmay` |
 | 5 | Whether callbacks need a queue, as the runbook and architecture assume, or the synchronous handler plus reconcile is enough. Daraja documents no retry, so a queue only helps if it sits at the edge | `@chesangJ` with `@emebetgirmay` |
 | 6 | Per-tenant views, which cannot be metric labels; they come from logs or the database | `@Moraaalice` |

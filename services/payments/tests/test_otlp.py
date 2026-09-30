@@ -54,7 +54,17 @@ class EndpointTest(unittest.TestCase):
         self.assertEqual((span["traceId"], span["spanId"], span["parentSpanId"]), (SALE_TRACE, POS_SPAN, "00f067aa0ba902b7"))
         self.assertEqual((span["startTimeUnixNano"], span["endTimeUnixNano"]), ("1500000000", "2000000000"))
         self.assertEqual(span["status"], {"code": 1})
-        self.assertEqual(span["attributes"], [{"key": "http.status_code", "value": {"stringValue": "201"}}])
+        self.assertEqual(span["attributes"], [{"key": "http.status_code", "value": {"intValue": "201"}}])
+
+    def test_only_ints_are_sent_as_int_values(self) -> None:
+        body = otlp.payload({
+            "trace_id": SALE_TRACE, "span_id": POS_SPAN, "name": "x", "start": 1.0, "end": 2.0,
+            "attributes": {"http.method": "POST", "http.status_code": 500, "flag": True},
+        })
+        values = {a["key"]: a["value"] for a in body["resourceSpans"][0]["scopeSpans"][0]["spans"][0]["attributes"]}
+        self.assertEqual(values["http.method"], {"stringValue": "POST"})
+        self.assertEqual(values["http.status_code"], {"intValue": "500"})
+        self.assertEqual(values["flag"], {"stringValue": "True"})
 
 
 class WaterfallTest(ServiceTestCase):
@@ -75,7 +85,7 @@ class WaterfallTest(ServiceTestCase):
         self.assertEqual((create["trace_id"], create["parent_span_id"]), (SALE_TRACE, POS_SPAN))
         self.assertEqual(create["attributes"]["http.status_code"], 201)
 
-        (callback,) = [s for s in spans if s["name"] == "payment PENDING -> SUCCEEDED"]
+        (callback,) = [s for s in spans if s["name"] == "payment PENDING to SUCCEEDED"]
         self.assertEqual(callback["trace_id"], SALE_TRACE)
         self.assertEqual(callback["parent_span_id"], create["span_id"])
         self.assertEqual(callback["attributes"]["tillflow.record_id"], created.body["payment_id"])

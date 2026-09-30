@@ -84,6 +84,10 @@ def test_each_request_exports_a_server_span_in_the_callers_trace(client: TestCli
     assert (span["trace_id"], span["parent_span_id"]) == (TRACE, "00f067aa0ba902b7")
     assert (span["name"], span["attributes"]["http.status_code"]) == ("POST /tenants", 201)
     assert re.fullmatch(r"[0-9a-f]{16}", span["span_id"]) and not span["error"]
+    # The status goes to X-Ray as an int, or it records status 0.
+    status = [x for x in otlp.payload(span)["resourceSpans"][0]["scopeSpans"][0]["spans"][0]["attributes"]
+              if x["key"] == "http.status_code"]
+    assert status == [{"key": "http.status_code", "value": {"intValue": "201"}}]
 
 
 def test_the_exporter_only_talks_to_a_loopback_collector(monkeypatch) -> None:

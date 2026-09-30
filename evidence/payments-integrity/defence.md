@@ -31,6 +31,7 @@ evidence index is [`README.md`](README.md); the G3 code is explained in
 | Kill switch trips on `CONFIGURATION` or insufficient funds | Repeated bad credentials lock the API user; stop instead of retrying | One bad result pauses every payout until someone resets it |
 | Standard library only, SQLite | No dependency to patch, easy to test, deterministic | One task only, no backups, state lost on redeploy; Postgres is the fix (ADR 0002) |
 | Pull, not push, to POS | Payments has no outbound HTTP client, which a guard test enforces | POS must poll `payment-reconcile`; a sale can sit unpaid until it does |
+| Spans without the OpenTelemetry SDK, loopback only | The reviewer wanted an X-Ray waterfall; an SDK would add dependencies and an outbound client to the money path | I own a small exporter; a dropped span is silent by design |
 | FakeAdapter for CI, k6 and drills | Timeouts and duplicate callbacks cannot be forced in the sandbox | Real Daraja behaviour is proven only by the separate contract test |
 
 ## Failure behaviour, with the proof
@@ -48,8 +49,8 @@ evidence index is [`README.md`](README.md); the G3 code is explained in
 ## What I would say is not done
 
 The list in [`README.md`](README.md#6-not-claimed): no `SUCCEEDED` payout from the real sandbox
-yet, no restore because there is no database to restore, Commission not deployed, and tracing is
-trace ids in logs, not span waterfalls.
+yet, no restore because there is no database to restore, Commission not deployed, and the X-Ray
+waterfall is proven against a local collector, not yet captured from X-Ray.
 
 The weakest point, said plainly: every guarantee above holds while the database survives. On this
 build a redeploy replaces the task and its SQLite file, so idempotency records, the payout keys and

@@ -12,8 +12,15 @@ enough — no contextvars needed.
 from __future__ import annotations
 
 import secrets
+import time
 
 _trace_id: str | None = None
+
+
+def _new_trace_id() -> str:
+    """32 hex whose first 8 are the epoch second: the form X-Ray's own trace ids take, so the run's
+    trace is accepted there too."""
+    return f"{int(time.time()):08x}{secrets.token_hex(12)}"
 
 
 def start_new_run() -> str:
@@ -21,14 +28,14 @@ def start_new_run() -> str:
     this run, distinct from whatever the previous run (or an import in a
     long-lived test process) left behind."""
     global _trace_id
-    _trace_id = secrets.token_hex(16)
+    _trace_id = _new_trace_id()
     return _trace_id
 
 
 def current_trace_id() -> str:
     global _trace_id
     if _trace_id is None:
-        _trace_id = secrets.token_hex(16)
+        _trace_id = _new_trace_id()
     return _trace_id
 
 

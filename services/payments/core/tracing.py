@@ -18,16 +18,35 @@ from __future__ import annotations
 
 import re
 import secrets
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 
 _TRACE_ID_RE = re.compile(r"^[0-9a-f]{32}$")
+_SPAN_ID_RE = re.compile(r"^[0-9a-f]{16}$")
 _current: ContextVar[str] = ContextVar("trace_id", default="")
+# This request's own span, and the caller's span it hangs under (empty for a trace we started).
+_span: ContextVar[str] = ContextVar("span_id", default="")
+_parent: ContextVar[str] = ContextVar("parent_span_id", default="")
 
 
 def new_trace_id() -> str:
-    return secrets.token_hex(16)
+    """32 hex. The first 8 are the epoch second, which is the form X-Ray's own ids take, so the
+    trace is accepted whatever the collector version does with plain W3C ids."""
+    return f"{int(time.time()):08x}{secrets.token_hex(12)}"
+
+
+def new_span_id() -> str:
+    return secrets.token_hex(8)
+
+
+def current_span_id() -> str:
+    return _span.get()
+
+
+def current_parent_span_id() -> str:
+    return _parent.get()
 
 
 def trace_id_from_traceparent(header_value: str | None) -> str | None:
@@ -55,9 +74,16 @@ def current_trace_id() -> str:
 
 @contextmanager
 def trace_context(traceparent_header: str | None) -> Iterator[str]:
-    trace_id = trace_id_from_traceparent(traceparent_header) or new_trace_id()
-    token = _current.set(trace_id)
+    adopted = trace_id_from_traceparent(traceparent_header)
+    trace_id = adopted or new_trace_id()
+    parent = (traceparent_header or "").strip().lower().split("-")[2] if adopted else ""
+    tokens = (
+        (_current, _current.set(trace_id)),
+        (_span, _span.set(new_span_id())),
+        (_parent, _parent.set(parent if _SPAN_ID_RE.match(parent) else "")),
+    )
     try:
         yield trace_id
     finally:
-        _current.reset(token)
+        for var, token in tokens:
+            var.reset(token)

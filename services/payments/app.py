@@ -22,7 +22,7 @@ if _SHARED.is_dir():  # repo layout; in the image the mpesa package sits next to
 
 from mpesa import FakeAdapter, ManualClock
 
-from core import jsonlog, metrics, tracing
+from core import jsonlog, metrics, otlp, tracing
 from core.common import Reply
 from core.config import ConfigError, Settings, SystemClock
 from core.daraja_sandbox import DarajaSandboxAdapter
@@ -99,6 +99,7 @@ class App:
         path = path.split("?", 1)[0].rstrip("/") or "/"
         route = _route_label(path)
         lower = {k.lower(): v for k, v in headers.items()}
+        started = time.time()
         with tracing.trace_context(lower.get("traceparent")) as trace_id:
             with metrics.Timer() as timer:
                 try:
@@ -138,6 +139,21 @@ class App:
                 trace_id=trace_id,
                 result=f"{method} {route} -> {reply.status}",
             )
+            if route not in _EXCLUDED_ROUTES:
+                otlp.export(
+                    trace_id=trace_id,
+                    span_id=tracing.current_span_id(),
+                    parent_span_id=tracing.current_parent_span_id(),
+                    name=f"{method} {route}",
+                    start=started,
+                    end=time.time(),
+                    attributes={
+                        "http.method": method,
+                        "http.route": route,
+                        "http.status_code": reply.status,
+                    },
+                    error=reply.status >= 500,
+                )
         return reply
 
     def _blocked_at_public_edge(self, path: str, lower: dict[str, str]) -> bool:

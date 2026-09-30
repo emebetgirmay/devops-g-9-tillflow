@@ -4,9 +4,11 @@
 # sets it out of band (docs/runbook.md, "Slack webhook"). CI never reads or writes the value.
 
 resource "aws_secretsmanager_secret" "slack" {
-  name                    = "${var.name_prefix}/slack-webhook"
-  description             = "Slack incoming webhook for alerts, as {\"url\": \"...\"}. Value set by hand, never in Git."
-  recovery_window_in_days = 7
+  name        = "${var.name_prefix}/slack-webhook"
+  description = "Slack incoming webhook for alerts, as {\"url\": \"...\"}. Value set by hand, never in Git."
+  # 0, not 7: a rebuild recreates this name at once (a secret pending deletion blocks the name).
+  # The webhook goes with it and is set again by hand after a rebuild (runbook "Slack webhook").
+  recovery_window_in_days = 0
 
   tags = {
     Name    = "${var.name_prefix}/slack-webhook"

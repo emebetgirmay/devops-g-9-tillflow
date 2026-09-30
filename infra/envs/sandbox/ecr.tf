@@ -1,6 +1,9 @@
 resource "aws_ecr_repository" "pos" {
   name                 = "${var.name_prefix}/pos"
   image_tag_mutability = "IMMUTABLE"
+  # Destroy and rebuild (G5): images are rebuilt from git by the release, so the repository may go
+  # with its images; without this, destroy stops at a non-empty repository.
+  force_delete = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -40,6 +43,9 @@ resource "aws_ecr_lifecycle_policy" "pos" {
 resource "aws_ecr_repository" "payments" {
   name                 = "${var.name_prefix}/payments"
   image_tag_mutability = "IMMUTABLE"
+  # Destroy and rebuild (G5): images are rebuilt from git by the release, so the repository may go
+  # with its images; without this, destroy stops at a non-empty repository.
+  force_delete = true
 
   image_scanning_configuration {
     scan_on_push = true

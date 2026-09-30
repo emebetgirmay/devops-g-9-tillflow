@@ -96,9 +96,11 @@ resource "aws_db_parameter_group" "main" {
   name   = "${var.name_prefix}-pg16"
   family = "postgres16"
 
+  # Static parameter: AWS records it as pending-reboot, so say so, or every plan shows a change.
   parameter {
-    name  = "rds.force_ssl"
-    value = "1"
+    name         = "rds.force_ssl"
+    value        = "1"
+    apply_method = "pending-reboot"
   }
 
   # Slow statements show in the RDS log; the services' own latency metrics stay the SLI.

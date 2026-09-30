@@ -184,6 +184,28 @@ jobs:
             image --severity HIGH,CRITICAL --exit-code 1 \
             --ignore-unfixed "${IMAGE_URI}"
 
+      # SBOM for the exact image being released (production readiness): CycloneDX from the same
+      # pinned Trivy that gates the release, kept 90 days next to the smoke results.
+      - name: SBOM (CycloneDX)
+        env:
+          TRIVY_VERSION: "0.56.2"
+          IMAGE_URI: ${{ steps.build.outputs.image_uri }}
+        run: |
+          set -euo pipefail
+          mkdir -p sbom && chmod 777 sbom
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${PWD}/sbom:/out" \
+            "aquasec/trivy:${TRIVY_VERSION}" \
+            image --quiet --format cyclonedx --output "/out/sbom-pos.cdx.json" "${IMAGE_URI}"
+          python3 -c "import json; d = json.load(open('sbom/sbom-pos.cdx.json')); print(d['bomFormat'], d['specVersion'], len(d.get('components', [])), 'components')"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-pos-${{ github.sha }}
+          path: sbom/sbom-pos.cdx.json
+          retention-days: 90
+
       - name: Push or reuse immutable digest
         id: push
         env:
@@ -383,6 +405,28 @@ jobs:
             "aquasec/trivy:${TRIVY_VERSION}" \
             image --severity HIGH,CRITICAL --exit-code 1 \
             --ignore-unfixed "${IMAGE_URI}"
+
+      # SBOM for the exact image being released (production readiness): CycloneDX from the same
+      # pinned Trivy that gates the release, kept 90 days next to the smoke results.
+      - name: SBOM (CycloneDX)
+        env:
+          TRIVY_VERSION: "0.56.2"
+          IMAGE_URI: ${{ steps.build.outputs.image_uri }}
+        run: |
+          set -euo pipefail
+          mkdir -p sbom && chmod 777 sbom
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${PWD}/sbom:/out" \
+            "aquasec/trivy:${TRIVY_VERSION}" \
+            image --quiet --format cyclonedx --output "/out/sbom-payments.cdx.json" "${IMAGE_URI}"
+          python3 -c "import json; d = json.load(open('sbom/sbom-payments.cdx.json')); print(d['bomFormat'], d['specVersion'], len(d.get('components', [])), 'components')"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-payments-${{ github.sha }}
+          path: sbom/sbom-payments.cdx.json
+          retention-days: 90
 
       - name: Push or reuse immutable digest
         id: push

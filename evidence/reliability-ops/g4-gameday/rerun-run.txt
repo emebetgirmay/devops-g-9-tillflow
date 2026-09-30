@@ -1,0 +1,19 @@
+task definition devops-g9-payments:39: DATABASE_URL from secret devops-g9/db/payments-U5jHs9:url::
+before: {'paid': 'SUCCEEDED', 'pending': 'PENDING'}
+stopped 6467811b52fc41d0bddb2219fc786284 at 2026-09-30T20:22:37Z
+after:  {'paid': 'SUCCEEDED', 'pending': 'PENDING'}
+{
+  "stopped_task": "6467811b52fc41d0bddb2219fc786284",
+  "stop": "2026-09-30T20:22:37Z",
+  "first_failed_read": "2026-09-30T20:22:45Z",
+  "first_good_read_on_new_task": "2026-09-30T20:23:14Z",
+  "service_stable": "2026-09-30T20:23:34Z",
+  "unavailable_seconds": 28,
+  "recovered_seconds_after_stop": 37
+}
+PASS  database_url_from_secret
+PASS  replacement_task_served
+PASS  settled_payment_survived
+PASS  pending_payment_survived
+PASS  idempotency_key_survived
+alarms in window: 0 (re-run collection later: payments-down needs 2 minutes to fire)

@@ -1,0 +1,23 @@
+{
+  "run": "20260930T202226",
+  "payments": {
+    "paid": "pay_99a32c20a9d947b795d7c69f1286343e",
+    "pending": "pay_152bc1c89b2f40ac9976d5c479122162"
+  },
+  "before": {
+    "paid": "SUCCEEDED",
+    "pending": "PENDING"
+  },
+  "after": {
+    "paid": "SUCCEEDED",
+    "pending": "PENDING"
+  },
+  "replay_http": 200,
+  "checks": {
+    "database_url_from_secret": true,
+    "replacement_task_served": true,
+    "settled_payment_survived": true,
+    "pending_payment_survived": true,
+    "idempotency_key_survived": true
+  }
+}

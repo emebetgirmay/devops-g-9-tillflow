@@ -1,12 +1,17 @@
-# Trivy config accepted risks — G1 lab (Group 9)
+# Trivy config accepted risks — Group 9
 # Format: rule id. Justification — owner — expires YYYY-MM-DD
+# Reviewed 2026-09-30 (G5): both still hold; renewed with the reasons below.
 
-# Internal ALB still speaks HTTP to tasks; TLS at API Gateway edge later if required.
-# AVD-AWS-0054 — HTTP listener on internal ALB — @emebetgirmay — expires 2026-10-21
+# The internal ALB speaks HTTP to the tasks. It is not reachable from the internet: only API
+# Gateway's VPC link and tasks inside the VPC reach it, and TLS ends at API Gateway. HTTPS on the ALB
+# needs a certificate for a private name; revisit with a custom domain.
+# AVD-AWS-0054 — HTTP listener on internal ALB — @emebetgirmay — expires 2026-12-31
 AVD-AWS-0054
 
-# POS tasks need 443 egress via NAT for ECR pull + CloudWatch/X-Ray.
-# AVD-AWS-0104 — ECS task egress 443 — @emebetgirmay — expires 2026-10-21
+# Tasks (POS, Payments, Commission, k6, DB bootstrap) and the in-VPC Lambda need HTTPS out through
+# the NAT gateway for ECR, Secrets Manager, CloudWatch Logs and X-Ray. Interface VPC endpoints
+# instead would cost about $92 a month against the NAT's $34 (docs/cost-model.md).
+# AVD-AWS-0104 — ECS task egress 443 — @emebetgirmay — expires 2026-12-31
 AVD-AWS-0104
 
 # Alias used by some Trivy builds for the same egress check:

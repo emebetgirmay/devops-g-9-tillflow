@@ -49,6 +49,24 @@ renders it (#37). Every alarm links to its own section of [`docs/runbook.md`](..
 
 **17 alarms**, all created by Terraform through the gated pipeline.
 
+## Edge probe history
+
+`devops-g9-probe` calls the public `/ready` (API Gateway → VPC link → ALB → POS) once a minute.
+Exported with [`collect-probe.sh`](collect-probe.sh) on 2026-09-30, before CloudWatch rolls the
+one-minute data up after 15 days: [`probe-summary.json`](probe-summary.json),
+[`probe-minutes.json`](probe-minutes.json) (every minute), [`probe-alarm-history.json`](probe-alarm-history.json).
+A failed **or missing** minute counts as down, as `probe-down` treats it.
+
+| Window (UTC) | Minutes | Up | Failed | Missing | Availability | Latency p50 / p95 / max |
+|---|---|---|---|---|---|---|
+| 2026-09-29 13:00 → 2026-09-30 11:04 | 1,325 | 1,325 | 0 | 0 | **100.0%** | 55 / 77 / 469 ms |
+
+`probe-down`'s only state change was at creation: ALARM at 13:00:33, OK at 13:01:33, before the
+probe's first datapoint (missing data counts as down, by design). After that, no down minute in a
+window that includes the k6 runs, the Slack drill, the POS release that was rolled back automatically (#54) and the Payments resize (#55):
+none of them was visible at the public edge. One day of history is not an SLO measurement over
+28 days; it shows the probe runs every minute without gaps and what it measures.
+
 ## Incidents: real symptoms, never `SetAlarmState`
 
 | # | When (UTC) | What fired | Cause | Resolution | Evidence |
@@ -89,7 +107,6 @@ caught a Commission test that failed every evening from 21:00 UTC (#56).
 - **28 days of history.** 28-day panels cover the data since G3 started.
 - **X-Ray span waterfalls.** Trace ids are propagated and logged (ADR 0009 G3-2); spans are deferred per ADR 0009.
 - **The web service.** Still a placeholder; its SLO is not measured (ADR 0010 open question 1).
-- **`/_fake` and `/_admin` off the public route (ADR 0009 G3-7).** k6 and the scheduled sweep no longer need them public; removal waits for the team to confirm nothing else calls them from outside the VPC.
 - **Real Daraja under load.** Load is FakeAdapter only, by design.
 
 ## Reproduce
@@ -98,6 +115,7 @@ caught a Commission test that failed every evening from 21:00 UTC (#56).
 aws sso login --profile g9
 ./evidence/reliability-ops/run-k6.sh                                           # k6 envelope, about 17 minutes
 DRILL_FROM=2026-09-29T16:45:00Z DRILL_TO=2026-09-29T17:14:08Z ./evidence/reliability-ops/collect-drill.sh
+./evidence/reliability-ops/collect-probe.sh                                     # probe history, last 15 days
 python3 infra/grafana/build.py                                                  # regenerate the dashboards
 ```
 

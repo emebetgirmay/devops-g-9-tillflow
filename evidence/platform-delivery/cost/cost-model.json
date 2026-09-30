@@ -1,0 +1,241 @@
+{
+  "window": {
+    "from": "2026-09-16",
+    "to_exclusive": "2026-09-30",
+    "days": 14
+  },
+  "region": "eu-north-1",
+  "tillflow": [
+    {
+      "stack": "tillflow",
+      "component": "Fargate vCPU (x86)",
+      "basis": "0.75 x 730 vCPU-h",
+      "monthly_quantity": 547.5,
+      "unit_price_usd": 0.0445,
+      "price_source": "bill",
+      "monthly_usd": 24.36
+    },
+    {
+      "stack": "tillflow",
+      "component": "Fargate memory (x86)",
+      "basis": "1.5 x 730 GB-h",
+      "monthly_quantity": 1095.0,
+      "unit_price_usd": 0.0049,
+      "price_source": "bill",
+      "monthly_usd": 5.37
+    },
+    {
+      "stack": "tillflow",
+      "component": "NAT gateway hours",
+      "basis": "1 x 730 h",
+      "monthly_quantity": 730.0,
+      "unit_price_usd": 0.046,
+      "price_source": "bill",
+      "monthly_usd": 33.58
+    },
+    {
+      "stack": "tillflow",
+      "component": "Load balancer hours",
+      "basis": "1 x 730 h",
+      "monthly_quantity": 730.0,
+      "unit_price_usd": 0.02394,
+      "price_source": "bill",
+      "monthly_usd": 17.48
+    },
+    {
+      "stack": "tillflow",
+      "component": "Public IPv4 addresses",
+      "basis": "1 x 730 h",
+      "monthly_quantity": 730.0,
+      "unit_price_usd": 0.005,
+      "price_source": "bill",
+      "monthly_usd": 3.65
+    },
+    {
+      "stack": "tillflow",
+      "component": "NAT data processed",
+      "basis": "9.78 GB in window",
+      "monthly_quantity": 21.242,
+      "unit_price_usd": 0.046,
+      "price_source": "bill",
+      "monthly_usd": 0.98
+    },
+    {
+      "stack": "tillflow",
+      "component": "Load balancer LCUs",
+      "basis": "1.15 LCU-h in window",
+      "monthly_quantity": 2.509,
+      "unit_price_usd": 0.0076,
+      "price_source": "bill",
+      "monthly_usd": 0.02
+    },
+    {
+      "stack": "tillflow",
+      "component": "CloudWatch custom metrics (ADOT, probe, Container Insights)",
+      "basis": "151 metrics",
+      "monthly_quantity": 151,
+      "unit_price_usd": 0.3,
+      "price_source": "bill",
+      "monthly_usd": 45.3
+    },
+    {
+      "stack": "tillflow",
+      "component": "CloudWatch alarms (standard)",
+      "basis": "11 alarms",
+      "monthly_quantity": 11,
+      "unit_price_usd": 0.1,
+      "price_source": "bill",
+      "monthly_usd": 1.1
+    },
+    {
+      "stack": "tillflow",
+      "component": "CloudWatch Metrics Insights alarms",
+      "basis": "6 alarms",
+      "monthly_quantity": 6,
+      "unit_price_usd": 0.1,
+      "price_source": "bill",
+      "monthly_usd": 0.6
+    },
+    {
+      "stack": "tillflow",
+      "component": "CloudWatch Logs ingestion",
+      "basis": "0.127 GB in window",
+      "monthly_quantity": 0.275,
+      "unit_price_usd": 0.54,
+      "price_source": "bill",
+      "monthly_usd": 0.15
+    },
+    {
+      "stack": "tillflow",
+      "component": "CloudWatch Logs storage",
+      "basis": "0.050 GB stored",
+      "monthly_quantity": 0.05,
+      "unit_price_usd": 0.03,
+      "price_source": "list",
+      "monthly_usd": 0.0
+    },
+    {
+      "stack": "tillflow",
+      "component": "Secrets Manager",
+      "basis": "2 secrets",
+      "monthly_quantity": 2,
+      "unit_price_usd": 0.4,
+      "price_source": "bill",
+      "monthly_usd": 0.8
+    },
+    {
+      "stack": "tillflow",
+      "component": "KMS customer-managed keys",
+      "basis": "1 keys",
+      "monthly_quantity": 1,
+      "unit_price_usd": 1.0,
+      "price_source": "list",
+      "monthly_usd": 1.0
+    },
+    {
+      "stack": "tillflow",
+      "component": "ECR image storage",
+      "basis": "1.36 GB, 24 images",
+      "monthly_quantity": 1.361,
+      "unit_price_usd": 0.1,
+      "price_source": "bill",
+      "monthly_usd": 0.14
+    },
+    {
+      "stack": "tillflow",
+      "component": "API Gateway HTTP requests",
+      "basis": "938 requests in window",
+      "monthly_quantity": 2037.917,
+      "unit_price_usd": 1e-06,
+      "price_source": "list",
+      "monthly_usd": 0.0
+    },
+    {
+      "stack": "tillflow",
+      "component": "Lambda (probe, sweep, notifier)",
+      "basis": "770 calls, 35 GB-s in window",
+      "monthly_quantity": 1,
+      "unit_price_usd": 0.0016015206923517932,
+      "price_source": "list (free tier covers it today)",
+      "monthly_usd": 0.0
+    }
+  ],
+  "other_stacks": [
+    {
+      "stack": "other",
+      "component": "Fargate vCPU (x86)",
+      "basis": "1 x 730 vCPU-h",
+      "monthly_quantity": 730.0,
+      "unit_price_usd": 0.0445,
+      "price_source": "bill",
+      "monthly_usd": 32.48
+    },
+    {
+      "stack": "other",
+      "component": "Fargate memory (x86)",
+      "basis": "2 x 730 GB-h",
+      "monthly_quantity": 1460.0,
+      "unit_price_usd": 0.0049,
+      "price_source": "bill",
+      "monthly_usd": 7.15
+    },
+    {
+      "stack": "other",
+      "component": "NAT gateway hours",
+      "basis": "1 x 730 h",
+      "monthly_quantity": 730.0,
+      "unit_price_usd": 0.046,
+      "price_source": "bill",
+      "monthly_usd": 33.58
+    },
+    {
+      "stack": "other",
+      "component": "Load balancer hours",
+      "basis": "1 x 730 h",
+      "monthly_quantity": 730.0,
+      "unit_price_usd": 0.02394,
+      "price_source": "bill",
+      "monthly_usd": 17.48
+    },
+    {
+      "stack": "other",
+      "component": "Interface VPC endpoints (per AZ)",
+      "basis": "12 x 730 h",
+      "monthly_quantity": 8760.0,
+      "unit_price_usd": 0.0105,
+      "price_source": "bill",
+      "monthly_usd": 91.98
+    },
+    {
+      "stack": "other",
+      "component": "Public IPv4 addresses",
+      "basis": "3 x 730 h",
+      "monthly_quantity": 2190.0,
+      "unit_price_usd": 0.005,
+      "price_source": "bill",
+      "monthly_usd": 10.95
+    },
+    {
+      "stack": "other",
+      "component": "NAT data processed",
+      "basis": "0.00 GB in window",
+      "monthly_quantity": 0.0,
+      "unit_price_usd": 0.046,
+      "price_source": "bill",
+      "monthly_usd": 0.0
+    },
+    {
+      "stack": "other",
+      "component": "Load balancer LCUs",
+      "basis": "0.08 LCU-h in window",
+      "monthly_quantity": 0.17,
+      "unit_price_usd": 0.0076,
+      "price_source": "bill",
+      "monthly_usd": 0.0
+    }
+  ],
+  "tillflow_monthly_usd": 134.53,
+  "other_stacks_monthly_usd": 193.62,
+  "region_measured_monthly_usd": 282.11,
+  "unexplained_monthly_usd": -46.04
+}

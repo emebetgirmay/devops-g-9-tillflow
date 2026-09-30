@@ -1,0 +1,212 @@
+{
+  "region": "eu-north-1",
+  "days": [
+    {
+      "date": "2026-09-16",
+      "services": {
+        "Amazon DynamoDB": 0.0,
+        "Amazon EC2 Container Registry (ECR)": 0.0008,
+        "EC2 - Other": 2.3574,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 1.4105,
+        "Amazon Elastic Load Balancing": 1.1492,
+        "Amazon Simple Storage Service": 0.0002,
+        "Amazon Virtual Private Cloud": 3.6562,
+        "AmazonCloudWatch": 0.1096
+      }
+    },
+    {
+      "date": "2026-09-17",
+      "services": {
+        "Amazon API Gateway": 0.0,
+        "Amazon DynamoDB": 0.0,
+        "Amazon EC2 Container Registry (ECR)": 0.0009,
+        "EC2 - Other": 2.2155,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 1.6303,
+        "Amazon Elastic Load Balancing": 1.1252,
+        "Amazon Simple Storage Service": 0.0002,
+        "Amazon Virtual Private Cloud": 3.6791,
+        "AmazonCloudWatch": 0.3995
+      }
+    },
+    {
+      "date": "2026-09-18",
+      "services": {
+        "Amazon API Gateway": 0.0,
+        "Amazon DynamoDB": 0.0,
+        "Amazon EC2 Container Registry (ECR)": 0.001,
+        "EC2 - Other": 2.2369,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 1.6345,
+        "Amazon Elastic Load Balancing": 1.1492,
+        "Amazon Simple Storage Service": 0.0003,
+        "Amazon Virtual Private Cloud": 3.5075,
+        "AmazonCloudWatch": 0.3977
+      }
+    },
+    {
+      "date": "2026-09-19",
+      "services": {
+        "Amazon EC2 Container Registry (ECR)": 0.001,
+        "EC2 - Other": 2.2119,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 1.6297,
+        "Amazon Elastic Load Balancing": 1.1492,
+        "Amazon Simple Storage Service": 0.0,
+        "Amazon Virtual Private Cloud": 3.5065,
+        "AmazonCloudWatch": 0.3874
+      }
+    },
+    {
+      "date": "2026-09-20",
+      "services": {
+        "Amazon EC2 Container Registry (ECR)": 0.001,
+        "EC2 - Other": 2.2119,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 1.6297,
+        "Amazon Elastic Load Balancing": 1.1492,
+        "Amazon Simple Storage Service": 0.0,
+        "Amazon Virtual Private Cloud": 3.5075,
+        "AmazonCloudWatch": 0.3873
+      }
+    },
+    {
+      "date": "2026-09-21",
+      "services": {
+        "Amazon API Gateway": 0.0,
+        "Amazon DynamoDB": 0.0001,
+        "Amazon EC2 Container Registry (ECR)": 0.0012,
+        "EC2 - Other": 2.2633,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 1.7432,
+        "Amazon Elastic Load Balancing": 1.1492,
+        "Amazon Simple Storage Service": 0.0006,
+        "Amazon Virtual Private Cloud": 3.5066,
+        "AmazonCloudWatch": 0.4785
+      }
+    },
+    {
+      "date": "2026-09-22",
+      "services": {
+        "Amazon API Gateway": 0.0,
+        "Amazon DynamoDB": 0.0,
+        "Amazon EC2 Container Registry (ECR)": 0.0017,
+        "EC2 - Other": 2.2232,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 1.9553,
+        "Amazon Elastic Load Balancing": 1.1492,
+        "Amazon Simple Storage Service": 0.0001,
+        "Amazon Virtual Private Cloud": 3.5066,
+        "AmazonCloudWatch": 0.6331
+      }
+    },
+    {
+      "date": "2026-09-23",
+      "services": {
+        "Amazon API Gateway": 0.0,
+        "Amazon DynamoDB": 0.0,
+        "Amazon EC2 Container Registry (ECR)": 0.0018,
+        "EC2 - Other": 2.2231,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 1.9552,
+        "Amazon Elastic Load Balancing": 1.1492,
+        "Amazon Simple Storage Service": 0.0001,
+        "Amazon Virtual Private Cloud": 3.5065,
+        "AmazonCloudWatch": 0.633
+      }
+    },
+    {
+      "date": "2026-09-24",
+      "services": {
+        "Amazon DynamoDB": 0.0,
+        "Amazon EC2 Container Registry (ECR)": 0.0018,
+        "EC2 - Other": 2.2143,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 1.9548,
+        "Amazon Elastic Load Balancing": 1.1492,
+        "Amazon Simple Storage Service": 0.0,
+        "Amazon Virtual Private Cloud": 3.5066,
+        "AmazonCloudWatch": 0.6308
+      }
+    },
+    {
+      "date": "2026-09-25",
+      "services": {
+        "Amazon API Gateway": 0.0,
+        "Amazon DynamoDB": 0.0,
+        "Amazon EC2 Container Registry (ECR)": 0.0018,
+        "EC2 - Other": 2.2144,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 1.9548,
+        "Amazon Elastic Load Balancing": 1.1492,
+        "Amazon Simple Storage Service": 0.0001,
+        "Amazon Virtual Private Cloud": 3.5066,
+        "AmazonCloudWatch": 0.6332
+      }
+    },
+    {
+      "date": "2026-09-26",
+      "services": {
+        "Amazon EC2 Container Registry (ECR)": 0.0018,
+        "EC2 - Other": 2.2143,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 1.9548,
+        "Amazon Elastic Load Balancing": 1.1492,
+        "Amazon Simple Storage Service": 0.0,
+        "Amazon Virtual Private Cloud": 3.5066,
+        "AmazonCloudWatch": 0.6306
+      }
+    },
+    {
+      "date": "2026-09-27",
+      "services": {
+        "Amazon EC2 Container Registry (ECR)": 0.0018,
+        "EC2 - Other": 2.2144,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 1.9548,
+        "Amazon Elastic Load Balancing": 1.1492,
+        "Amazon Simple Storage Service": 0.0,
+        "Amazon Virtual Private Cloud": 3.5065,
+        "AmazonCloudWatch": 0.6306
+      }
+    },
+    {
+      "date": "2026-09-28",
+      "services": {
+        "Amazon API Gateway": 0.0,
+        "Amazon DynamoDB": 0.0,
+        "Amazon EC2 Container Registry (ECR)": 0.0018,
+        "EC2 - Other": 2.2234,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 1.9553,
+        "Amazon Elastic Load Balancing": 1.1492,
+        "Amazon Simple Storage Service": 0.0001,
+        "Amazon Virtual Private Cloud": 3.5076,
+        "AmazonCloudWatch": 0.633
+      }
+    },
+    {
+      "date": "2026-09-29",
+      "services": {
+        "AWS Glue": 0.0,
+        "AWS Key Management Service": 0.0159,
+        "AWS Lambda": 0.0,
+        "AWS Secrets Manager": 0.015,
+        "Amazon API Gateway": 0.0009,
+        "Amazon DynamoDB": 0.0002,
+        "Amazon EC2 Container Registry (ECR)": 0.0021,
+        "EC2 - Other": 2.3438,
+        "Amazon Elastic Compute Cloud - Compute": 0.0,
+        "Amazon Elastic Container Service": 2.026,
+        "Amazon Elastic Load Balancing": 1.1579,
+        "Amazon Simple Notification Service": 0.0,
+        "Amazon Simple Queue Service": 0.0,
+        "Amazon Simple Storage Service": 0.0017,
+        "Amazon Virtual Private Cloud": 3.5066,
+        "AmazonCloudWatch": 0.961,
+        "CloudWatch Events": 0.0
+      }
+    }
+  ]
+}

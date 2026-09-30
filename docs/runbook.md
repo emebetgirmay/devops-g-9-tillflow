@@ -156,6 +156,30 @@ No successful reconcile pass in 15 minutes. Owner `@emebetgirmay`.
 2. Run one pass by hand from inside the VPC; `payments_reconcile_runs_total{result="error"}`
    rising means the pass itself is failing, so read the Payments log.
 
+## Commission (scheduled tasks, ADR 0008)
+
+`devops-g9-commission` runs as one-off ECS tasks on EventBridge schedules (EAT): `close.py` at 00:15
+for yesterday, `disburse.py` every 10 minutes until 06:00, and `disburse.py --check` at 06:30. The
+ledger is on RDS (schema `commission`). Every pass is idempotent. Logs: `/devops-g9/commission`.
+Owner `@chesangJ`; schedules and alarm `@emebetgirmay`.
+
+- **Run a pass by hand:** `aws ecs run-task --cluster devops-g9 --launch-type FARGATE --task-definition devops-g9-commission --overrides '{"containerOverrides":[{"name":"commission","command":["disburse.py"]}]}' --network-configuration "awsvpcConfiguration={subnets=[<private subnets>],securityGroups=[<devops-g9-commission>],assignPublicIp=DISABLED}"`
+- **Stop payouts:** disable the `devops-g9-commission-disburse` schedule (a reviewed PR setting
+  `commission_schedules_enabled = false`, or the console in an emergency, then the PR); Payments'
+  kill switch stops them on its side.
+- **A release that broke it:** the pipeline's smoke pass deregisters a bad revision, so the
+  schedules keep the previous one. By hand: deregister the newest `devops-g9-commission` revision.
+
+### commission-payouts-late
+
+Payouts not terminal at 06:30 EAT (Commission SLO: 99% terminal by 06:30, duplicates 0).
+
+1. Read the 06:30 check line in `/devops-g9/commission` (`payouts_not_terminal`) and the disburse
+   passes before it: were they running, and what did Payments answer?
+2. Run one more `disburse.py` pass; it only sends `PLANNED` rows and reconciles `REQUESTED` ones.
+3. **Never send a payout by hand.** A payout stuck `UNKNOWN` is Payments' reconcile to settle
+   (ADR 0008); a duplicate B2C is a P0.
+
 ## Database (RDS PostgreSQL, ADR 0002)
 
 `devops-g9-db`: PostgreSQL 16.15, `db.t4g.micro`, single-AZ, database `tillflow`, one schema and

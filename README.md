@@ -29,12 +29,12 @@ Private group mono-repo · Terraform · GitHub Actions + CodePipeline.
 | G1 Platform | [`evidence/platform-delivery/`](evidence/platform-delivery/README.md) |
 | G2 Product | [`evidence/product-pos/`](evidence/product-pos/README.md), [`evidence/payments-integrity/`](evidence/payments-integrity/README.md), [`evidence/commission-payout/`](evidence/commission-payout/README.md), [`evidence/daraja-b2c-contract/`](evidence/daraja-b2c-contract/README.md) |
 | G3 Operate | [`evidence/reliability-ops/g3-evidence.md`](evidence/reliability-ops/g3-evidence.md), [k6 analysis](evidence/reliability-ops/k6-analysis.md) |
-| G4 Recover | [Broken release and automatic rollback](evidence/platform-delivery/g4-broken-release/README.md); [`evidence/payments-integrity/g4/`](evidence/payments-integrity/g4/) (uncertain payment, uncertain payout, callback replay); restore pending RDS |
+| G4 Recover | [Broken release and automatic rollback](evidence/platform-delivery/g4-broken-release/README.md); [`evidence/payments-integrity/g4/`](evidence/payments-integrity/g4/) (uncertain payment, uncertain payout, callback replay); restore drill planned ([game day](evidence/reliability-ops/g4-game-day.md)), not yet run |
 | Incidents | [`docs/scar-log.md`](docs/scar-log.md) |
 
 ## Known limitations (stated, not hidden)
 
-- **Data lives in SQLite inside each container.** A task restart loses POS and Payments data, the payouts kill switch included; there is nothing to restore and no horizontal scaling. The fix is RDS PostgreSQL ([ADR 0002](docs/adrs/0002-rds-postgresql.md)).
+- **POS and Payments now run on RDS PostgreSQL** ([ADR 0002](docs/adrs/0002-rds-postgresql.md)): one cluster, a schema and least-privilege role per service. Data survives a task restart; horizontal scaling is still open (each task pools its own small set of connections, not yet load-tested). The restore drill itself (point-in-time restore, measured RPO/RTO) is planned ([game day](evidence/reliability-ops/g4-game-day.md)) but not yet executed.
 - **No cache or queue yet.** Callbacks are handled synchronously, with a scheduled reconcile pass as the safety net.
 - **Commission is tested end to end but not deployed** as a scheduled task.
 - `services/web` is a placeholder; there is no web UI.

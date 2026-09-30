@@ -104,13 +104,13 @@ One `traceparent` sent on a sale's POS calls is followed end to end, in logs and
 | File | Shows |
 |---|---|
 | [`trace/sale-to-callback.json`](trace/sale-to-callback.json) (5 checks) | Filtering both services' logs by the sale's trace id returns POS's sale and payment-request, Payments' create and `PENDING`, the callback's `SUCCEEDED`, and POS's reconcile |
-| [`trace/collector-spans.json`](trace/collector-spans.json) (3 checks) | The span tree an ADOT collector v0.43.1 (the sidecar's version) received: Payments' `POST /payments` under POS's `payment-request`, and the callback under that create span |
+| [`trace/collector-spans.json`](trace/collector-spans.json) (5 checks) | The span tree an ADOT collector v0.43.1 (the sidecar's version) received: Payments' `POST /payments` under POS's `payment-request`, and the callback under that create span |
 
 ```
 pos POST /tenants/{tenant_id}/sales
 pos POST /tenants/{tenant_id}/sales/{sale_id}/payment-request
   payments POST /payments
-    payments payment PENDING -> SUCCEEDED        <- the provider's callback
+    payments payment PENDING to SUCCEEDED        <- the provider's callback
 pos POST /tenants/{tenant_id}/sales/{sale_id}/payment-reconcile
   payments GET /payments/{id}
 ```

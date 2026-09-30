@@ -33,8 +33,15 @@ def endpoint() -> str | None:
 
 def payload(span: dict) -> dict:
     """One span as an OTLP/HTTP JSON ExportTraceServiceRequest. Ids are hex strings."""
+    # Ints go as intValue (a string in OTLP JSON): the X-Ray translator reads http.status_code
+    # only as an int, and records status 0 for a stringValue.
     attributes = [
-        {"key": key, "value": {"stringValue": str(value)}}
+        {
+            "key": key,
+            "value": {"intValue": str(value)}
+            if isinstance(value, int) and not isinstance(value, bool)
+            else {"stringValue": str(value)},
+        }
         for key, value in span.get("attributes", {}).items()
     ]
     body = {

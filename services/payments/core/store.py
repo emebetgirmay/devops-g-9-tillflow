@@ -295,7 +295,8 @@ class Store:
                 trace_id=origin,
                 span_id=tracing.new_span_id(),
                 parent_span_id=creator["span_id"],
-                name=f"{kind} {current.value} -> {target.value}",
+                # "to", not "->": X-Ray strips ">" from span names.
+                name=f"{kind} {current.value} to {target.value}",
                 start=moved_at - 0.001,
                 end=moved_at,
                 kind=otlp.INTERNAL,

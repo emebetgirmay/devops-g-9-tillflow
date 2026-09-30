@@ -40,10 +40,13 @@ class SettingsTest(unittest.TestCase):
         with self.assertRaises(ConfigError):
             Settings.from_env({"MPESA_ADAPTER": "something-else"})
 
-    def test_postgres_is_refused_until_rds_lands(self) -> None:
-        for url in ("postgres://u@h/db", "postgresql://u@h/db"):
-            with self.subTest(url=url), self.assertRaises(ConfigError):
-                Settings.from_env({"DATABASE_URL": url})
+    def test_a_postgres_url_selects_rds_and_stays_out_of_repr(self) -> None:
+        for url in ("postgres://u:secret@h/db", "postgresql://u:secret@h/db"):
+            with self.subTest(url=url):
+                settings = Settings.from_env({"DATABASE_URL": url})
+                self.assertEqual(settings.database_url, url)
+                self.assertNotIn("secret", repr(settings))
+        self.assertEqual(Settings.from_env({}).database_url, "")
 
     def test_database_url_forms(self) -> None:
         self.assertEqual(

@@ -166,6 +166,38 @@ jobs:
           (cd services/_shared && python3 -m unittest discover -s tests -t .)
           (cd services/payments && python3 -m unittest discover -s tests)
 
+  # The same two suites again on PostgreSQL 16, the engine RDS runs (ADR 0002). Each test gets its
+  # own schema (tests/_bootstrap.py), so the money invariants are proven on both backends.
+  postgres-tests:
+    name: Payments + Commission tests on PostgreSQL
+    runs-on: ubuntu-latest
+    needs: [gitleaks]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: tillflow
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      TEST_POSTGRES_URL: postgresql://postgres:test@127.0.0.1:5432/tillflow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the driver and POS deps (Commission's end-to-end test runs the real POS)
+        run: pip install -r services/payments/requirements.txt -r services/pos/requirements.txt
+      - name: Payments unittest on PostgreSQL
+        working-directory: services/payments
+        run: python3 -m unittest discover -s tests
+      - name: Commission unittest on PostgreSQL
+        working-directory: services/commission
+        run: python3 -m unittest discover -s tests
+
   payments-docker:
     name: Build Payments image
     runs-on: ubuntu-latest

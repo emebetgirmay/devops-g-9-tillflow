@@ -87,7 +87,7 @@ class App:
                 else FakeAdapter(clock=clock)
             )
         self.adapter = adapter
-        self.store = Store(settings.db_path)
+        self.store = Store(settings.database_url or settings.db_path, settings.db_pool_size)
         self.payments = PaymentService(settings, self.store, self.adapter, clock)
         self.payouts = PayoutService(settings, self.store, self.adapter, clock)
 
@@ -410,7 +410,11 @@ def main() -> None:
     except ConfigError as exc:
         print(f"payments: refusing to start: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
-    app = App(settings)
+    try:
+        app = App(settings)
+    except ImportError as exc:  # a postgresql:// DATABASE_URL on an image without the driver
+        print(f"payments: refusing to start: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
     server = ThreadingHTTPServer(("0.0.0.0", settings.port), make_handler(app))
     print(f"payments listening on {settings.port} (adapter={settings.adapter})", flush=True)
     server.serve_forever()

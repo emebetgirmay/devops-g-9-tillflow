@@ -1,0 +1,70 @@
+{
+  "run": "20260930T141129",
+  "target": "http://127.0.0.1:8080",
+  "task_down_for_s": 1.0,
+  "checks": {
+    "succeeded_payment_survived_with_its_ledger_entry": true,
+    "succeeded_payout_survived_with_its_ledger_entry": true,
+    "idempotency_key_survived_retry_returns_the_original": true,
+    "payout_idempotency_survived_same_key_returns_the_original": true,
+    "kill_switch_survived": true,
+    "in_flight_payment_is_unknown_not_declined": true,
+    "invariants_hold": true
+  },
+  "all_passed": true,
+  "after": {
+    "paid": {
+      "payment_id": "pay_67f276203ee64f18b4cbf77beeda2aff",
+      "checkout_request_id": "fake-co-8ee0b5214aa1930f",
+      "state": "SUCCEEDED",
+      "decline_reason": null,
+      "tenant_id": "restart",
+      "sale_id": null,
+      "amount_minor": 150000,
+      "currency": "KES",
+      "msisdn": "2540****001",
+      "receipt": "FAKE6ED5820C",
+      "ledger_entries": 1
+    },
+    "payout": {
+      "disbursement_id": "dis_870e66f1b1ad4fe8b535576372d6432f",
+      "conversation_id": "AG_f160ef697685f15a",
+      "originator_conversation_id": "6CLSSLQZPXBJSTTR2FBQ",
+      "state": "SUCCEEDED",
+      "failure_reason": null,
+      "tenant_id": "restart",
+      "attendant_id": "att-r",
+      "payout_period": "20260930T141129-ok",
+      "amount_minor": 500000,
+      "msisdn": "2540****101",
+      "receipt": "FAKEC8D4ACEC",
+      "ledger_entries": 1
+    },
+    "retry_http": 200,
+    "payout_replay_http": 200,
+    "kill_switch": {
+      "error": "payouts_disabled"
+    },
+    "pending": {
+      "payment_id": "pay_5568fc3cd52d4176b9021ec7951a4b02",
+      "checkout_request_id": "fake-co-53c80c5215c628e7",
+      "state": "UNKNOWN",
+      "decline_reason": null,
+      "tenant_id": "restart",
+      "sale_id": null,
+      "amount_minor": 150000,
+      "currency": "KES",
+      "msisdn": "2540****006",
+      "receipt": null,
+      "ledger_entries": 0
+    },
+    "invariants": {
+      "credits_equal_succeeded_payments": true,
+      "succeeded_payments": 7,
+      "payment_credits": 7,
+      "duplicate_ledger_entries": 0,
+      "payout_keys_with_multiple_live_disbursements": 0,
+      "payments_declined_by_a_timeout": 0
+    }
+  }
+}

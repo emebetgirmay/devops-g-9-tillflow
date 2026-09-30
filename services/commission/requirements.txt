@@ -1,0 +1,3 @@
+# PostgreSQL driver and pool, used only when DATABASE_URL is postgresql:// (ADR 0002, ledger/db.py).
+# Everything else in this service is the standard library.
+psycopg[binary,pool]>=3.2,<4

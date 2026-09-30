@@ -14,6 +14,8 @@ RUN apt-get update \
   && useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
 
 WORKDIR /app
+COPY services/payments/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 COPY services/_shared/mpesa ./mpesa
 COPY services/payments/app.py services/payments/reconcile.py ./
 COPY services/payments/core ./core

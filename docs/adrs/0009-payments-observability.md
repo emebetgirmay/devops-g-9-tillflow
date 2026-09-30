@@ -165,7 +165,10 @@ each piece (read that before defending this area live).
   - Proof: `evidence/payments-integrity/trace/`: `sale-to-callback.json` (logs) and
     `collector-spans.json` (the span tree an ADOT collector v0.43.1 received). The capture from
     X-Ray itself needs the deployed services and is Platform's.
-- **Not built:** G3-5 (Postgres backend and capacity re-run, blocked on RDS); the second half of
+- **Postgres backend built (G3-5, first half).** Payments and Commission run on PostgreSQL
+  (`core/db.py`, `ledger/db.py`) with the single-writer rule kept as an advisory lock; both suites
+  pass on PostgreSQL 16 in CI. The k6 capacity re-run on RDS is the half still to do.
+- **Not built:** the k6 capacity re-run on RDS (G3-5, second half); the second half of
   G3-7, taking `/_admin/*` and `/_fake/*` off the public listener (they are still forwarded by
   the ALB rule); two section 4 alarms, callback rejections above baseline and provider-unknown
   rate above 5%, which need a traffic baseline; G3-9 (open questions 2 and 5).

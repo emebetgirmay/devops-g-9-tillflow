@@ -11,10 +11,7 @@ Constraints that protect money live in the schema:
 
 from __future__ import annotations
 
-import sqlite3
-from collections.abc import Iterator
-from contextlib import contextmanager
-from pathlib import Path
+from ledger import db
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS payout_ledger (
@@ -97,55 +94,34 @@ class StaleStateError(Exception):
 
 
 class Store:
-    def __init__(self, db_path: str) -> None:
-        self.db_path = db_path
-        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-        with self.connection() as conn:
-            conn.executescript(SCHEMA)
+    def __init__(self, target: str, pool_size: int = 2) -> None:
+        """`target` is a SQLite file path or a postgresql:// URL (ledger/db.py)."""
+        self.db = db.open_database(target, pool_size)
+        self.db.create_schema(SCHEMA)
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path, timeout=30, isolation_level=None)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=30000")
-        conn.execute("PRAGMA foreign_keys=ON")
-        return conn
+    def connection(self):
+        """Autocommit connection for reads and single statements."""
+        return self.db.connection()
 
-    @contextmanager
-    def connection(self) -> Iterator[sqlite3.Connection]:
-        conn = self._connect()
-        try:
-            yield conn
-        finally:
-            conn.close()
+    def tx(self):
+        """One write transaction, one writer at a time, over one attendant's close or a
+        disbursement update (BEGIN IMMEDIATE on SQLite, an advisory lock on PostgreSQL)."""
+        return self.db.tx()
 
-    @contextmanager
-    def tx(self) -> Iterator[sqlite3.Connection]:
-        """One write transaction. BEGIN IMMEDIATE serialises writers over one attendant's close
-        or disbursement update, matching services/payments/core/store.py::Store.tx."""
-        conn = self._connect()
-        try:
-            conn.execute("BEGIN IMMEDIATE")
-            yield conn
-            conn.execute("COMMIT")
-        except BaseException:
-            if conn.in_transaction:
-                conn.execute("ROLLBACK")
-            raise
-        finally:
-            conn.close()
+    def close(self) -> None:
+        self.db.close()
 
     def ping(self) -> bool:
         try:
             with self.connection() as conn:
                 conn.execute("SELECT 1").fetchone()
-        except sqlite3.Error:
+        except db.Error:
             return False
         return True
 
     @staticmethod
     def anomaly(
-        conn: sqlite3.Connection,
+        conn: db.Connection,
         *,
         kind: str,
         severity: str,

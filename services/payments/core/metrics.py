@@ -36,10 +36,11 @@ logs, not metrics.
 
 from __future__ import annotations
 
-import sqlite3
 import threading
 import time
 from typing import Iterable
+
+from core import db
 
 # Buckets for *_seconds histograms measuring in-request work (HTTP handling,
 # a single adapter call). Prometheus convention: each bucket is a count of
@@ -257,13 +258,13 @@ def reset_for_tests() -> None:
 _GAUGE_STATES = ("PENDING", "UNKNOWN", "NEEDS_REVIEW")
 
 
-def _records_rows(conn: sqlite3.Connection) -> Iterable[tuple[tuple[str, str], int]]:
+def _records_rows(conn: db.Connection) -> Iterable[tuple[tuple[str, str], int]]:
     for kind, table in (("payment", "payments"), ("disbursement", "disbursements")):
         for row in conn.execute(f"SELECT state, COUNT(*) AS n FROM {table} GROUP BY state"):
             yield (kind, row["state"]), row["n"]
 
 
-def _oldest_age_rows(conn: sqlite3.Connection, now: float) -> Iterable[tuple[tuple[str, str], float]]:
+def _oldest_age_rows(conn: db.Connection, now: float) -> Iterable[tuple[tuple[str, str], float]]:
     placeholders = ",".join("?" for _ in _GAUGE_STATES)
     for kind, table in (("payment", "payments"), ("disbursement", "disbursements")):
         # updated_at is bumped by every Store.transition() call (the only
@@ -278,19 +279,19 @@ def _oldest_age_rows(conn: sqlite3.Connection, now: float) -> Iterable[tuple[tup
             yield (kind, row["state"]), max(0.0, now - row["oldest"])
 
 
-def _reconcile_last_success_row(conn: sqlite3.Connection) -> float | None:
+def _reconcile_last_success_row(conn: db.Connection) -> float | None:
     row = conn.execute(
         "SELECT updated_at FROM flags WHERE name = 'reconcile_last_success'"
     ).fetchone()
     return None if row is None else row["updated_at"]
 
 
-def _payouts_enabled_row(conn: sqlite3.Connection, default: bool) -> bool:
+def _payouts_enabled_row(conn: db.Connection, default: bool) -> bool:
     row = conn.execute("SELECT value FROM flags WHERE name = 'payouts_enabled'").fetchone()
     return default if row is None else bool(row["value"])
 
 
-def render_gauges(conn: sqlite3.Connection, *, now: float, payouts_enabled_default: bool) -> list[str]:
+def render_gauges(conn: db.Connection, *, now: float, payouts_enabled_default: bool) -> list[str]:
     lines: list[str] = []
 
     lines += ["# HELP payments_records Rows by state.", "# TYPE payments_records gauge"]
@@ -322,7 +323,7 @@ def render_gauges(conn: sqlite3.Connection, *, now: float, payouts_enabled_defau
     return lines
 
 
-def render(conn: sqlite3.Connection, *, now: float, payouts_enabled_default: bool) -> bytes:
+def render(conn: db.Connection, *, now: float, payouts_enabled_default: bool) -> bytes:
     lines: list[str] = []
     for metric in _COUNTERS:
         lines += metric.render()

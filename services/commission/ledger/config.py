@@ -7,7 +7,7 @@ than a silent fallback) so the two services stay easy to operate the same way.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 SERVICE_DIR = Path(__file__).resolve().parent.parent
@@ -44,6 +44,8 @@ def _int(env: Mapping[str, str], name: str, default: int) -> int:
 @dataclass(frozen=True)
 class Settings:
     db_path: str = str(SERVICE_DIR / "data" / "commission.db")
+    # A postgresql:// URL when deployed on RDS (ADR 0002); empty means the SQLite file above.
+    database_url: str = field(default="", repr=False)
     pos_base_url: str = "http://pos.internal:8080"
     payments_base_url: str = "http://payments.internal:8080"
     payout_max_minor: int = PROVIDER_MAX_PAYOUT_MINOR
@@ -60,18 +62,17 @@ class Settings:
         env = os.environ if env is None else env
 
         url = env.get("DATABASE_URL", "").strip()
+        db_path, database_url = cls.db_path, ""
         if not url:
-            db_path = cls.db_path
+            pass
         elif url.startswith("sqlite:///"):
             db_path = url[len("sqlite:///") :]
             if not db_path or db_path == ":memory:":
                 raise ConfigError("DATABASE_URL must point at a sqlite file")
         elif url.startswith(("postgres://", "postgresql://")):
-            raise ConfigError(
-                "Postgres is not supported yet: it lands with RDS (ADR 0002). Use a sqlite:/// URL"
-            )
+            database_url = url  # the devops-g9/db/commission secret on RDS (ADR 0002)
         else:
-            raise ConfigError("DATABASE_URL must be sqlite:///<path>")
+            raise ConfigError("DATABASE_URL must be sqlite:///<path> or postgresql://...")
 
         payout_max = _int(env, "PAYOUT_MAX_MINOR", PROVIDER_MAX_PAYOUT_MINOR)
         if payout_max > PROVIDER_MAX_PAYOUT_MINOR:
@@ -86,6 +87,7 @@ class Settings:
 
         return cls(
             db_path=db_path,
+            database_url=database_url,
             pos_base_url=env.get("POS_BASE_URL", "http://pos.internal:8080").rstrip("/"),
             payments_base_url=env.get(
                 "PAYMENTS_BASE_URL", env.get("PAYMENTS_URL", "http://payments.internal:8080")

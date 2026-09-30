@@ -97,6 +97,9 @@ class Settings:
     commit_sha: str = "local"
     image_digest: str = "unknown"
     db_path: str = str(SERVICE_DIR / "data" / "payments.db")
+    # A postgresql:// URL when deployed on RDS (ADR 0002); empty means the SQLite file above.
+    database_url: str = field(default="", repr=False)
+    db_pool_size: int = 5
     adapter: str = "fake"
     fake_clock: str = "manual"
     callback_allowed_ips: tuple[str, ...] = ("127.0.0.1", "::1")
@@ -132,18 +135,17 @@ class Settings:
             fake_clock = "system"  # a real provider runs on real time
 
         url = env.get("DATABASE_URL", "").strip()
+        db_path, database_url = cls.db_path, ""
         if not url:
-            db_path = cls.db_path
+            pass
         elif url.startswith("sqlite:///"):
             db_path = url[len("sqlite:///") :]
             if not db_path or db_path == ":memory:":
                 raise ConfigError("DATABASE_URL must point at a sqlite file")
         elif url.startswith(("postgres://", "postgresql://")):
-            raise ConfigError(
-                "Postgres is not supported yet: it lands with RDS (ADR 0002). Use a sqlite:/// URL"
-            )
+            database_url = url  # the devops-g9/db/payments secret on RDS (ADR 0002)
         else:
-            raise ConfigError("DATABASE_URL must be sqlite:///<path>")
+            raise ConfigError("DATABASE_URL must be sqlite:///<path> or postgresql://...")
 
         ips = tuple(
             part.strip()
@@ -158,6 +160,8 @@ class Settings:
             commit_sha=env.get("COMMIT_SHA", "local"),
             image_digest=env.get("IMAGE_DIGEST", "unknown"),
             db_path=db_path,
+            database_url=database_url,
+            db_pool_size=_int(env, "DB_POOL_SIZE", 5) or 1,
             adapter=adapter,
             fake_clock=fake_clock,
             callback_allowed_ips=ips,

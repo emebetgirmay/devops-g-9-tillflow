@@ -15,6 +15,8 @@ RUN apt-get update \
   && useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
 
 WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 COPY close.py disburse.py worker.py ./
 COPY ledger ./ledger
 RUN mkdir -p /app/data && chown 10001:10001 /app/data

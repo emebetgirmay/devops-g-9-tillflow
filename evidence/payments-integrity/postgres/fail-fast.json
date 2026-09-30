@@ -1,0 +1,34 @@
+{
+  "what": "G4 finding 6 re-run locally: PostgreSQL 16 stopped under a running Payments container, then started again",
+  "run": "2026-09-30",
+  "script": "fail-fast.sh IMAGE LABEL",
+  "runs": [
+    {
+      "image": "before (timeout=30)",
+      "while_db_down_ready_codes": [
+        "503",
+        "503",
+        "503"
+      ],
+      "slowest_request_while_down_s": 30.0,
+      "payments_ready_after_db_s": 27.06
+    },
+    {
+      "image": "after (timeout=3, connect_timeout=3, check)",
+      "while_db_down_ready_codes": [
+        "503",
+        "503",
+        "503"
+      ],
+      "slowest_request_while_down_s": 3.0,
+      "payments_ready_after_db_s": 5.11
+    }
+  ],
+  "checks": {
+    "before_reproduces_finding_6": true,
+    "after_fails_fast_while_down": true,
+    "after_ready_soon_after_db": true
+  },
+  "not_yet": "The same scenario on RDS (G4 game day scenario 3) after this change is deployed",
+  "all_passed": true
+}

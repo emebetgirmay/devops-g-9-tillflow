@@ -38,6 +38,11 @@ Row = Any  # sqlite3.Row or dict: row["column"]
 WRITER_LOCK = 0x70617973  # "pays"
 
 
+# Seconds. Short on purpose: an unreachable database should cost a request a few seconds, not 30.
+POOL_WAIT_S = 3.0
+CONNECT_TIMEOUT_S = 3
+
+
 def is_postgres(target: str) -> bool:
     return target.startswith(("postgresql://", "postgres://"))
 
@@ -126,12 +131,22 @@ class _Postgres:
         Error = (sqlite3.Error, psycopg.Error)
         # A pool, because a new TLS connection per request costs more than the request. Rows come
         # back as dicts so row["column"] works as it does with sqlite3.Row.
+        # Fail fast when the database is away (G4 finding 6): a request waits at most
+        # POOL_WAIT_S for a connection and CONNECT_TIMEOUT_S to open one, and a pooled connection
+        # is checked before it is handed out, so a request gets a prompt 5xx (and /ready a 503)
+        # instead of queueing for 30 s. During the RDS reboot that cost Payments 26 s of extra
+        # downtime after the database was back.
         self._pool = ConnectionPool(
             url,
             min_size=1,
             max_size=max(pool_size, 1),
-            timeout=30,
-            kwargs={"autocommit": True, "row_factory": dict_row},
+            timeout=POOL_WAIT_S,
+            kwargs={
+                "autocommit": True,
+                "row_factory": dict_row,
+                "connect_timeout": CONNECT_TIMEOUT_S,
+            },
+            check=ConnectionPool.check_connection,
             open=True,
         )
 

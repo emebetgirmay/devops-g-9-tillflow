@@ -1,0 +1,11 @@
+{
+  "base_url": "https://nilrqzkq8a.execute-api.eu-north-1.amazonaws.com",
+  "checks": {
+    "health": true,
+    "ready": true,
+    "pos_writes": true,
+    "payments_writes": true,
+    "payment_settles": true,
+    "invariants": true
+  }
+}

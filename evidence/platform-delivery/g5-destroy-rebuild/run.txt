@@ -1,0 +1,78 @@
+2026-09-30T19:12:56Z  start
+2026-09-30T19:12:58Z  destroy_started
+Releasing state lock. This may take a few moments...
+
+Destroy complete! Resources: 136 destroyed.
+2026-09-30T19:36:08Z  destroy_done
+tagged group=devops-g9 after destroy: 29
+  task-definition/devops-g9-pos:1
+  task-definition/devops-g9-k6:2
+  task-definition/devops-g9-payments:33
+  task-definition/devops-g9-payments:10
+  task-definition/devops-g9-payments:25
+  service/devops-g9/devops-g9-payments
+  task-definition/devops-g9-db-bootstrap:1
+  task-definition/devops-g9-pos:13
+  devops-g9-tfstate-240462142849
+  table/devops-g9-tflock
+  service/devops-g9/devops-g9-pos
+  task-definition/devops-g9-payments:21
+  task-definition/devops-g9-pos:23
+  task-definition/devops-g9-commission:1
+  task-definition/devops-g9-k6:1
+  task-definition/devops-g9-payments:12
+  key/ccb59a4c-610e-4cf0-a30f-c7da2c1ea0f1
+  natgateway/nat-005e34a15a80dc0f2
+  task-definition/devops-g9-payments:1
+  snapshot:devops-g9-db-final
+  cluster/devops-g9
+  task-definition/devops-g9-payments:14
+  task-definition/devops-g9-payments:19
+  task-definition/devops-g9-pos:11
+  task-definition/devops-g9-payments:3
+  task-definition/devops-g9-payments:8
+  task-definition/devops-g9-pos:36
+  task-definition/devops-g9-pos:4
+  secret:devops-g9/daraja-XozcUR
+2026-09-30T19:36:10Z  apply_started
+slack_secret_name = "devops-g9/slack-webhook"
+version_url = "https://nilrqzkq8a.execute-api.eu-north-1.amazonaws.com/version"
+vpc_id = "vpc-092fc7cf403ec0e7b"
+2026-09-30T19:45:32Z  apply_done
+instance: devops-g9-db (devops-g9-db.c7iqak06ycgx.eu-north-1.rds.amazonaws.com:5432) available
+secret: devops-g9/db/pos (new password)
+secret: devops-g9/db/payments (new password)
+secret: devops-g9/db/commission (new password)
+bootstrap task: 27535f48466d42e58672cbdaf4e581c2
+--- task log ---
+REVOKE
+REVOKE
+CREATE ROLE
+CREATE ROLE
+CREATE ROLE
+ALTER ROLE
+ALTER ROLE
+ALTER ROLE
+GRANT ROLE
+CREATE SCHEMA
+CREATE SCHEMA
+CREATE SCHEMA
+GRANT
+ALTER ROLE
+ALTER ROLE
+ALTER ROLE
+    role    |   schema   
+------------+------------
+ commission | commission
+ payments   | payments
+ pos        | pos
+(3 rows)
+----------------
+bootstrap done: roles and schemas pos, payments, commission on tillflow
+2026-09-30T19:46:41Z  bootstrap_done
+Slack webhook URL (hidden; Enter to skip and set it later): 
+2026-09-30T19:48:08Z  slack_webhook_set
+1 error occurred:
+	* failed to set variable "API_GATEWAY_URL": HTTP 403: You must have repository write permissions or have the repository variables fine-grained permission. (https://api.github.com/repos/emebetgirmay/devops-g-9-tillflow/actions/variables)
+
+

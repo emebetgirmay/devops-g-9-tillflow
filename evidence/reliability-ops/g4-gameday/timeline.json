@@ -1,0 +1,9 @@
+{
+  "stopped_task": "463bbffb855f4f64893497da348243ee",
+  "stop": "2026-09-30T16:12:43Z",
+  "first_failed_read": "2026-09-30T16:13:20Z",
+  "first_good_read_on_new_task": "2026-09-30T16:13:59Z",
+  "service_stable": "2026-09-30T16:14:04Z",
+  "unavailable_seconds": 40,
+  "recovered_seconds_after_stop": 76
+}

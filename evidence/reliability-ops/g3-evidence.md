@@ -80,6 +80,30 @@ Drill timeline from the collected data: last sweep 16:45:46, schedule disabled a
 sweeps until 17:12:42, alarm OK → ALARM 17:02:05, schedule re-enabled about 17:10, alarm
 ALARM → OK 17:13:05. A Payments deploy (#47) overlapped 17:06–17:10; it did not affect the result.
 
+## Trace: sale to payment to callback in X-Ray
+
+POS and Payments export spans to their ADOT sidecar, which sends them to X-Ray (#71 trace ids,
+#74 spans, `@chesangJ`). Captured on the deployed sandbox with
+[`xray/collect-trace.sh`](xray/collect-trace.sh): one sale through the public URL, the fake
+provider's callback, the reconcile. Trace `1-6abd2d70-f86eda7826fe5e01d6ca13a7`
+([`xray/trace.json`](xray/trace.json), [`xray/checks.json`](xray/checks.json): 4/4):
+
+```
+   offset  duration  service   span
+      0ms      30ms  pos       POST /tenants  [201]
+   3337ms      29ms  pos       POST /tenants/{tenant_id}/sales  [201]
+   4056ms     177ms  pos       POST /tenants/{tenant_id}/sales/{sale_id}/payment-request  [200]
+   4205ms      17ms  payments  POST /payments  [201]
+   5582ms       1ms  payments    payment PENDING to SUCCEEDED        <- the provider's callback
+   6253ms      31ms  pos       POST /tenants/{tenant_id}/sales/{sale_id}/payment-reconcile  [200]
+   6268ms       1ms  payments  GET /payments/{id}  [200]
+```
+
+(Tills, attendants and products omitted here; all in [`xray/waterfall.txt`](xray/waterfall.txt).)
+Payments' span is a child of POS's request span; the callback arrives as its own request with no
+trace header of ours and is still placed in the sale's trace, as a child of the payment's create
+span, because Payments stores the creating span with the record. Screenshot: `xray/waterfall.png`.
+
 ## k6
 
 Full write-up: [`k6-analysis.md`](k6-analysis.md). In short:
@@ -105,7 +129,6 @@ caught a Commission test that failed every evening from 21:00 UTC (#56).
 - **Production capacity numbers.** SQLite serialises writers (ADR 0009 section 6); the k6 figures prove correctness under concurrency and headroom on this build, not production sizing.
 - **Two ADR 0009 alarms:** callback rejections above baseline, and the provider-unknown rate above 5%. Both need a baseline from real traffic, and the second a ratio a single Metrics Insights alarm cannot express.
 - **28 days of history.** 28-day panels cover the data since G3 started.
-- **X-Ray span waterfalls.** Trace ids are propagated and logged (ADR 0009 G3-2); spans are deferred per ADR 0009.
 - **The web service.** Still a placeholder; its SLO is not measured (ADR 0010 open question 1).
 - **Real Daraja under load.** Load is FakeAdapter only, by design.
 

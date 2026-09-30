@@ -175,11 +175,31 @@ Every member signs it.
 | Drill with `SetAlarmState` | Proves Slack formatting, not that the alarm sees a real failure |
 | CloudWatch Synthetics canary for uptime | Needs an S3 bucket and Synthetics permissions; a scheduled Lambda gives the same signal |
 
+## Product decision — question 1 (2026-09-30)
+
+**Decided by:** Alice Moraa (`@Moraaalice`), Product + POS DRI.
+
+**Web is out of scope for this capstone.** `services/web/` stays a placeholder — no frontend
+ships, and Web's row in the reliability contract (`docs/slo-error-budgets.md`) is not claimed: no
+Web SLI, no Web panel, no Web alarm. This is an explicit decision, not an oversight the evidence
+pack should silently omit.
+
+**Why:** the product-correctness and money-safety surface the capstone actually grades (Sale →
+STK → paid, commission → B2C, replay/idempotency safety) is fully proven end to end without a web
+frontend — every demo and evidence file in `evidence/product-pos/` drives POS directly through
+its own API. Given where the team is in the schedule, building a web shell now would be new,
+rushed, and far less verified than everything else shipped (which was built and then actually run
+against live services before being called done) — worse evidence, not better, for the time it
+would cost.
+
+**Consequence:** Emebet's Grafana dashboards and alarms correctly have no Web row to build — this
+closes the ambiguity for her side too, not just POS's.
+
 ## Open questions
 
 | # | Question | Owner |
 |---|---|---|
-| 1 | The web service is still a placeholder. Its SLO is not claimed at G3 unless it ships | `@Moraaalice` |
+| 1 | ~~The web service is still a placeholder. Its SLO is not claimed at G3 unless it ships~~ — **Resolved, see Product decision above** | `@Moraaalice` |
 | 2 | Where the Payments 60 s window starts (ADR 0009 question 2) | `@emebetgirmay` |
 | 3 | 28-day panels need 28 days of data; at G3 they show what exists, labelled as such | `@emebetgirmay` |
 | 4 | Whether the payout cutoff check runs as an EventBridge-scheduled Lambda or a daily alarm period | `@emebetgirmay` |

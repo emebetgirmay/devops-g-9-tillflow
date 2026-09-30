@@ -107,4 +107,4 @@ python3 infra/grafana/build.py                                                  
 |---|---|---|
 | Emebet Girmay (`@emebetgirmay`) | Platform + delivery; Reliability + operations | 2026-09-30 |
 | Mitingi Joy Chesang (`@chesangJ`) | Payments + integrity | 2026-09-30 |
-| Alice Moraa (`@Moraaalice`) | Product + POS | |
+| Alice Moraa (`@Moraaalice`) | Product + POS | 2026-09-30 |

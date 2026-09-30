@@ -284,7 +284,10 @@ jobs:
                   env["COMMIT_SHA"] = sha
                   env["IMAGE_DIGEST"] = image.split("@", 1)[-1]
                   env.setdefault("PORT", "8080")
-                  env.setdefault("DATABASE_URL", "sqlite:////app/data/pos.db")
+                  # On RDS the URL is a secret (rds.tf). ECS rejects a name that is both an
+                  # environment variable and a secret, so only default it when it is neither.
+                  if "DATABASE_URL" not in {s["name"] for s in c.get("secrets", [])}:
+                      env.setdefault("DATABASE_URL", "sqlite:////app/data/pos.db")
                   env.setdefault("OTEL_SERVICE_NAME", "pos")
                   env.setdefault("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:4318")
                   env.setdefault("ADOT_HEALTH_URL", "http://127.0.0.1:13133/")
@@ -506,7 +509,10 @@ jobs:
                   env["COMMIT_SHA"] = sha
                   env["IMAGE_DIGEST"] = image.split("@", 1)[-1]
                   env.setdefault("PORT", "8080")
-                  env.setdefault("DATABASE_URL", "sqlite:////app/data/payments.db")
+                  # On RDS the URL is a secret (rds.tf). ECS rejects a name that is both an
+                  # environment variable and a secret, so only default it when it is neither.
+                  if "DATABASE_URL" not in {s["name"] for s in c.get("secrets", [])}:
+                      env.setdefault("DATABASE_URL", "sqlite:////app/data/payments.db")
                   env.setdefault("MPESA_ADAPTER", "fake")
                   env.setdefault("OTEL_SERVICE_NAME", "payments")
                   env.setdefault("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:4318")

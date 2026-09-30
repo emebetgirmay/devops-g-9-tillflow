@@ -34,7 +34,7 @@
 |---|---|---|
 | ✅ | **Managed database with backups** | **RDS PostgreSQL is up and both services are on it** (ADR 0002, #72, #73): `devops-g9-db`, 16.15, encrypted, private, 7-day backups with point-in-time restore; one role and schema per service, bootstrapped 2026-09-30 (`infra/scripts/rds-bootstrap.sh`). Payments switched in #77/#78 (`@chesangJ`), POS in #80 (`@Moraaalice`), both confirmed live (`/ready` reports the database reachable on the deployed sandbox). Commission is not deployed as a scheduled task, so it has nothing to switch yet |
 | ❌ | Cache and queue with DLQ | Not built. Design question resolved 2026-09-30 (ADR 0009 question 5): agreed candidate is Daraja callbacks on SQS + a DLQ; POS has no equivalent inbound event to queue (its settlement path is a poll with its own safety net, not a delivery). Callbacks are handled synchronously today, with reconcile as the interim safety net |
-| 🟡 | Backups, restore drill, measured RTO/RPO | Backups and point-in-time restore on; the procedure is in the [runbook](runbook.md#restore) and the drill in the [G4 game-day plan](../evidence/reliability-ops/g4-game-day.md). Both services are on RDS now, so the drill's precondition is met — it just hasn't been run yet; results table is still blank |
+| ✅ | Backups, restore drill, measured RTO/RPO | Daily backups, 7 days, point-in-time restore. **Drilled 2026-09-30** ([G4 game day](../evidence/reliability-ops/g4-game-day.md) scenario 1): **RPO 2 min 36 s, RTO 18 min 44 s** to a verified restore beside the live instance, 6/6 checks; the drill found and fixed a runbook command that could not run |
 
 ## Operate
 
@@ -44,7 +44,7 @@
 | ✅ | Burn-rate alerts (fast and slow) that page and recover in Slack | 17 alarms; [G3 evidence](../evidence/reliability-ops/g3-evidence.md) |
 | ✅ | Uptime probe on the public edge | `devops-g9-probe`, every minute, `probe-down`; history exported: 1,325 of 1,325 minutes up ([G3 evidence](../evidence/reliability-ops/g3-evidence.md#edge-probe-history)) |
 | ✅ | Load tested, capacity recorded | [k6 analysis](../evidence/reliability-ops/k6-analysis.md): 36.7 req/s sustained, p95 154 ms, 0.00% failed |
-| 🟡 | Runbook rehearsed | Slack drill and real incidents followed the runbook ([G3 evidence](../evidence/reliability-ops/g3-evidence.md)); restore itself not rehearsed yet — RDS exists now, so this is unblocked, just not run |
+| ✅ | Runbook rehearsed | Slack drill and real incidents ([G3 evidence](../evidence/reliability-ops/g3-evidence.md)); G4 game day: restore (scenario 1) and Payments task killed (scenario 2), each fixing what it found in the runbook or alarms ([G4 game day](../evidence/reliability-ops/g4-game-day.md)) |
 | ✅ | Incidents and lessons recorded | [`scar-log.md`](scar-log.md) |
 | ❌ | Destroy and rebuild documented and proven | Not done (G5). Needs `force_destroy` / `force_delete` where appropriate and a timed rebuild |
 | ✅ | Cost model | [`cost-model.md`](cost-model.md): about $135 a month at today's size, built from TillFlow's own resources and the unit prices in the bill, reconciled with the measured `eu-north-1` bill; levers and decisions listed. Found a lab stack costing ~$194 a month still running |

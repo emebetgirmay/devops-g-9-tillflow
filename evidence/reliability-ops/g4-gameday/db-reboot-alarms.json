@@ -1,0 +1,22 @@
+[
+  {
+    "alarm": "payments-fast-burn",
+    "time": "2026-09-30T20:47:07.734000+03:00",
+    "summary": "Alarm updated from OK to ALARM"
+  },
+  {
+    "alarm": "pos-fast-burn",
+    "time": "2026-09-30T20:47:53.735000+03:00",
+    "summary": "Alarm updated from OK to ALARM"
+  },
+  {
+    "alarm": "payments-fast-burn",
+    "time": "2026-09-30T20:51:07.738000+03:00",
+    "summary": "Alarm updated from ALARM to OK"
+  },
+  {
+    "alarm": "pos-fast-burn",
+    "time": "2026-09-30T20:53:53.734000+03:00",
+    "summary": "Alarm updated from ALARM to OK"
+  }
+]

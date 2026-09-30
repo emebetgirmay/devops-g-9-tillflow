@@ -31,9 +31,9 @@ was wrong is fixed in the runbook the same day), and the money invariants holdin
 
 | # | Start (UTC) | Fired | Recovered | RTO | RPO | Invariants | Runbook fixes | Evidence |
 |---|---|---|---|---|---|---|---|---|
-| 1 | | | | | | | | |
+| 1 | 17:20:51 (declared) | Planned, announced | 17:39:34 (restored instance verified) | **18 min 44 s** to a verified restore (RDS restore 17 min 45 s); switching services adds a redeploy | **2 min 36 s** (restore point 17:18:15) | Before-markers present, after-markers absent, as the `payments` and `pos` roles | Runbook step 2 fixed: `--manage-master-user-password` rejected | [`g4-restore/`](g4-restore/) 6/6 checks |
 | 2 | 16:12:43 | None: `payments-down` needs 2 min (by design); the ALB 5xx burn alarm **should have and did not** (finding 1) | 16:13:59 (new task serving) | 76 s from stop; 40 s of failed reads | 0: nothing lost | Held: `/_admin/invariants` all true ([`invariants-after.json`](g4-gameday/invariants-after.json)); payments unchanged, idempotency key replays | Finding 1 fixed (alarm maths); finding 2 open | [`g4-gameday/`](g4-gameday/) 5/5 checks |
-| 3 | | | | | | | | |
+| 3 | 17:44:41 | `payments-fast-burn` 17:47:07 → OK 17:51:07; `pos-fast-burn` 17:47:53 → OK 17:53:53 (Slack) | POS 17:45:33, Payments 17:45:59 | Database away 43 s (RDS events); POS failed 31 s, Payments 58 s; no task replaced, no redeploy | 0 | Held ([`db-reboot-checks.json`](g4-gameday/db-reboot-checks.json)) | Finding 6 (Payments pool) for `@chesangJ` | [`db-reboot-*`](g4-gameday/) 4/4 checks |
 | 4 | | | | | | | | |
 
 ## Timeline
@@ -52,6 +52,35 @@ was wrong is fixed in the runbook the same day), and the money invariants holdin
   original payment (no second charge). [`checks.json`](g4-gameday/checks.json) 5/5,
   [`timeline.json`](g4-gameday/timeline.json).
 
+**2026-09-30, scenario 1 (restore)**, run by `@emebetgirmay` with
+[`g4-restore/restore-drill.sh`](g4-restore/restore-drill.sh), POS and Payments both on RDS:
+
+- 17:15:24 "Before" markers written: a payment and a POS tenant.
+- 17:18:15 RDS latest restorable time passes them: the restore point `T`.
+- 17:20:51 "After" markers written (the writes a disaster now would lose), then **declared**.
+- 17:20:55 Point-in-time restore of `devops-g9-db` to `T` into `devops-g9-db-restore` started.
+- 17:38:40 Restored instance available.
+- 17:39:34 Verified inside the VPC as the services' own roles: 7 payments and 5 tenants; the
+  before-markers present, the after-markers absent ([`verify-log.txt`](g4-restore/verify-log.txt),
+  [`checks.json`](g4-restore/checks.json) 6/6, [`timeline.json`](g4-restore/timeline.json)).
+- 17:39:36 Restored instance deleted. The live instance and services were not touched.
+
+An earlier attempt at 16:40 stopped at the restore call (finding 4, fixed in the runbook), and a
+second one was cut off by a lost operator session after the instance was created; that instance was
+deleted and the drill run again from the start.
+
+**2026-09-30, scenario 3 (database reboot)**, run by `@emebetgirmay` with
+[`g4-gameday/db-reboot.sh`](g4-gameday/db-reboot.sh), probing POS `/ready` and a Payments read through
+the public URL (295 probes, [`db-reboot-probes.json`](g4-gameday/db-reboot-probes.json)):
+
+- 17:44:41 `aws rds reboot-db-instance devops-g9-db`.
+- 17:44:50 RDS: shutdown. POS `/ready` answers 503 at once; Payments reads hang to the probe's 10 s timeout.
+- 17:45:33 RDS: restarted. POS ready again the same second.
+- 17:45:59 Payments answers again, 26 s after the database.
+- 17:47:07 / 17:47:53 Fast-burn alarms page for Payments and POS; OK again by 17:51 / 17:53.
+- No task was replaced and nothing was redeployed: both services reconnected by themselves;
+  the payment written before the reboot is intact and the invariants hold.
+
 ## Findings
 
 1. **The ALB 5xx burn alarm could not see a total outage.** It divided ALB-generated 5xx by
@@ -65,3 +94,21 @@ was wrong is fixed in the runbook the same day), and the money invariants holdin
    breaching; decide after the re-run of this scenario with finding 1's fix live.
 3. **Paging threshold, by design:** a self-healing 40-second loss of one task does not page
    (`payments-down` needs 2 minutes). It spends about 0.3% of Payments' 28-day budget.
+4. **The runbook's restore command could not run.** Step 2 passed `--manage-master-user-password`,
+   which point-in-time restore of PostgreSQL rejects (`InvalidParameterValue`). Not needed: every
+   login, master and service roles, comes back with the data. **Fixed** in the runbook; found only
+   because the drill ran the documented command as written.
+5. **RTO is dominated by RDS itself** (17 min 45 s of 18 min 44 s). A faster restore would need a
+   warm standby (Multi-AZ, or a read replica to promote), a cost decision recorded in ADR 0002,
+   not a runbook change.
+6. **Payments hangs instead of failing fast while the database is away.** Its connection pool
+   waits up to 30 s for a connection (`timeout=30` in `services/payments/core/db.py`), sets no
+   connection timeout and does not check a connection before handing it out, so during the reboot
+   requests queued to the client's timeout and Payments came back 26 s after the database, where
+   POS (which answers 503 at once) came back the same second. **Proposed, `@chesangJ`:** pool
+   `timeout` of a few seconds, `connect_timeout` in the connection arguments, and
+   `check=ConnectionPool.check_connection`, then re-run this scenario.
+7. **The burn alarms work for an outage longer than a minute:** both fast-burn alarms paged and
+   recovered in Slack for a 31–58 s outage at low traffic, which is the behaviour finding 2
+   questioned for a 40 s one; that scenario's re-run is still due.
+

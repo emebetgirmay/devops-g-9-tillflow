@@ -237,13 +237,13 @@ measures RTO.
    schedules (no payout runs against data that may be rolled back). Note the restore point `T`: a
    moment just before the damage (or `--use-latest-restorable-time` if the instance is gone).
    (Commission's schedules exist once it is deployed; until then there is nothing to disable.)
-2. **Restore beside it** (inherits encryption; the service roles and their passwords come with the data):
+2. **Restore beside it** (inherits encryption; every login, the master and the service roles, comes back with the data as it was at `T`. Do not pass `--manage-master-user-password`: point-in-time restore of Postgres rejects it, found in the G4 drill):
    ```bash
    aws rds restore-db-instance-to-point-in-time \
      --source-db-instance-identifier devops-g9-db --target-db-instance-identifier devops-g9-db-restore \
      --restore-time "$T" --db-subnet-group-name devops-g9-db --db-parameter-group-name devops-g9-pg16 \
      --vpc-security-group-ids "$(aws ec2 describe-security-groups --filters Name=group-name,Values=devops-g9-db --query 'SecurityGroups[0].GroupId' --output text)" \
-     --no-publicly-accessible --no-multi-az --manage-master-user-password \
+     --no-publicly-accessible --no-multi-az \
      --tags Key=group,Value=devops-g9 Key=owner,Value=emebetgirmay Key=environment,Value=sandbox \
             Key=service,Value=platform Key=managed-by,Value=terraform Key=capstone,Value=tillflow
    aws rds wait db-instance-available --db-instance-identifier devops-g9-db-restore

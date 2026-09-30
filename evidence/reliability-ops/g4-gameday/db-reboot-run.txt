@@ -1,0 +1,19 @@
+2026-09-30T17:44:41Z  reboot requested
+2026-09-30T17:46:25Z  database available
+{
+  "reboot": "2026-09-30T17:44:41Z",
+  "db_available": "2026-09-30T17:46:25Z",
+  "stable_60s": "2026-09-30T18:01:28Z",
+  "pos_ready_first_failure": "2026-09-30T17:44:51Z",
+  "pos_ready_last_failure": "2026-09-30T17:45:20Z",
+  "pos_ready_failed_seconds": 31,
+  "payments_read_first_failure": "2026-09-30T17:44:51Z",
+  "payments_read_last_failure": "2026-09-30T17:45:46Z",
+  "payments_read_failed_seconds": 58
+}
+tasks replaced: {"devops-g9-pos": [], "devops-g9-payments": []}
+alarms: 4
+PASS  recovered_without_intervention
+PASS  no_task_replaced
+PASS  payment_intact
+PASS  invariants_hold

@@ -1,0 +1,17 @@
+{
+  "run": "20260930T174418",
+  "invariants": {
+    "credits_equal_succeeded_payments": true,
+    "succeeded_payments": 1,
+    "payment_credits": 1,
+    "duplicate_ledger_entries": 0,
+    "payout_keys_with_multiple_live_disbursements": 0,
+    "payments_declined_by_a_timeout": 0
+  },
+  "checks": {
+    "recovered_without_intervention": true,
+    "no_task_replaced": true,
+    "payment_intact": true,
+    "invariants_hold": true
+  }
+}

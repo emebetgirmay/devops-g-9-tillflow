@@ -19,11 +19,13 @@ DRI: Alice Moraa (`@Moraaalice`)
   (`test_payment_events.py` — one legal transition, one ledger effect), amount-mismatch
   rejection. `pytest --cov=app` at 93% line coverage (floor is 70%).
 - [x] End-to-end sale demo against deployed sandbox (Sale -> STK callback -> paid). Run for real
-  against the live API Gateway URL on 2026-09-29: `sale-demo-create.json` (sale created,
-  `READY_FOR_PAYMENT`) -> `sale-demo-payment-request.json` (STK requested) ->
+  against the live API Gateway URL, most recently on 2026-09-30: `sale-demo-create.json` (sale
+  created, `READY_FOR_PAYMENT`) -> `sale-demo-payment-request.json` (STK requested) ->
   `sale-demo-fake-deliver.json` (Payments' deterministic fake STK callback, standing in for
   Daraja) -> `sale-demo-reconcile-1.json` (`PAID` on the first poll) -> `sale-demo-final.json`.
-  `sale-demo-reconcile-replay.json` proves a repeat reconcile is a no-op (`applied: false`).
+  `sale-demo-reconcile-replay.json` proves a repeat reconcile is a no-op (`applied: false`). (First
+  run for record was 2026-09-29; re-run 2026-09-30 while verifying the G3 sign-off below —
+  each run overwrites these files with its own sale, so the evidence always reflects the latest.)
 
 ## G3 — Operate
 
@@ -42,6 +44,16 @@ DRI: Alice Moraa (`@Moraaalice`)
   `/metrics`).
 - Grafana panels, alarms, and the ADOT scrape path for this endpoint are Emebet's
   (ADR 0010 R-4/R-5), not tracked here.
+- [x] Verified live against the deployed sandbox on 2026-09-30 (re-running the sale demo above
+  while confirming this section): the POS Grafana dashboard's route/result-labelled panels
+  (`Requests by route and status`, `Sale creates by result`, `Payment events applied to sales`)
+  render real, correctly-labelled data end to end. One known cold-start gap found and confirmed
+  with `aws cloudwatch get-metric-statistics` at 60s resolution: a metric label combination's
+  first-ever occurrence in a task's lifetime is silently dropped by ADOT's cumulative-to-delta
+  conversion (no prior sample to diff against); only its second-or-later occurrence shows up.
+  `pos_sales_paid_total` (unlabelled, so its one series has existed since task start) is
+  unaffected. Not a broken pipeline — see [scar log](../../docs/scar-log.md), 2026-09-30
+  "POS / observability".
 - No web frontend work is tracked at G3 — `services/web` is explicitly out of scope, see
   `services/web/README.md` and ADR 0010's Product decision on open question 1.
 

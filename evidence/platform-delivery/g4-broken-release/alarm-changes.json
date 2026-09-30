@@ -1,0 +1,7 @@
+[
+    {
+        "time": "2026-09-29T23:41:56.227000+03:00",
+        "alarm": "devops-g9-alb-5xx-fast-burn",
+        "change": "Alarm updated from INSUFFICIENT_DATA to OK"
+    }
+]

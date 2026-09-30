@@ -1,0 +1,11 @@
+{
+  "smoke_check_failed": true,
+  "automatic_rollback_succeeded": true,
+  "pipeline_logged_rollback_target": true,
+  "new_revision_crashed_at_startup": true,
+  "edge_probe_never_failed": true,
+  "pos_always_had_a_healthy_target": true,
+  "no_pos_5xx": true,
+  "no_alb_generated_5xx": true,
+  "no_user_facing_alarm_fired": true
+}

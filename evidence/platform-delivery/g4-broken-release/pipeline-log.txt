@@ -1,0 +1,7 @@
+  --task-definition "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:23" \
+  --task-definition "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:25" \
+aws: [ERROR]: Waiter ServicesStable failed: Max attempts exceeded
+echo "Smoke failed — rolling back to arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:24"
+  --task-definition "arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:24" \
+Smoke failed — rolling back to arn:aws:ecs:eu-north-1:240462142849:task-definition/devops-g9-pos:24
+                "failedTasks": 1,

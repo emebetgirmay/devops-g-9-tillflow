@@ -1,0 +1,7 @@
+2026-09-29T20:24:46Z  d88d2bce3a51417aba78c5e03d41c6a8  INFO:     Started server process [9]
+2026-09-29T20:24:46Z  d88d2bce3a51417aba78c5e03d41c6a8  ERROR:    Automatic OpenTelemetry export requires fastapi[opentelemetry] or fastapi[standard]. Install the extra, configure providers yourself, or pass telemetry={'auto_configure': False} to FastAPI().
+2026-09-29T20:24:46Z  d88d2bce3a51417aba78c5e03d41c6a8  ERROR:    Application startup failed. Exiting.
+2026-09-29T20:31:00Z  7d188363d08b4a6ebb9e2b053f95b07e  INFO:     Started server process [9]
+2026-09-29T20:31:00Z  7d188363d08b4a6ebb9e2b053f95b07e  ERROR:    Automatic OpenTelemetry export requires fastapi[opentelemetry] or fastapi[standard]. Install the extra, configure providers yourself, or pass telemetry={'auto_configure': False} to FastAPI().
+2026-09-29T20:31:00Z  7d188363d08b4a6ebb9e2b053f95b07e  ERROR:    Application startup failed. Exiting.
+2026-09-29T20:37:15Z  4819701d914244278eef9b3c00493ff5  INFO:     Started server process [7]

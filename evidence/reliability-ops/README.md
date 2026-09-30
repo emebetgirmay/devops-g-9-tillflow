@@ -14,4 +14,5 @@ DRI: Emebet Girmay (`@emebetgirmay`)
   probe history, every minute, before CloudWatch rolls it up).
 
 ## Later
-- G4: game-day notes, restore evidence
+- G4: [`g4-game-day.md`](g4-game-day.md): the game-day plan (restore with RTO/RPO, Payments task
+  killed, database reboot, poisoned callback), results filled on the day.

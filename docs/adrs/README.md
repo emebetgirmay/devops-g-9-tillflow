@@ -12,7 +12,7 @@ index mirrors the files.
 | ADR | Topic | Owner | Status |
 |---|---|---|---|
 | [0001](0001-aws-region.md) | AWS region | `@emebetgirmay` | Accepted (G0) |
-| [0002](0002-rds-postgresql.md) | RDS PostgreSQL baseline | `@emebetgirmay` | Proposed (G0) |
+| [0002](0002-rds-postgresql.md) | RDS PostgreSQL baseline | `@emebetgirmay` | Accepted (G5) |
 | [0003](0003-s3-buckets.md) | S3 buckets | `@emebetgirmay` | Proposed (G0) |
 | [0004](0004-mpesa-adapter.md) | M-Pesa adapter and sandbox boundary | `@chesangJ` | Accepted (G2) |
 | [0005](0005-dual-cicd-lanes.md) | Dual CI/CD lanes (GHA + CodePipeline) | `@emebetgirmay` | Accepted (G1) |
@@ -32,7 +32,7 @@ from the wording.
 
 ## Known follow-ups
 
-- ADR 0002 and 0003 are still `Proposed`; their owner decides when to accept them.
+- ADR 0003 is still `Proposed`; its owner decides when to accept it.
 - Items marked "verify against Daraja docs" in 0006 and 0008 are confirmed by a sandbox contract
   test run by the deployed adapter, which does not exist yet.
 - ADR 0009 was accepted on 2026-09-30. Still open from it: `/_admin/*` and `/_fake/*` are still

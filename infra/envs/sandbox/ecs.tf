@@ -181,14 +181,17 @@ resource "aws_ecs_task_definition" "pos" {
               protocol      = "tcp"
             }
           ]
-          environment = [
-            { name = "PORT", value = tostring(var.pos_container_port) },
-            { name = "DATABASE_URL", value = "sqlite:////app/data/pos.db" },
-            { name = "PAYMENTS_BASE_URL", value = local.payments_base_url },
-            { name = "OTEL_SERVICE_NAME", value = "pos" },
-            { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = "http://127.0.0.1:4318" },
-            { name = "ADOT_HEALTH_URL", value = "http://127.0.0.1:13133/" },
-          ]
+          # DATABASE_URL: the SQLite file, or on RDS from the pos secret (rds.tf).
+          environment = concat(
+            [{ name = "PORT", value = tostring(var.pos_container_port) }],
+            var.pos_database == "sqlite" ? [{ name = "DATABASE_URL", value = "sqlite:////app/data/pos.db" }] : [],
+            [
+              { name = "PAYMENTS_BASE_URL", value = local.payments_base_url },
+              { name = "OTEL_SERVICE_NAME", value = "pos" },
+              { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = "http://127.0.0.1:4318" },
+              { name = "ADOT_HEALTH_URL", value = "http://127.0.0.1:13133/" },
+            ],
+          )
           mountPoints = [
             { sourceVolume = "tmp", containerPath = "/tmp", readOnly = false },
           ]
@@ -213,6 +216,7 @@ resource "aws_ecs_task_definition" "pos" {
           linuxParameters = { initProcessEnabled = true }
         },
         local.pos_uses_placeholder ? { command = local.pos_placeholder_command } : {},
+        var.pos_database == "rds" ? { secrets = local.pos_database_secrets } : {},
       ),
       {
         name                   = "adot"
@@ -318,14 +322,18 @@ resource "aws_ecs_task_definition" "payments" {
               protocol      = "tcp"
             }
           ]
-          environment = concat([
-            { name = "PORT", value = tostring(var.payments_container_port) },
-            { name = "DATABASE_URL", value = "sqlite:////app/data/payments.db" },
-            { name = "MPESA_ADAPTER", value = var.payments_mpesa_adapter },
-            { name = "OTEL_SERVICE_NAME", value = "payments" },
-            { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = "http://127.0.0.1:4318" },
-            { name = "ADOT_HEALTH_URL", value = "http://127.0.0.1:13133/" },
-          ], local.payments_daraja_environment)
+          # DATABASE_URL: the SQLite file, or on RDS from the payments secret (rds.tf).
+          environment = concat(
+            [{ name = "PORT", value = tostring(var.payments_container_port) }],
+            var.payments_database == "sqlite" ? [{ name = "DATABASE_URL", value = "sqlite:////app/data/payments.db" }] : [],
+            [
+              { name = "MPESA_ADAPTER", value = var.payments_mpesa_adapter },
+              { name = "OTEL_SERVICE_NAME", value = "payments" },
+              { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = "http://127.0.0.1:4318" },
+              { name = "ADOT_HEALTH_URL", value = "http://127.0.0.1:13133/" },
+            ],
+            local.payments_daraja_environment,
+          )
           mountPoints = [
             { sourceVolume = "tmp", containerPath = "/tmp", readOnly = false },
           ]
@@ -351,7 +359,9 @@ resource "aws_ecs_task_definition" "payments" {
         },
         local.payments_uses_placeholder ? { command = local.payments_placeholder_command } : {},
         # Credentials come from Secrets Manager at task start (daraja.tf); never plain env.
-        local.payments_daraja ? { secrets = local.payments_daraja_secrets } : {},
+        local.payments_daraja || var.payments_database == "rds" ? {
+          secrets = concat(local.payments_daraja ? local.payments_daraja_secrets : [], local.payments_database_secrets)
+        } : {},
       ),
       {
         name                   = "adot"

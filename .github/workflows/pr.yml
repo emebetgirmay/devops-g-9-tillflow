@@ -82,7 +82,8 @@ jobs:
         if: ${{ vars.AWS_CI_ROLE_ARN != '' && vars.TF_STATE_BUCKET != '' }}
         run: |
           terraform init -backend-config=backend.hcl
-          terraform plan -input=false -no-color -out=plan.bin
+          # Wait for a running Release apply instead of failing on its state lock.
+          terraform plan -input=false -no-color -lock-timeout=5m -out=plan.bin
 
       - name: Upload plan
         if: ${{ vars.AWS_CI_ROLE_ARN != '' && vars.TF_STATE_BUCKET != '' }}

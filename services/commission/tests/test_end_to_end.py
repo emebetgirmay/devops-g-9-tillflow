@@ -22,7 +22,7 @@ import time
 import unittest
 import uuid
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import _bootstrap  # noqa: F401
@@ -40,6 +40,7 @@ from app import make_handler as make_payments_handler
 from core.config import Settings as PaymentsSettings
 from mpesa import FakeAdapter, ManualClock
 
+from ledger.calc import business_date
 from ledger.close import close_business_day
 from ledger.config import Settings as CommissionSettings
 from ledger.disburse import reconcile_requested_payouts, send_due_payouts
@@ -94,6 +95,16 @@ if _HAVE_POS_DEPS:
 
 @unittest.skipUnless(_HAVE_POS_DEPS, "POS deps (fastapi/sqlalchemy/uvicorn) not installed")
 class EndToEndTest(unittest.TestCase):
+
+    def _business_today(self) -> date:
+        """Today as Commission sees it: the EAT calendar date, not the UTC one. Using the UTC
+        date made these tests close the wrong day from 21:00 to 24:00 UTC, when EAT is already
+        on tomorrow (they failed in CI at 21:08 UTC on 2026-09-29, and passed at other hours)."""
+        return date.fromisoformat(
+            business_date(
+                datetime.now(timezone.utc), self.commission_settings.business_day_utc_offset_hours
+            )
+        )
     def setUp(self) -> None:
         self._dirs = [tempfile.TemporaryDirectory() for _ in range(3)]
         for d in self._dirs:
@@ -186,7 +197,7 @@ class EndToEndTest(unittest.TestCase):
             self._make_paid_sale(tenant["id"], till["id"], attendant["id"], product["id"])
         # Total: 3 sales x 2 units x 80 KES = 480 KES; 5% commission = 24.00 KES = 2,400 minor.
 
-        today = datetime.now(timezone.utc).date()
+        today = self._business_today()
         close_result = close_business_day(
             self.commission_store, self.pos_client, self.commission_settings, tenant["id"], today
         )
@@ -256,7 +267,7 @@ class EndToEndTest(unittest.TestCase):
             tenant["id"], till["id"], high_rate["id"], product["id"]
         )  # 50% of 40 KES = 2000 minor: payable
 
-        today = datetime.now(timezone.utc).date()
+        today = self._business_today()
         close_business_day(
             self.commission_store, self.pos_client, self.commission_settings, tenant["id"], today
         )

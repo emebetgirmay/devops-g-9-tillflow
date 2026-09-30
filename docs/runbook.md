@@ -288,3 +288,35 @@ measures RTO.
    RPO (`T` → last change lost), and add a line to the [scar log](scar-log.md). Delete
    `devops-g9-db-damaged` only after the review, with a final snapshot.
 
+
+<a id="destroy-and-rebuild"></a>
+
+## Destroy and rebuild (G5)
+
+The whole sandbox is code: `infra/scripts/destroy-rebuild.sh` destroys it and builds it again,
+timed. Only the Terraform state bucket and lock table (`infra/bootstrap`) survive. Owner `@emebetgirmay`.
+
+**Before:** announce it (every alarm, the probe and the public URL go away); no Release running;
+nothing unmerged that the rebuild should include.
+
+```bash
+aws sso login --profile g9
+CONFIRM=destroy-devops-g9 ./infra/scripts/destroy-rebuild.sh
+```
+
+From a laptop, never from CI: the CI role is destroyed with the rest. The script:
+
+1. Keeps the previous final DB snapshot under a dated name, then `terraform destroy`; RDS takes a
+   final snapshot (`devops-g9-db-final`) first. Lists what is still tagged `group=devops-g9`
+   (expected: that snapshot and the alerts KMS key, pending deletion for 7 days).
+2. `terraform apply`, then `rds-bootstrap.sh` (new service passwords, same roles and schemas).
+3. Asks for the Slack webhook, hidden (its secret is destroyed with the rest).
+4. Points the Actions variable `API_GATEWAY_URL` at the new API (a rebuilt API Gateway has a new
+   id), then starts the release (`workflow_dispatch`): **approve the `sandbox` deployment** in GitHub.
+5. Smoke through the new public URL: health, ready, a POS write, a payment that settles, invariants.
+   Writes `evidence/platform-delivery/g5-destroy-rebuild/timeline.json` with minutes per phase.
+
+**After:** update the public URL in `README.md` and the evidence scripts' `BASE_URL`. The rebuilt
+database is empty (sandbox, FakeAdapter): to bring data back, restore from `devops-g9-db-final`
+([Restore](#restore)). If the destroy stops half way, fix the cause and run it again; to finish only
+the rebuild, `PHASE=rebuild ./infra/scripts/destroy-rebuild.sh`.

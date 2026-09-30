@@ -11,7 +11,7 @@ Private group mono-repo · Terraform · GitHub Actions + CodePipeline.
 | **Due** | Mon 21 Sep 2026, 23:59 EAT |
 | **Prefix** | `devops-g9` |
 | **Region** | `eu-north-1` ([ADR](docs/adrs/0001-aws-region.md)) |
-| **Status** | G0–G3 evidenced (see below); G4–G5 in progress |
+| **Status** | G0–G3 evidenced and signed; G4–G5 evidenced ([`evidence/g4-g5-evidence.md`](evidence/g4-g5-evidence.md)), open items listed there |
 
 ## Live system
 
@@ -29,7 +29,8 @@ Private group mono-repo · Terraform · GitHub Actions + CodePipeline.
 | G1 Platform | [`evidence/platform-delivery/`](evidence/platform-delivery/README.md) |
 | G2 Product | [`evidence/product-pos/`](evidence/product-pos/README.md), [`evidence/payments-integrity/`](evidence/payments-integrity/README.md), [`evidence/commission-payout/`](evidence/commission-payout/README.md), [`evidence/daraja-b2c-contract/`](evidence/daraja-b2c-contract/README.md) |
 | G3 Operate | [`evidence/reliability-ops/g3-evidence.md`](evidence/reliability-ops/g3-evidence.md), [k6 analysis](evidence/reliability-ops/k6-analysis.md) |
-| G4 Recover | [Broken release and automatic rollback](evidence/platform-delivery/g4-broken-release/README.md); [`evidence/payments-integrity/g4/`](evidence/payments-integrity/g4/) (uncertain payment, uncertain payout, callback replay); restore drill planned ([game day](evidence/reliability-ops/g4-game-day.md)), not yet run |
+| G4 Recover | [`evidence/g4-g5-evidence.md`](evidence/g4-g5-evidence.md): restore drill (RPO 2 min 36 s, RTO 18 min 44 s), broken release, task killed, database reboot, Payments and POS drills ([game day](evidence/reliability-ops/g4-game-day.md)) |
+| G5 Release | [`evidence/g4-g5-evidence.md`](evidence/g4-g5-evidence.md): destroy and rebuild green in 43 min ([evidence](evidence/platform-delivery/g5-destroy-rebuild/README.md)), RDS, supply chain, cost |
 | Incidents | [`docs/scar-log.md`](docs/scar-log.md) |
 
 ## Known limitations (stated, not hidden)

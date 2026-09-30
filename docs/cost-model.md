@@ -3,10 +3,10 @@
 **Owner:** Platform, Emebet Girmay (`@emebetgirmay`) · **Measured:** 2026-09-30, bill window 2026-09-16 → 2026-09-29 ·
 **Region:** `eu-north-1` · **Evidence:** [`evidence/platform-delivery/cost/`](../evidence/platform-delivery/cost/)
 
-**TillFlow costs about $135 a month (≈ $4.40 a day) at today's size.** Almost all of it is
-fixed: the NAT gateway, the load balancer, CloudWatch custom metrics and two small Fargate tasks.
-Traffic adds cents. The biggest item in the region is not TillFlow at all: a lab stack left
-running costs about $194 a month (below).
+**TillFlow costs about $151 a month (≈ $5.00 a day) at today's size**, RDS and Commission
+included (updated 2026-09-30, below). Almost all of it is fixed: the NAT gateway, the load balancer,
+CloudWatch custom metrics, the database and two small Fargate services. Traffic adds cents. A lab
+stack left running in the same region costs more than TillFlow (below).
 
 ## How it is measured
 
@@ -96,11 +96,31 @@ would be about 96 million requests: about $96 of API Gateway requests, a little 
 ingestion, with Payments already sized for it (CPU peak 55%, [k6 analysis](../evidence/reliability-ops/k6-analysis.md)).
 Real shop traffic is orders of magnitude lower.
 
+## Added since: RDS, Commission, X-Ray (2026-09-30)
+
+Priced from the bill again: Cost Explorer already shows the first hours of `devops-g9-db`
+(`eu-north-1`, usage only; the AWS Pricing API is denied to the cohort role).
+
+| Component | Basis | Unit price (USD) | Monthly (USD) |
+|---|---|---|---|
+| RDS `db.t4g.micro`, PostgreSQL, single-AZ | 730 h | 0.016 / h (bill: 0.004911 for 0.307 h) | 11.68 |
+| RDS gp3 storage | 20 GB | 0.12 / GB-month (bill) | 2.40 |
+| RDS backups (7 days, point-in-time) | up to the database size | free up to 100% of storage | 0.00 |
+| Performance Insights | 7-day retention | free tier | 0.00 |
+| Secrets Manager: three service logins and the RDS-managed master | 4 secrets | 0.40 | 1.60 |
+| Commission: scheduled tasks, 0.25 vCPU / 0.5 GB | about 38 runs a day of about a minute (Fargate bills at least 1 min) ≈ 19 task-hours a month | 0.0445 / vCPU-h, 0.0049 / GB-h | 0.26 |
+| CloudWatch: 3 database alarms, Commission alarm and metric | 4 alarms, 1 metric | 0.10, 0.30 | 0.70 |
+| X-Ray traces | sandbox traffic, well inside the 100,000 free traces a month | free tier | 0.00 |
+| **Added** | | | **≈ 16.64** |
+
+**New total ≈ $151 a month** ($134.53 + $16.64). The database is the fifth-largest line, after the custom
+metrics, the NAT gateway, Fargate vCPU and the load balancer. At this size Multi-AZ would double the instance line (about
+$12 more) and cut the restore RTO measured in the G4 drill (18 min 44 s) to a failover of a minute
+or two; recorded as a decision for production, not the sandbox (ADR 0002).
+
 ## Not in this model yet
 
-- **RDS PostgreSQL** (ADR 0002). It is the next fixed cost; it will be priced from the bill the
-  same way once it exists, with its backup storage.
-- **Cache and queue** (SQS with a DLQ is per request: cents at this volume).
+- **Queue** (SQS with a DLQ for callbacks, when it lands): per request, cents at this volume.
 - **Grafana Cloud** is on its free tier; its CloudWatch reads show in the bill as `GetMetricData`
   (under $0.10 in the window).
 - **Budgets and anomaly alerts** need the payer account in a shared cohort account; the per-day

@@ -35,9 +35,9 @@ use the FakeAdapter only.
 
 | Item | State | Owner |
 |---|---|---|
-| Commission schedules switched on | Infrastructure and release live; waits for `disburse.py --check` and a sandbox tenant id (the rebuild emptied the database) | `@chesangJ`, `@Moraaalice`, then `@emebetgirmay` |
-| Payments fails fast when the database is away (G4 finding 6) | Proposed fix in `services/payments/core/db.py`; scenario 3 re-run after it | `@chesangJ` |
-| Callbacks on SQS with a DLQ, and G4 scenario 4 (poisoned callback) | Not built: callbacks are handled synchronously with the scheduled reconcile as the safety net (ADR 0009 question 5) | `@chesangJ` (code), `@emebetgirmay` (queue, alarm) |
+| Commission schedules switched on | Infrastructure and release live; `disburse.py --check` is built (it prints `{"event": "payouts_not_terminal", "count": N}`); waits for a sandbox tenant id (the rebuild emptied the database) | `@chesangJ`, `@Moraaalice`, then `@emebetgirmay` |
+| Payments fails fast when the database is away (G4 finding 6) | Fixed in `services/payments/core/db.py` (and Commission's): pool wait 3 s, `connect_timeout` 3 s, connection checked before use. Re-run locally against PostgreSQL 16: a request while the database is down went from 30 s to 3 s, and Payments was ready 5 s after the database instead of 27 s ([`fail-fast.json`](payments-integrity/postgres/fail-fast.json)). Scenario 3 on RDS still to re-run after deploy | `@chesangJ` |
+| Callbacks on SQS with a DLQ, and G4 scenario 4 (poisoned callback) | **Not built, and not before the viva.** Callbacks are handled synchronously; the scheduled reconcile is the safety net for a lost one (ADR 0009 question 5). Design agreed: one standard queue `devops-g9-payments-callbacks` for STK and B2C results, redrive to `devops-g9-payments-callbacks-dlq` after 5 receives, alarm on any DLQ message | `@chesangJ` (code), `@emebetgirmay` (queue, alarm) |
 | Short outages between 5-minute alarm buckets (G4 finding 2) | Probable, not proven; re-run scenario 2 with the alarm fix live | `@emebetgirmay` |
 
 ## Sign-off

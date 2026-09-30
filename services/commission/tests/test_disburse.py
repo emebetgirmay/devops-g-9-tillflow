@@ -7,9 +7,14 @@ close pass, which test_close.py already covers on its own.
 
 from __future__ import annotations
 
+import io
+import json
+import os
 import tempfile
 import time
 import unittest
+from contextlib import redirect_stdout
+from unittest import mock
 from dataclasses import replace
 from pathlib import Path
 
@@ -245,6 +250,40 @@ class ReconcileTest(DisburseTestCase):
         result = self.reconcile()
         self.assertEqual(result["counts"].get("succeeded"), 1)
         self.assertEqual(self.ledger(ledger_id)["state"], "SUCCEEDED")
+
+
+class CheckTest(DisburseTestCase):
+    """disburse.py --check, the 06:30 EAT probe: one JSON line, read only."""
+
+    def set_state(self, ledger_id: str, state: str) -> None:
+        with self.store.tx() as conn:
+            conn.execute("UPDATE payout_ledger SET state = ? WHERE id = ?", (state, ledger_id))
+
+    def run_check(self) -> tuple[int, list[str]]:
+        import disburse
+
+        out = io.StringIO()
+        env = {"DATABASE_URL": f"sqlite:///{self.settings.db_path}", "PAYMENTS_BASE_URL": self.base_url}
+        with mock.patch.dict(os.environ, env), redirect_stdout(out):
+            code = disburse.main(["--check"])
+        return code, out.getvalue().splitlines()
+
+    def test_counts_planned_and_requested_and_sends_nothing(self) -> None:
+        self.plan(attendant_id="a1")  # stays PLANNED
+        self.set_state(self.plan(attendant_id="a2"), "REQUESTED")
+        self.set_state(self.plan(attendant_id="a3"), "SUCCEEDED")
+        self.set_state(self.plan(attendant_id="a4"), "FAILED")
+        code, lines = self.run_check()
+        self.assertEqual(code, 0)
+        self.assertEqual(lines, [json.dumps({"event": "payouts_not_terminal", "count": 2})])
+        self.assertEqual(self.adapter.disburse_call_count, 0)
+        with self.store.connection() as conn:
+            states = sorted(r["state"] for r in conn.execute("SELECT state FROM payout_ledger"))
+        self.assertEqual(states, ["FAILED", "PLANNED", "REQUESTED", "SUCCEEDED"])
+
+    def test_zero_when_everything_is_terminal(self) -> None:
+        self.set_state(self.plan(attendant_id="a1"), "SUCCEEDED")
+        self.assertEqual(self.run_check(), (0, ['{"event": "payouts_not_terminal", "count": 0}']))
 
 
 if __name__ == "__main__":

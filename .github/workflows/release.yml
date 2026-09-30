@@ -46,8 +46,9 @@ jobs:
               - 'services/_shared/**'
               - '.github/workflows/release.yml'
               # Same as Payments: a Terraform-only task definition change (e.g. the ADOT
-              # config) only goes live through this deploy.
+              # config, or pos_database in rds.tf) only goes live through this deploy.
               - 'infra/envs/sandbox/ecs.tf'
+              - 'infra/envs/sandbox/rds.tf'
             payments:
               - 'services/payments/**'
               - 'services/_shared/**'
@@ -56,6 +57,7 @@ jobs:
               # live through this deploy (which clones Terraform's revision).
               - 'infra/envs/sandbox/ecs.tf'
               - 'infra/envs/sandbox/daraja.tf'
+              - 'infra/envs/sandbox/rds.tf'
       - id: out
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then

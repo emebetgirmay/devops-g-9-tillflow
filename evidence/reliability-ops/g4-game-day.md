@@ -35,6 +35,7 @@ was wrong is fixed in the runbook the same day), and the money invariants holdin
 | 2 | 16:12:43 | None: `payments-down` needs 2 min (by design); the ALB 5xx burn alarm **should have and did not** (finding 1) | 16:13:59 (new task serving) | 76 s from stop; 40 s of failed reads | 0: nothing lost | Held: `/_admin/invariants` all true ([`invariants-after.json`](g4-gameday/invariants-after.json)); payments unchanged, idempotency key replays | Finding 1 fixed (alarm maths); finding 2 open | [`g4-gameday/`](g4-gameday/) 5/5 checks |
 | 2 (re-run) | 20:22:37 | `alb-5xx-slow-burn` 20:25:13, `alb-5xx-fast-burn` 20:25:18 (Slack, 200); fast OK again | 20:23:14 (new task serving) | 37 s from stop; 28 s of failed reads | 0 | Payments unchanged, idempotency key replays | Finding 1's fix proven; finding 2 closed | [`rerun-*`](g4-gameday/) 5/5 checks |
 | 3 | 17:44:41 | `payments-fast-burn` 17:47:07 → OK 17:51:07; `pos-fast-burn` 17:47:53 → OK 17:53:53 (Slack) | POS 17:45:33, Payments 17:45:59 | Database away 43 s (RDS events); POS failed 31 s, Payments 58 s; no task replaced, no redeploy | 0 | Held ([`db-reboot-checks.json`](g4-gameday/db-reboot-checks.json)) | Finding 6 (Payments pool) for `@chesangJ` | [`db-reboot-*`](g4-gameday/) 4/4 checks |
+| 3 (re-run) | 20:48:41 | None, correctly: 2–9 s of errors is under the burn thresholds | Payments 20:48:56, POS 20:48:59 | Database away 17 s (RDS events); Payments one fast 500 and **no hanging request**; no task replaced | 0 | Held ([`rerun-db-reboot-checks.json`](g4-gameday/rerun-db-reboot-checks.json)) | Finding 6 fix (#88) proven on RDS | [`rerun-db-reboot-*`](g4-gameday/) 4/4 checks |
 | 4 | | | | | | | | |
 
 ## Timeline
@@ -110,13 +111,14 @@ run and returned to OK at 20:26.)
 5. **RTO is dominated by RDS itself** (17 min 45 s of 18 min 44 s). A faster restore would need a
    warm standby (Multi-AZ, or a read replica to promote), a cost decision recorded in ADR 0002,
    not a runbook change.
-6. **Payments hangs instead of failing fast while the database is away.** Its connection pool
-   waits up to 30 s for a connection (`timeout=30` in `services/payments/core/db.py`), sets no
-   connection timeout and does not check a connection before handing it out, so during the reboot
-   requests queued to the client's timeout and Payments came back 26 s after the database, where
-   POS (which answers 503 at once) came back the same second. **Proposed, `@chesangJ`:** pool
-   `timeout` of a few seconds, `connect_timeout` in the connection arguments, and
-   `check=ConnectionPool.check_connection`, then re-run this scenario.
+6. **Payments hung instead of failing fast while the database was away.** Its connection pool
+   waited up to 30 s for a connection, set no connection timeout and did not check a connection
+   before handing it out, so during the first reboot requests queued to the client's timeout and
+   Payments came back 26 s after the database. **Fixed by `@chesangJ` in #88** (pool wait 3 s,
+   `connect_timeout` 3 s, connections checked) and **proven on RDS by the re-run** (20:48,
+   [`rerun-db-reboot-*`](g4-gameday/)): one fast 500 instead of repeated 10 s timeouts, and Payments
+   answering again before RDS logged its restart, ahead of POS. The two reboots differed in length
+   (43 s against 17 s), so the change in behaviour, not the durations, is the evidence.
 7. **The burn alarms work for an outage longer than a minute:** both fast-burn alarms paged and
    recovered in Slack for a 31–58 s outage at low traffic; the scenario 2 re-run confirmed it for a
    28 s one (finding 2).

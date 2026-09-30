@@ -15,6 +15,7 @@
 #
 # Interrupts both services briefly: announce it in Slack first. Needs an SSO session.
 #   ./evidence/reliability-ops/g4-gameday/db-reboot.sh
+#   OUT_PREFIX=rerun- ./evidence/reliability-ops/g4-gameday/db-reboot.sh   # keep run 1
 
 set -euo pipefail
 
@@ -22,12 +23,13 @@ export AWS_PROFILE="${AWS_PROFILE:-g9}" AWS_REGION="${AWS_REGION:-eu-north-1}"
 BASE="${BASE_URL:-https://nilrqzkq8a.execute-api.eu-north-1.amazonaws.com}"
 OUT="$(cd "$(dirname "$0")" && pwd)"
 
-python3 - "$OUT" "$BASE" <<'PY'
+python3 - "$OUT" "$BASE" "${OUT_PREFIX:-}" <<'PY'
 import json, subprocess, sys, threading, time, urllib.error, urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 out, base = Path(sys.argv[1]), sys.argv[2].rstrip("/")
+prefix = sys.argv[3]  # OUT_PREFIX=rerun- keeps an earlier run's files
 CLUSTER, DB = "devops-g9", "devops-g9-db"
 SERVICES = ("devops-g9-pos", "devops-g9-payments")
 run = time.strftime("%Y%m%dT%H%M%S", time.gmtime())
@@ -139,12 +141,12 @@ checks = {
     "invariants_hold": status == 200 and all(v in (True, 0) for k, v in invariants.items()
                                              if k not in ("succeeded_payments", "payment_credits")),
 }
-(out / "db-reboot-probes.json").write_text(json.dumps([{k: v for k, v in p.items() if k != "ts"} for p in probes]) + "\n")
-(out / "db-reboot-timeline.json").write_text(json.dumps({**timeline, "tasks_replaced": replaced,
+(out / f"{prefix}db-reboot-probes.json").write_text(json.dumps([{k: v for k, v in p.items() if k != "ts"} for p in probes]) + "\n")
+(out / f"{prefix}db-reboot-timeline.json").write_text(json.dumps({**timeline, "tasks_replaced": replaced,
                                                          "rds_events": [{"t": e["Date"], "m": e["Message"]} for e in events]},
                                                         indent=2, default=str) + "\n")
-(out / "db-reboot-alarms.json").write_text(json.dumps(sorted(alarms, key=lambda a: a["time"]), indent=2, default=str) + "\n")
-(out / "db-reboot-checks.json").write_text(json.dumps({"run": run, "invariants": invariants, "checks": checks}, indent=2) + "\n")
+(out / f"{prefix}db-reboot-alarms.json").write_text(json.dumps(sorted(alarms, key=lambda a: a["time"]), indent=2, default=str) + "\n")
+(out / f"{prefix}db-reboot-checks.json").write_text(json.dumps({"run": run, "invariants": invariants, "checks": checks}, indent=2) + "\n")
 print(json.dumps({k: v for k, v in timeline.items() if k != "run"}, indent=2))
 print("tasks replaced:", json.dumps(replaced, default=str))
 print("alarms:", len(alarms))

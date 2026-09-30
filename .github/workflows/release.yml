@@ -551,13 +551,18 @@ jobs:
           fi
           aws ecs wait services-stable --cluster "${ECS_CLUSTER}" --services "${ECS_SERVICE}"
           # Payments /health is not on a path rule; exercise a Payments-routed path.
-          curl -sfS -X POST "${API_URL}/_admin/sweep" | tee smoke-payments-sweep.json
-          python3 - <<'PY'
-          import json
-          body = json.load(open("smoke-payments-sweep.json"))
-          assert isinstance(body, dict), body
-          print("payments smoke ok", body)
-          PY
+          # FakeAdapter builds serve the reconcile pass through the edge; real-adapter builds refuse
+          # /_admin from the internet (ADR 0009 G3-7), so fall back to a read that still proves the
+          # service and its database answer: an unknown payment is Payments' own JSON 404.
+          code=$(curl -sS -o smoke-payments-sweep.json -w '%{http_code}' -X POST "${API_URL}/_admin/sweep")
+          if [ "${code}" = "200" ]; then
+            python3 -c 'import json; b = json.load(open("smoke-payments-sweep.json")); assert isinstance(b, dict), b; print("payments smoke ok (sweep)", b)'
+          elif [ "${code}" = "404" ]; then
+            code=$(curl -sS -o smoke-payments-read.json -w '%{http_code}' "${API_URL}/payments/pay_release_smoke_probe")
+            python3 -c 'import json, sys; b = json.load(open("smoke-payments-read.json")); assert sys.argv[1] == "404" and b == {"error": "not_found"}, (sys.argv[1], b); print("payments smoke ok (read; admin paths refused at the edge)")' "${code}"
+          else
+            echo "payments smoke failed: POST /_admin/sweep answered ${code}"; cat smoke-payments-sweep.json; exit 1
+          fi
 
       - name: Rollback previous task definition on smoke failure
         if: failure() && steps.smoke.outcome == 'failure'

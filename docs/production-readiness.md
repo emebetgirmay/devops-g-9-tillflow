@@ -24,7 +24,7 @@
 | 🟡 | Read-only root filesystem | ADOT sidecars and the k6 task: yes. POS and Payments: no, because SQLite needs a writable path in the image. Becomes yes with RDS |
 | ✅ | `/health`, `/ready`, `/version` on every service; ALB and ECS health checks use `/ready` | `infra/envs/sandbox/ecs.tf`, `alb.tf`; live at the public edge |
 | ✅ | No public access to metrics or data paths | `/metrics` blocked at the ALB (#40); ALB internal, reachable only through API Gateway's VPC link and the VPC |
-| 🟡 | Test endpoints off the public route | `/_fake/*` and `/_admin/*` are still routed from API Gateway (ADR 0009 G3-7); in-VPC callers (k6, the sweep) no longer need them public |
+| ✅ | Test and operator endpoints not served to the internet on real builds | API Gateway stamps every request with `x-tillflow-edge`; Payments refuses `/_admin/*` and `/_fake/*` carrying it unless it runs the FakeAdapter (`services/payments/tests/test_public_edge.py`). The sandbox runs the FakeAdapter, so the team's drills and demo still use them through the public URL; in-VPC callers (the sweep, k6) are unaffected |
 | ✅ | Least-privilege IAM, no long-lived keys | GitHub OIDC role; CI role scoped by name and `group` tag (#33); service roles read only their own secrets; Grafana reads through an external-ID role |
 | ✅ | Secrets only in Secrets Manager; CI can describe but not read them | Daraja and Slack secrets; runbook "Slack webhook" |
 

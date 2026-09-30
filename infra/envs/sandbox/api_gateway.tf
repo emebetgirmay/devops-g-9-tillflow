@@ -45,8 +45,11 @@ resource "aws_apigatewayv2_integration" "alb" {
 
   # HTTP APIs reserve X-Forwarded-For, so hand the caller's address to the services in a header
   # of our own. overwrite replaces anything the caller sent in it (Payments' callback allowlist).
+  # x-tillflow-edge marks "came from the internet": Payments refuses /_admin and /_fake from the
+  # edge unless it runs the FakeAdapter (ADR 0009 G3-7). In-VPC callers never carry it.
   request_parameters = {
     "overwrite:header.${local.source_ip_header}" = "$context.identity.sourceIp"
+    "overwrite:header.x-tillflow-edge"           = "public"
   }
 }
 

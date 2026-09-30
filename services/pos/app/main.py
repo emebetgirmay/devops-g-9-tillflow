@@ -19,7 +19,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from . import metrics, scheduler, tracing
-from .db import init_db
+from .db import init_db, is_database_reachable
 from .routers import catalog, commission, internal, sales
 
 COMMIT_SHA = os.environ.get("COMMIT_SHA", "local")
@@ -98,6 +98,11 @@ def ready() -> JSONResponse | dict:
         return JSONResponse(
             status_code=503,
             content={"status": "not_ready", "service": "pos", "reason": "adot_unhealthy"},
+        )
+    if not is_database_reachable():
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "service": "pos", "reason": "database_unreachable"},
         )
     return {"status": "ready", "service": "pos"}
 

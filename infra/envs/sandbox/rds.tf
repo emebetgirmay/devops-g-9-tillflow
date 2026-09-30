@@ -14,7 +14,7 @@
 variable "pos_database" {
   description = "Where POS keeps its data: sqlite (file in the task, lost on restart) or rds."
   type        = string
-  default     = "sqlite"
+  default     = "rds" # flipped 2026-09-30: RDS bootstrapped, POS has psycopg + pool_pre_ping
 
   validation {
     condition     = contains(["sqlite", "rds"], var.pos_database)

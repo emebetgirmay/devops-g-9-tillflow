@@ -26,6 +26,14 @@ Defaults to a SQLite file at `/tmp/pos.db` (no external DB needed). Set `DATABAS
 -specific types, so nothing else changes when Platform wires up the real RDS instance and
 injects the connection string.
 
+**RDS split (reviewer question, 2026-09-30):** POS moves onto the same RDS cluster ADR 0002
+already decided — **one cluster, POS's own schema**, not a separate database or instance,
+using the least-privilege `pos` role ADR 0002 already names. No POS-side migration work is
+needed beyond that: the models here use no SQLite-specific types and `Base.metadata.create_all()`
+already bootstraps the schema from empty. Timeline: same-day as Platform provisions the instance
+and injects `DATABASE_URL` for the `pos` schema/role — this is not blocked on POS, only on RDS
+provisioning itself (tracked in ADR 0002, still Platform's to build).
+
 ## Tests
 
 ```bash

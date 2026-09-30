@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
-from . import metrics, scheduler, tracing
+from . import metrics, scheduler, spans, tracing
 from .db import init_db
 from .routers import catalog, commission, internal, sales
 
@@ -59,6 +59,23 @@ async def record_http_metrics(request: Request, call_next):
     route_path = route.path if route is not None else "unmatched"
     metrics.record_request(route_path, response.status_code, duration)
     response.headers["X-Trace-Id"] = trace_id
+    request_span = tracing.current_request_span()
+    if request_span is not None and route_path not in _UNLOGGED_ROUTES:
+        spans.record(
+            trace_id=trace_id,
+            span_id=request_span.span_id,
+            parent_span_id=request_span.parent_span_id,
+            name=f"{request.method} {route_path}",
+            kind=spans.SERVER,
+            start_ns=request_span.start_ns,
+            end_ns=spans.now_ns(),
+            attributes={
+                "http.method": request.method,
+                "http.route": route_path,
+                "http.status_code": response.status_code,
+            },
+            error=response.status_code >= 500,
+        )
     if route_path not in _UNLOGGED_ROUTES:
         # Same shape as Payments' request line (ADR 0009 section 5): the route template, never
         # the resolved path, and no body, phone number or tenant data.

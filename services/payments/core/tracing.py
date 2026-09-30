@@ -17,17 +17,34 @@ would let two concurrent requests stomp on each other's trace id.
 from __future__ import annotations
 
 import re
-import secrets
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass
+
+from core import spans
 
 _TRACE_ID_RE = re.compile(r"^[0-9a-f]{32}$")
+_SPAN_ID_RE = re.compile(r"^[0-9a-f]{16}$")
 _current: ContextVar[str] = ContextVar("trace_id", default="")
 
 
+@dataclass(frozen=True)
+class RequestSpan:
+    """The request's own span (core/spans.py): what state changes hang under in X-Ray."""
+
+    trace_id: str
+    span_id: str
+    parent_span_id: str | None
+    start_ns: int
+
+
+_request_span: ContextVar[RequestSpan | None] = ContextVar("request_span", default=None)
+
+
 def new_trace_id() -> str:
-    return secrets.token_hex(16)
+    """Time-based, so X-Ray accepts it (core/spans.py)."""
+    return spans.new_trace_id()
 
 
 def trace_id_from_traceparent(header_value: str | None) -> str | None:
@@ -46,6 +63,18 @@ def trace_id_from_traceparent(header_value: str | None) -> str | None:
     return trace_id
 
 
+def parent_span_id_from_traceparent(header_value: str | None) -> str | None:
+    """The caller's span id, so this request's span nests under it (POS's call to Payments)."""
+    parts = (header_value or "").strip().lower().split("-")
+    if len(parts) != 4 or not _SPAN_ID_RE.match(parts[2]) or parts[2] == "0" * 16:
+        return None
+    return parts[2]
+
+
+def current_request_span() -> RequestSpan | None:
+    return _request_span.get()
+
+
 def current_trace_id() -> str:
     """Empty string outside of trace_context (e.g. a unit test calling a
     service method directly) — never raises, since a missing trace id
@@ -55,9 +84,13 @@ def current_trace_id() -> str:
 
 @contextmanager
 def trace_context(traceparent_header: str | None) -> Iterator[str]:
-    trace_id = trace_id_from_traceparent(traceparent_header) or new_trace_id()
+    adopted = trace_id_from_traceparent(traceparent_header)
+    trace_id = adopted or new_trace_id()
+    parent = parent_span_id_from_traceparent(traceparent_header) if adopted else None
     token = _current.set(trace_id)
+    span_token = _request_span.set(RequestSpan(trace_id, spans.new_span_id(), parent, spans.now_ns()))
     try:
         yield trace_id
     finally:
+        _request_span.reset(span_token)
         _current.reset(token)

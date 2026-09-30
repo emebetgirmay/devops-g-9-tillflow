@@ -4,7 +4,8 @@ ADR 0004: only the deployed sandbox adapter may talk to Daraja. core/daraja_sand
 adapter: it may import urllib.request and nothing else on the ban list, and its base URL and
 credentials come from the environment, so the content scan still covers it. The content scan skips
 this file and the tests, which hold the patterns. reconcile.py may call the operator-supplied
-service URL, so it is exempt from the import ban only.
+service URL, so it is exempt from the import ban only. core/spans.py may import urllib.request to
+send spans to the task's own ADOT sidecar, and refuses any endpoint that is not loopback.
 """
 
 from __future__ import annotations
@@ -32,6 +33,8 @@ BANNED_IMPORTS = {
 IMPORT_BAN_EXEMPT = {"reconcile.py"}
 ADAPTER_FILE = "daraja_sandbox.py"
 ADAPTER_ALLOWED_IMPORTS = {"urllib.request"}
+SPAN_EXPORTER_FILE = "spans.py"
+SPAN_EXPORTER_ALLOWED_IMPORTS = {"urllib.request"}
 
 PATTERNS = [
     re.compile(r"https?://[^\s\"']*(safaricom|daraja)", re.IGNORECASE),
@@ -85,6 +88,8 @@ class NoOutboundGuardTest(unittest.TestCase):
             found = banned_imports_in(path.read_text())
             if path.name == ADAPTER_FILE:
                 found = [n for n in found if n not in ADAPTER_ALLOWED_IMPORTS]
+            if path.name == SPAN_EXPORTER_FILE:
+                found = [n for n in found if n not in SPAN_EXPORTER_ALLOWED_IMPORTS]
             with self.subTest(file=str(path.relative_to(SERVICE_DIR))):
                 self.assertEqual(found, [])
 

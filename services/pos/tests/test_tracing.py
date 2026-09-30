@@ -52,7 +52,7 @@ def test_payments_client_sends_the_trace_id(monkeypatch) -> None:
 
         def _reply(self, headers):
             sent.append(dict(headers or {}))
-            return type("R", (), {"raise_for_status": lambda s: None, "json": lambda s: {}})()
+            return type("R", (), {"status_code": 200, "raise_for_status": lambda s: None, "json": lambda s: {}})()
 
         def post(self, url, json=None, headers=None):
             return self._reply(headers)

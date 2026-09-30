@@ -17,7 +17,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from core import jsonlog, metrics, tracing
+from core import jsonlog, metrics, spans, tracing
 from core.states import check_transition
 
 SCHEMA = """
@@ -316,6 +316,7 @@ class Store:
             state=target.value,
             origin_trace_id=origin if origin != trace_id else None,
         )
+        _transition_spans(kind, record_id, current.value, target.value, origin)
 
     @staticmethod
     def ledger(
@@ -411,3 +412,21 @@ class Store:
             " updated_at = excluded.updated_at",
             (name, int(value), reason, now),
         )
+
+
+def _transition_spans(kind: str, record_id: str, current: str, target: str, origin: str | None) -> None:
+    """X-Ray (core/spans.py): the state change under this request's span and, when a callback,
+    sweep or reconcile moves a record another request created, a span in that request's trace
+    too, so the sale's waterfall shows its payment settling."""
+    request = tracing.current_request_span()
+    if request is None:
+        return
+    now = spans.now_ns()
+    name = f"{kind} {current} to {target}"  # X-Ray drops ">" from names
+    attributes = {"tillflow.record_kind": kind, "tillflow.record_id": record_id, "tillflow.state": target}
+    spans.record(trace_id=request.trace_id, span_id=spans.new_span_id(), parent_span_id=request.span_id,
+                 name=name, kind=spans.INTERNAL, start_ns=now, end_ns=now, attributes=attributes)
+    if origin and origin != request.trace_id:
+        spans.record(trace_id=origin, span_id=spans.new_span_id(), name=f"payments: {name}",
+                     kind=spans.SERVER, start_ns=request.start_ns, end_ns=now,
+                     attributes={**attributes, "tillflow.via_trace_id": request.trace_id})

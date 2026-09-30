@@ -22,7 +22,7 @@ if _SHARED.is_dir():  # repo layout; in the image the mpesa package sits next to
 
 from mpesa import FakeAdapter, ManualClock
 
-from core import jsonlog, metrics, tracing
+from core import jsonlog, metrics, spans, tracing
 from core.common import Reply
 from core.config import ConfigError, Settings, SystemClock
 from core.daraja_sandbox import DarajaSandboxAdapter
@@ -131,6 +131,19 @@ class App:
                 metrics.http_requests_total.inc(route, status_class)
                 metrics.http_request_duration_seconds.observe(timer.elapsed, route)
             reply.headers.setdefault("X-Trace-Id", trace_id)
+            request_span = tracing.current_request_span()
+            if request_span is not None and route not in _EXCLUDED_ROUTES:
+                spans.record(
+                    trace_id=trace_id,
+                    span_id=request_span.span_id,
+                    parent_span_id=request_span.parent_span_id,
+                    name=f"{method} {route}",
+                    kind=spans.SERVER,
+                    start_ns=request_span.start_ns,
+                    end_ns=spans.now_ns(),
+                    attributes={"http.method": method, "http.route": route, "http.status_code": reply.status},
+                    error=reply.status >= 500,
+                )
             jsonlog.log_line(
                 level="INFO",
                 service="payments",

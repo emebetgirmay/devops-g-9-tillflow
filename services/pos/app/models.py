@@ -80,7 +80,11 @@ class Sale(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     total_minor: Mapped[int] = mapped_column(Integer, nullable=False)
-    payment_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    # Payments' opaque id, not POS's own (String(36) elsewhere is POS's UUID4 length) — widened
+    # so POS never has an opinion on how long Payments' id format is. SQLite never enforced
+    # varchar length at all, so a too-narrow column here was invisible until tested against a
+    # real database (services/pos/tests/conftest.py's Postgres path, ADR 0002).
+    payment_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -116,7 +120,7 @@ class PaymentEvent(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_id)
     event_id: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
     sale_id: Mapped[str] = mapped_column(String(36), ForeignKey("sales.id"), nullable=False, index=True)
-    payment_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    payment_id: Mapped[str] = mapped_column(String(64), nullable=False)  # Payments' id, see Sale.payment_id
     status: Mapped[str] = mapped_column(String(20), nullable=False)
     amount_minor: Mapped[int] = mapped_column(Integer, nullable=False)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

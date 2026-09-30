@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import uuid
 
 import pytest
@@ -40,7 +41,9 @@ class FakePaymentsClient:
 
     def request_payment(self, **kwargs) -> dict:
         self.calls.append(kwargs)
-        payment_id = f"pay-{uuid.uuid4()}"
+        # services/payments/core's real format: "pay_" + 32 hex chars, no dashes -- match it here
+        # rather than uuid4()'s default 36-char-with-dashes form, which is a different length.
+        payment_id = f"pay_{uuid.uuid4().hex}"
         self._payments[payment_id] = {
             "payment_id": payment_id,
             "state": "PENDING",
@@ -69,13 +72,24 @@ def session_factory() -> sessionmaker:
     """The exact sessionmaker the `client` fixture's DB override uses —
     exposed separately so a test can also drive app.scheduler.run_once
     against the same in-memory database the API calls populated.
+
+    Defaults to an isolated in-memory SQLite database, same as always. Set
+    TEST_DATABASE_URL to run this exact suite against a real Postgres
+    instead (CI's pos-tests job does this against a postgres:16 service
+    container) — the whole point being that ADR 0002's RDS move needs no
+    code change POS's own tests haven't already exercised. A real database
+    is shared across the whole test run, unlike a fresh in-memory SQLite
+    engine per test, so drop_all+create_all here gives every test the same
+    clean-slate isolation it already had.
     """
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-        future=True,
-    )
+    url = os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")
+    if url.startswith("sqlite"):
+        engine = create_engine(
+            url, connect_args={"check_same_thread": False}, poolclass=StaticPool, future=True
+        )
+    else:
+        engine = create_engine(url, future=True)
+        Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     return sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 

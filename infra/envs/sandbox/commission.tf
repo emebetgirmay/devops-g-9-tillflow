@@ -14,7 +14,7 @@
 variable "commission_schedules_enabled" {
   description = "Turn the close and disburse schedules on (after the first Commission release)."
   type        = bool
-  default     = false
+  default     = true # first release #84; sandbox tenant seeded 2026-10-01
 }
 
 variable "commission_check_enabled" {
@@ -26,7 +26,9 @@ variable "commission_check_enabled" {
 variable "commission_tenant_ids" {
   description = "Tenants close.py closes each day, comma-separated (ADR decision: task environment, not a POS endpoint, until onboarding is dynamic)."
   type        = string
-  default     = ""
+  # "Demo Duka (sandbox)", seeded 2026-10-01 after the G5 rebuild emptied the database: one till,
+  # one attendant, one PAID sale, so the first close and disburse have real work.
+  default = "b2fdf478-fab7-47f9-99ff-01c97ca3cb5e"
 }
 
 locals {

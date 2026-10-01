@@ -150,6 +150,9 @@ data "archive_file" "slack_notifier" {
   type        = "zip"
   source_file = "${path.module}/lambda/slack_notifier/index.py"
   output_path = "${path.module}/.build/slack_notifier.zip"
+  # Same bytes on a laptop (umask 0002) and in CI (0022): a rebuild from a laptop must not
+  # leave every Lambda looking changed to the next CI plan.
+  output_file_mode = "0644"
 }
 
 resource "aws_lambda_function" "slack_notifier" {

@@ -48,6 +48,13 @@ request (Payments stores the creating span with the payment).
 
 ## 5. Recover: the drills (4 min) · Emebet, Joy, Alice
 
+**Lead with the drills that failed first** (the trainer's advice): three found real defects and were
+re-run to prove the fix, rather than reported as caveats. The restore drill found a runbook command
+that could not run; killing a task found an alarm blind to a total outage (re-run: paged in 3
+minutes); the database reboot found Payments waiting 30 s instead of failing fast (re-run: one fast
+error, no hanging request). And the k6 soak found 110 silent 502s that no alarm could see.
+
+
 | Drill | Number to say |
 |---|---|
 | Restore RDS to a point in time | **RPO 2 min 36 s, RTO 18 min 44 s**; found a runbook command that could not run |
@@ -71,13 +78,33 @@ Evidence: [`g4-g5-evidence.md`](../evidence/g4-g5-evidence.md).
 - Cost: **about $151 a month**; the biggest lines are metrics and the NAT gateway. A forgotten lab
   stack in the same region cost more than TillFlow; we found it from the bill.
 
-## 7. What is not done, said first (1 min) · Emebet
+## 7. The one unmet requirement, said first (2 min) · Joy, then Emebet
 
-- Callbacks are handled synchronously, with the scheduled reconcile as the safety net; SQS with a
-  DLQ is the agreed next step (ADR 0009 question 5).
-- Commission's schedules switch on once `disburse.py --check` lands and a sandbox tenant exists.
-- Single-AZ database: RTO is 18 minutes; Multi-AZ would cut it to a failover of a minute or two for
-  about $12 a month more.
+**Say it before anyone asks.** The brief's data services are RDS, a cache, and a queue with a DLQ.
+RDS is built and drilled. **The queue and the cache are designed, not built.** Then, in this order:
+
+**Queue (Joy): the design, then the safety net that covers the gap today.**
+- *Design (agreed, ADR 0009 question 5):* Payments puts every provider callback (STK and B2C results)
+  on one standard SQS queue, `devops-g9-payments-callbacks`, answers the provider at once, and applies
+  it from the queue; after 5 failed receives a message moves to `devops-g9-payments-callbacks-dlq`,
+  and **any** message there pages (an alarm on the DLQ's visible messages). Redrive is a runbook step.
+- *Why it is safe without it today:* a callback is applied in one transaction, idempotently (unique
+  provider reference, compare-and-swap on the state), so a retry or replay changes nothing (G4 drill).
+  A callback that is lost or fails is **not** lost money: the scheduled reconcile (every 5 minutes)
+  asks the provider for every payment and payout not yet terminal, and `payments-reconcile-stale`
+  pages if that stops (it did, for real, in G3). What the queue adds is speed and visibility, not
+  correctness.
+
+**Cache (Emebet): why none, and what the first one would be.**
+- No path needs one at our load: 36.7 req/s at p95 154 ms straight from RDS (k6), and the money paths
+  must never be answered from a cache; idempotency and locks stay in PostgreSQL (ADR 0006 rejected a
+  Redis lock for that reason).
+- First candidate if load grows: POS catalogue reads (products and prices), cache-aside on the
+  smallest ElastiCache Valkey node with a short TTL, invalidated on write.
+
+Then the other open items, one line each:
+- Single-AZ database: RTO 18 min 44 s; Multi-AZ would make it a failover of a minute or two for about
+  $12 a month more.
 - No web UI; the POS API is the product surface.
 
 ## Questions to expect
@@ -90,4 +117,5 @@ Evidence: [`g4-g5-evidence.md`](../evidence/g4-g5-evidence.md).
 | Why one database with schemas, not three? | Cost and operations for a sandbox; isolation by role and schema, tested (a role cannot read another schema) | Emebet |
 | What pages someone at night? | Fast burn (14.4x over 5 min), service down 2 min, probe down, critical money anomaly | Emebet |
 | How would you scale Payments? | Now that state is in RDS, more tasks behind the ALB; CPU alarm at 70% is the signal | Emebet |
+| Where is the queue and the cache? | Lead with section 7: designed, not built; the reconcile and idempotent callbacks are why it is safe | Joy, Emebet |
 | What would you do next? | SQS for callbacks, Multi-AZ for production, a custom domain so the URL survives a rebuild | All |

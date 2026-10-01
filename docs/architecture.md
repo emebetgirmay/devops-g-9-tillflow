@@ -1,6 +1,30 @@
 # Architecture — TillFlow (devops-g9)
 
-**Gate:** G0 · **Status:** draft for Decide · **Region ADR:** `docs/adrs/0001-aws-region.md`
+**Gate:** G0 design, with the as-built state below (G5) · **Region ADR:** `docs/adrs/0001-aws-region.md`
+
+## As built (G5, 2026-10-01)
+
+This page is the G0 design. What runs today, and where it differs:
+
+```
+internet → API Gateway (HTTP API) → VPC link → internal ALB → ECS Fargate, private subnets, 2 AZs
+                                                 ├─ POS        (service, + ADOT sidecar)
+                                                 ├─ Payments   (service, + ADOT sidecar) ←→ Daraja sandbox / FakeAdapter
+                                                 └─ Commission (scheduled one-off tasks, EventBridge Scheduler)
+                                                        │
+                                   RDS PostgreSQL 16 (one schema and role per service) · Secrets Manager
+                                   CloudWatch + X-Ray → Grafana Cloud · SNS → Lambda → Slack
+```
+
+| G0 design | As built | Why |
+|---|---|---|
+| RDS PostgreSQL, per-service schemas and roles | **Built** (ADR 0002), single-AZ, drilled (restore RPO 2 min 36 s, RTO 18 min 44 s) | |
+| SQS + DLQ | **Not built.** Design agreed for provider callbacks (ADR 0009 question 5) | Callbacks are applied idempotently in one transaction and the scheduled reconcile settles anything lost; the queue adds speed and visibility, not correctness ([viva walkthrough](viva-walkthrough.md) section 7) |
+| Redis/Valkey cache-aside | **Not built** | No read path needs it at the measured load (36.7 req/s, p95 154 ms from RDS); money paths never read from a cache, and ADR 0006 rejected a Redis lock. First candidate: POS catalogue reads |
+| Web UI service | **Not built** | The POS API is the product surface (ADR 0010) |
+| CodePipeline lane | **Not used** | GitHub Actions does build, scan, SBOM, gated apply, deploy, smoke and rollback |
+| S3 for artifacts, ALB logs, backups | Terraform state only | Backups are RDS's own; build artifacts and SBOMs are GitHub Actions artifacts |
+| Secrets `devops-g9/db` | `devops-g9/db/<service>`, one per service, plus the RDS-managed master | Least privilege: each task reads only its own |
 
 ## Context
 

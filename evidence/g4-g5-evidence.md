@@ -37,6 +37,7 @@ use the FakeAdapter only.
 |---|---|---|
 | Commission schedules switched on | Infrastructure and release live; `disburse.py --check` is built (it prints `{"event": "payouts_not_terminal", "count": N}`); waits for a sandbox tenant id (the rebuild emptied the database) | `@chesangJ`, `@Moraaalice`, then `@emebetgirmay` |
 | Callbacks on SQS with a DLQ, and G4 scenario 4 (poisoned callback) | **Not built, and not before the viva.** Callbacks are handled synchronously; the scheduled reconcile is the safety net for a lost one (ADR 0009 question 5). Design agreed: one standard queue `devops-g9-payments-callbacks` for STK and B2C results, redrive to `devops-g9-payments-callbacks-dlq` after 5 receives, alarm on any DLQ message | `@chesangJ` (code), `@emebetgirmay` (queue, alarm) |
+| Cache (the brief's data services: RDS, cache, queue with DLQ) | **Not built.** No read path needs one at the measured load (k6: 36.7 req/s, p95 154 ms from RDS) and money paths never read from a cache; first candidate is POS catalogue reads, cache-aside on the smallest ElastiCache Valkey node ([architecture, as built](../docs/architecture.md)) | `@emebetgirmay` |
 
 ## Sign-off
 
@@ -44,6 +45,6 @@ Each person signs their own row after reading this page and the evidence for the
 
 | Name | Role | G4 signed | G5 signed |
 |---|---|---|---|
-| Emebet Girmay (`@emebetgirmay`) | Platform + delivery; Reliability + operations | | |
+| Emebet Girmay (`@emebetgirmay`) | Platform + delivery; Reliability + operations | 2026-10-01 | 2026-10-01 |
 | Mitingi Joy Chesang (`@chesangJ`) | Payments + integrity | | |
 | Alice Moraa (`@Moraaalice`) | Product + POS | | |

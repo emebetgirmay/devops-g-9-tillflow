@@ -7,6 +7,8 @@
 #   3. aws ecs stop-task on the running Payments task; ECS starts a replacement.
 #   4. After the service is stable again: both payments read back unchanged, and the same
 #      Idempotency-Key replays the original payment instead of creating a second one.
+#   5. It leaves the pending payment UNKNOWN for good (the FakeAdapter's memory dies with the task)
+#      and says so at the end: clear it afterwards, or payments-payment-unknown-too-long stays on.
 #
 #   timeline.json   stop, first failed read, first good read, service stable (UTC)
 #   checks.json     pass/fail per check; the script exits 1 if any fails
@@ -140,5 +142,12 @@ print(json.dumps(timeline, indent=2))
 for name, ok in checks.items():
     print(f"{'PASS' if ok else 'FAIL'}  {name}")
 print(f"alarms in window: {len(alarms)} (re-run collection later: payments-down needs 2 minutes to fire)")
+# The pending payment cannot settle: the FakeAdapter keeps its "provider" in the killed task's
+# memory, so it stays UNKNOWN and payments-payment-unknown-too-long fires after 10 minutes (as it
+# should). Clear it once the evidence is collected (scar log, 2026-10-01).
+if after["pending"].get("state") in ("PENDING", "UNKNOWN"):
+    print(f"\nLEFT IN FLIGHT: {after['pending'].get('payment_id')} ({after['pending'].get('state')}). "
+          "Move it UNKNOWN -> EXPIRED with an anomaly row once the drill is written up "
+          "(see docs/scar-log.md, 2026-10-01), or the unknown-too-long alarm stays on.")
 sys.exit(0 if all(checks.values()) else 1)
 PY

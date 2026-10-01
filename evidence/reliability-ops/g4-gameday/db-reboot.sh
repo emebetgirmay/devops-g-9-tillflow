@@ -10,6 +10,8 @@
 #   3. aws rds reboot-db-instance; wait until available; keep probing until both have answered
 #      200 for 60 s in a row (or 15 minutes pass).
 #   4. Compare the tasks (replaced or not, and why), the invariants, alarm history, RDS events.
+#   5. It leaves its probe payment unsettled and says so at the end: clear it afterwards, or
+#      payments-payment-unknown-too-long comes on once the FakeAdapter forgets it.
 #
 #   db-reboot-probes.json, db-reboot-timeline.json, db-reboot-checks.json, db-reboot-alarms.json
 #
@@ -152,5 +154,10 @@ print("tasks replaced:", json.dumps(replaced, default=str))
 print("alarms:", len(alarms))
 for name, ok in checks.items():
     print(f"{'PASS' if ok else 'FAIL'}  {name}")
+# The probe payment is never settled (no callback is delivered), and the FakeAdapter forgets it at
+# the next Payments deploy: it ends UNKNOWN and payments-payment-unknown-too-long fires. Clear it
+# once the evidence is collected (scar log, 2026-10-01).
+print(f"\nLEFT IN FLIGHT: {pay['payment_id']}. Move it UNKNOWN -> EXPIRED with an anomaly row once the "
+      "drill is written up (see docs/scar-log.md, 2026-10-01), or the unknown-too-long alarm comes on.")
 sys.exit(0 if all(checks.values()) else 1)
 PY

@@ -47,4 +47,4 @@ Each person signs their own row after reading this page and the evidence for the
 |---|---|---|---|
 | Emebet Girmay (`@emebetgirmay`) | Platform + delivery; Reliability + operations | 2026-10-01 | 2026-10-01 |
 | Mitingi Joy Chesang (`@chesangJ`) | Payments + integrity | | |
-| Alice Moraa (`@Moraaalice`) | Product + POS | | |
+| Alice Moraa (`@Moraaalice`) | Product + POS | 2026-10-01 | 2026-10-01 |

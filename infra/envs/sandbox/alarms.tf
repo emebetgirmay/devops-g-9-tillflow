@@ -107,6 +107,9 @@ data "archive_file" "probe" {
   type        = "zip"
   source_file = "${path.module}/lambda/probe/index.py"
   output_path = "${path.module}/.build/probe.zip"
+  # Same bytes on a laptop (umask 0002) and in CI (0022): a rebuild from a laptop must not
+  # leave every Lambda looking changed to the next CI plan.
+  output_file_mode = "0644"
 }
 
 resource "aws_lambda_function" "probe" {

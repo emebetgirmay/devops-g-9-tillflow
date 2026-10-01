@@ -1,9 +1,11 @@
-"""SQLite storage, constraints and the shared helpers (ADR 0006 consequences, ADR 0002 later).
+"""Storage, constraints and the shared helpers (ADR 0006 consequences, ADR 0002).
 
 Uniqueness that protects money lives in the schema, not only in code: the idempotency key primary
 key, the unique provider references and receipts, the unique ledger entry per provider reference,
 the unique outbox event per record, and the partial unique indexes that allow one live payment per
-sale and one live disbursement per payout. Postgres arrives with RDS; until then this is sqlite.
+sale and one live disbursement per payout. Deployed on RDS PostgreSQL (schema `payments`); SQLite
+for local runs and unit tests. core/db.py hides the difference, and the invariants are proven on
+both (evidence/payments-integrity/postgres/).
 """
 
 from __future__ import annotations

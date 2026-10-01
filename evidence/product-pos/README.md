@@ -19,13 +19,15 @@ DRI: Alice Moraa (`@Moraaalice`)
   (`test_payment_events.py` — one legal transition, one ledger effect), amount-mismatch
   rejection. `pytest --cov=app` at 93% line coverage (floor is 70%).
 - [x] End-to-end sale demo against deployed sandbox (Sale -> STK callback -> paid). Run for real
-  against the live API Gateway URL, most recently on 2026-09-30: `sale-demo-create.json` (sale
-  created, `READY_FOR_PAYMENT`) -> `sale-demo-payment-request.json` (STK requested) ->
-  `sale-demo-fake-deliver.json` (Payments' deterministic fake STK callback, standing in for
-  Daraja) -> `sale-demo-reconcile-1.json` (`PAID` on the first poll) -> `sale-demo-final.json`.
-  `sale-demo-reconcile-replay.json` proves a repeat reconcile is a no-op (`applied: false`). (First
-  run for record was 2026-09-29; re-run 2026-09-30 while verifying the G3 sign-off below —
-  each run overwrites these files with its own sale, so the evidence always reflects the latest.)
+  against the live API Gateway URL, most recently on 2026-10-01 (post G5 destroy/rebuild, against
+  the new URL): `sale-demo-create.json` (sale created, `READY_FOR_PAYMENT`) ->
+  `sale-demo-payment-request.json` (STK requested) -> `sale-demo-fake-deliver.json` (Payments'
+  deterministic fake STK callback, standing in for Daraja) -> `sale-demo-reconcile-1.json` (`PAID`
+  on the first poll) -> `sale-demo-final.json`. `sale-demo-reconcile-replay.json` proves a repeat
+  reconcile is a no-op (`applied: false`). (First run for record was 2026-09-29, re-run twice
+  since — each run overwrites these files with its own sale, so the evidence always reflects the
+  latest. The 2026-10-01 run also seeded the tenant Commission's schedules needed post-rebuild,
+  switched on in #93.)
 
 ## G3 — Operate
 
